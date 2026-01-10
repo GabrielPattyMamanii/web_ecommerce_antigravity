@@ -1,23 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Star } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { ProductCard } from '../../components/products/ProductCard';
+import { Sparkle } from '../../components/ui/Sparkle';
 import { supabase } from '../../lib/supabase';
 
 export function Home() {
-    const [featuredProducts, setFeaturedProducts] = useState([]);
+    const [newArrivals, setNewArrivals] = useState([]);
+    const [topSelling, setTopSelling] = useState([]);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchFeaturedProducts();
+        fetchProducts();
     }, []);
 
-    const fetchFeaturedProducts = async () => {
+    const fetchProducts = async () => {
         try {
             const { data } = await supabase
                 .from('products')
                 .select('*, categories(name)')
-                .limit(4);
+                .limit(8);
 
             if (data) {
                 const mappedProducts = data.map(p => ({
@@ -25,56 +28,140 @@ export function Home() {
                     category: p.categories?.name || 'Uncategorized',
                     image: p.images?.[0] || 'https://via.placeholder.com/300'
                 }));
-                setFeaturedProducts(mappedProducts);
+
+                // Split products for different sections
+                setNewArrivals(mappedProducts.slice(0, 4));
+                setTopSelling(mappedProducts.slice(4, 8));
             }
         } catch (error) {
-            console.error('Error fetching featured products:', error);
+            console.error('Error fetching products:', error);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="flex flex-col min-h-screen">
+        <div className="flex flex-col">
             {/* Hero Section */}
-            <section className="relative bg-gray-900 text-white py-24 px-6 md:px-12 text-center overflow-hidden">
-                <div className="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=1600&q=80')] bg-cover bg-center opacity-30"></div>
-                <div className="relative z-10 max-w-3xl mx-auto">
-                    <h1 className="text-4xl md:text-6xl font-bold mb-6">Descubre la Calidad Premium</h1>
-                    <p className="text-lg md:text-xl mb-8 text-gray-200">
-                        Explora nuestra colección exclusiva de productos seleccionados para ti.
-                    </p>
-                    <Link to="/catalog">
-                        <Button size="lg" className="text-lg px-8">
-                            Ver Catálogo
-                        </Button>
-                    </Link>
+            <section className="relative bg-gray-100 overflow-hidden">
+                <div className="container mx-auto px-4 md:px-16">
+                    <div className="grid lg:grid-cols-2 gap-8 items-center py-12 lg:py-20">
+                        {/* Left Content */}
+                        <div className="relative z-10">
+                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
+                                ENCUENTRA ROPA<br />
+                                QUE COMBINE<br />
+                                CON TU ESTILO
+                            </h1>
+                            <p className="text-gray-600 text-base mb-8 max-w-lg">
+                                Explora nuestra diversa gama de prendas meticulosamente elaboradas, diseñadas
+                                para resaltar tu individualidad y satisfacer tu sentido del estilo.
+                            </p>
+                            <Link to="/catalog">
+                                <Button size="lg" className="px-16">
+                                    Comprar Ahora
+                                </Button>
+                            </Link>
+
+                            {/* Stats */}
+                            <div className="grid grid-cols-3 gap-4 mt-12">
+                                <div>
+                                    <p className="text-3xl md:text-4xl font-bold">200+</p>
+                                    <p className="text-sm text-gray-600">Marcas Internacionales</p>
+                                </div>
+                                <div className="border-l border-gray-300 pl-4">
+                                    <p className="text-3xl md:text-4xl font-bold">2,000+</p>
+                                    <p className="text-sm text-gray-600">Productos de Alta Calidad</p>
+                                </div>
+                                <div className="border-l border-gray-300 pl-4">
+                                    <p className="text-3xl md:text-4xl font-bold">30,000+</p>
+                                    <p className="text-sm text-gray-600">Clientes Felices</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Image */}
+                        <div className="relative">
+                            <img
+                                src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80"
+                                alt="Fashion models"
+                                className="w-full h-auto object-cover rounded-lg"
+                            />
+                            {/* Decorative Sparkles */}
+                            <Sparkle className="absolute top-12 right-8 text-black" size="lg" />
+                            <Sparkle className="absolute top-32 left-4 text-black" size="sm" />
+                        </div>
+                    </div>
                 </div>
             </section>
 
-            {/* Featured Products */}
-            <section className="py-16 px-4 md:px-8 bg-background">
-                <div className="container mx-auto">
-                    <h2 className="text-3xl font-bold text-center mb-12">Productos Destacados</h2>
+            {/* Brand Logos Section */}
+            <section className="bg-black py-10">
+                <div className="container mx-auto px-4 md:px-16">
+                    <div className="flex flex-wrap justify-center items-center gap-8 md:gap-16">
+                        <span className="text-white text-3xl md:text-4xl font-bold">VERSACE</span>
+                        <span className="text-white text-3xl md:text-4xl font-bold">ZARA</span>
+                        <span className="text-white text-3xl md:text-4xl font-bold">GUCCI</span>
+                        <span className="text-white text-3xl md:text-4xl font-bold">PRADA</span>
+                        <span className="text-white text-3xl md:text-4xl font-bold">Calvin Klein</span>
+                    </div>
+                </div>
+            </section>
+
+            {/* New Arrivals */}
+            <section className="py-16">
+                <div className="container mx-auto px-4 md:px-16">
+                    <h2 className="text-3xl md:text-5xl font-extrabold text-center mb-12">NUEVOS INGRESOS</h2>
 
                     {loading ? (
-                        <div className="text-center py-12">Cargando destacados...</div>
-                    ) : featuredProducts.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                            {featuredProducts.map((product) => (
+                        <div className="text-center py-12">Loading products...</div>
+                    ) : newArrivals.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {newArrivals.map((product) => (
                                 <ProductCard key={product.id} product={product} />
                             ))}
                         </div>
                     ) : (
-                        <div className="text-center py-12 text-muted-foreground">
-                            No hay productos destacados por el momento.
+                        <div className="text-center py-12 text-gray-500">
+                            No products available yet.
                         </div>
                     )}
 
                     <div className="text-center mt-12">
                         <Link to="/catalog">
-                            <Button variant="outline" size="lg">
-                                Ver Todos los Productos
+                            <Button variant="outline" size="lg" className="px-16">
+                                View All
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+            </section>
+
+            <hr className="container mx-auto" />
+
+            {/* Top Selling */}
+            <section className="py-16">
+                <div className="container mx-auto px-4 md:px-16">
+                    <h2 className="text-3xl md:text-5xl font-extrabold text-center mb-12">MÁS VENDIDOS</h2>
+
+                    {loading ? (
+                        <div className="text-center py-12">Loading products...</div>
+                    ) : topSelling.length > 0 ? (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                            {topSelling.map((product) => (
+                                <ProductCard key={product.id} product={product} />
+                            ))}
+                        </div>
+                    ) : (
+                        <div className="text-center py-12 text-gray-500">
+                            No products available yet.
+                        </div>
+                    )}
+
+                    <div className="text-center mt-12">
+                        <Link to="/catalog">
+                            <Button variant="outline" size="lg" className="px-16">
+                                View All
                             </Button>
                         </Link>
                     </div>
