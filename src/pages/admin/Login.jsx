@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { X, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -11,6 +12,7 @@ export function Login() {
     const { register, handleSubmit, formState: { errors } } = useForm();
     const [loading, setLoading] = useState(false);
     const [authError, setAuthError] = useState(null);
+    const [showPassword, setShowPassword] = useState(false);
 
     const onSubmit = async (data) => {
         setLoading(true);
@@ -31,8 +33,15 @@ export function Login() {
 
     return (
         <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4">
-            <Card className="w-full max-w-md">
-                <CardHeader className="text-center">
+            <Card className="w-full max-w-md relative">
+                <button
+                    onClick={() => navigate('/')}
+                    className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                    <X className="h-6 w-6" />
+                </button>
+
+                <CardHeader className="text-center pt-10">
                     <CardTitle className="text-2xl">Admin Login</CardTitle>
                 </CardHeader>
                 <CardContent>
@@ -55,11 +64,21 @@ export function Login() {
 
                         <div>
                             <label className="block text-sm font-medium mb-1">Password</label>
-                            <Input
-                                type="password"
-                                {...register('password', { required: 'Password es requerido' })}
-                                placeholder="••••••••"
-                            />
+                            <div className="relative">
+                                <Input
+                                    type={showPassword ? "text" : "password"}
+                                    {...register('password', { required: 'Password es requerido' })}
+                                    placeholder="••••••••"
+                                    className="pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                                >
+                                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                                </button>
+                            </div>
                             {errors.password && <span className="text-red-500 text-xs">{errors.password.message}</span>}
                         </div>
 

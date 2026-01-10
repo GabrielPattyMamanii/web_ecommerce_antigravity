@@ -1,6 +1,7 @@
 import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { AdminLayout } from '../layout/AdminLayout';
 
 export function ProtectedRoute() {
     const { session, loading } = useAuth();
@@ -13,5 +14,7 @@ export function ProtectedRoute() {
         return <Navigate to="/admin/login" replace />;
     }
 
-    return <Outlet />;
+    return (
+        <AdminLayout />
+    );
 }

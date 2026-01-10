@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Plus, Edit, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
@@ -8,11 +8,19 @@ import { Input } from '../../components/ui/Input';
 export function ProductList() {
     const [products, setProducts] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchParams] = useSearchParams();
+    const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
 
     useEffect(() => {
         fetchProducts();
     }, []);
+
+    useEffect(() => {
+        const query = searchParams.get('search');
+        if (query) {
+            setSearchTerm(query);
+        }
+    }, [searchParams]);
 
     const fetchProducts = async () => {
         setLoading(true);
