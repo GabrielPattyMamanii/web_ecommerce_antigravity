@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, SlidersHorizontal, ChevronRight, ChevronDown } from 'lucide-react';
 import { ProductCard } from '../../components/products/ProductCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -7,14 +8,15 @@ import { ColorPicker } from '../../components/ui/ColorPicker';
 import { supabase } from '../../lib/supabase';
 
 export function Catalog() {
-    const [searchTerm, setSearchTerm] = useState('');
+    const [searchParams] = useSearchParams();
+    const [searchTerm, setSearchTerm] = useState(searchParams.get('search') || '');
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
 
     // Filter states
-    const [priceRange, setPriceRange] = useState([50, 200]);
+    const [priceRange, setPriceRange] = useState([0, 500]);
     const [selectedColors, setSelectedColors] = useState([]);
     const [selectedSizes, setSelectedSizes] = useState([]);
     const [selectedStyle, setSelectedStyle] = useState('');
@@ -34,6 +36,14 @@ export function Catalog() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Update search term when URL changes
+    useEffect(() => {
+        const search = searchParams.get('search');
+        if (search) {
+            setSearchTerm(search);
+        }
+    }, [searchParams]);
 
     const fetchData = async () => {
         setLoading(true);
@@ -85,7 +95,7 @@ export function Catalog() {
 
     // Filter products
     const filteredProducts = products.filter((product) => {
-        const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase());
+        const matchesSearch = product.name?.toLowerCase().includes(searchTerm.toLowerCase()) ?? true;
         const matchesCategory = selectedCategory === 'All' || product.category === selectedCategory;
 
         // Price filter (using retail_price)
@@ -102,6 +112,12 @@ export function Catalog() {
 
         return matchesSearch && matchesCategory && matchesPrice && matchesColor && matchesSize;
     });
+
+    // Debug logs
+    console.log('Total products:', products.length);
+    console.log('Filtered products:', filteredProducts.length);
+    console.log('Selected category:', selectedCategory);
+    console.log('Price range:', priceRange);
 
     // Pagination
     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
@@ -191,7 +207,7 @@ export function Catalog() {
                                         <input
                                             type="range"
                                             min="0"
-                                            max="300"
+                                            max="500"
                                             value={priceRange[1]}
                                             onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
                                             className="w-full"
@@ -255,8 +271,8 @@ export function Catalog() {
                                                 key={size}
                                                 onClick={() => handleSizeToggle(size)}
                                                 className={`px-3 py-2 rounded-full text-xs font-medium transition-all ${selectedSizes.includes(size)
-                                                        ? 'bg-black text-white'
-                                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                    ? 'bg-black text-white'
+                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                     }`}
                                             >
                                                 {size}
@@ -336,8 +352,8 @@ export function Catalog() {
                                                 key={i + 1}
                                                 onClick={() => setCurrentPage(i + 1)}
                                                 className={`w-10 h-10 rounded-lg text-sm font-medium transition-colors ${currentPage === i + 1
-                                                        ? 'bg-black text-white'
-                                                        : 'text-gray-700 hover:bg-gray-100'
+                                                    ? 'bg-black text-white'
+                                                    : 'text-gray-700 hover:bg-gray-100'
                                                     }`}
                                             >
                                                 {i + 1}

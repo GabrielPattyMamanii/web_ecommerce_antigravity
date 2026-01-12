@@ -8,14 +8,14 @@ export function Footer() {
             <div className="container mx-auto px-4 md:px-16 py-16">
                 <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-12">
                     {/* Logo and Description */}
-                    <div className="md:col-span-1">
-                        <Link to="/" className="text-2xl font-bold mb-4 block">
+                    <div className="md:col-span-1 text-center md:text-left">
+                        <Link to="/" className="text-2xl font-bold mb-4 inline-block">
                             SHOP.CO
                         </Link>
                         <p className="text-sm text-gray-600 mb-6">
                             Tenemos ropa que se adapta a tu estilo y de la que estás orgulloso de usar. Desde mujeres hasta hombres.
                         </p>
-                        <div className="flex gap-3">
+                        <div className="flex gap-3 justify-center md:justify-start">
                             <a href="#" className="w-10 h-10 bg-white rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors">
                                 <Twitter className="w-5 h-5" />
                             </a>
@@ -78,10 +78,10 @@ export function Footer() {
 
                 {/* Bottom Bar */}
                 <div className="border-t border-gray-300 pt-6 flex flex-col md:flex-row justify-between items-center gap-4">
-                    <p className="text-sm text-gray-600">
+                    <p className="text-sm text-gray-600 text-center md:text-left">
                         Shop.co © 2000-2023, All Rights Reserved
                     </p>
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3 justify-center">
                         <img src="https://upload.wikimedia.org/wikipedia/commons/0/04/Visa.svg" alt="Visa" className="h-8" />
                         <img src="https://upload.wikimedia.org/wikipedia/commons/2/2a/Mastercard-logo.svg" alt="Mastercard" className="h-8" />
                         <img src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg" alt="PayPal" className="h-8" />

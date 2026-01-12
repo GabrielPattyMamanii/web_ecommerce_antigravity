@@ -1,44 +1,78 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ShoppingCart, Menu, X, Search, User, ChevronDown } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ShoppingCart, Menu, X, Search, User, ChevronRight } from 'lucide-react';
 import { useCartStore } from '../../context/cartStore';
-import { Button } from '../ui/Button';
+import { supabase } from '../../lib/supabase';
 
 export function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
+    const [categories, setCategories] = useState([]);
     const cartItemsCount = useCartStore((state) => state.totalItems());
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        fetchCategories();
+    }, []);
+
+    const fetchCategories = async () => {
+        try {
+            const { data } = await supabase.from('categories').select('*');
+            if (data) {
+                setCategories(data);
+            }
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+        }
+    };
+
+    const handleSearch = (e) => {
+        e.preventDefault();
+        if (searchQuery.trim()) {
+            navigate(`/catalog?search=${encodeURIComponent(searchQuery.trim())}`);
+            setSearchQuery('');
+            setIsMenuOpen(false);
+        }
+    };
+
+    const handleCategoryClick = (categoryName) => {
+        navigate(`/catalog?category=${encodeURIComponent(categoryName)}`);
+        setIsMenuOpen(false);
+    };
 
     return (
         <nav className="sticky top-0 z-50 w-full bg-white border-b border-gray-200">
             <div className="container mx-auto px-4 md:px-16">
-                <div className="flex h-20 items-center justify-between">
-                    {/* Logo */}
-                    <Link to="/" className="flex items-center">
+                <div className="flex h-16 lg:h-20 items-center justify-between">
+                    {/* Mobile: Hamburger (left) */}
+                    <button
+                        className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
+                        onClick={() => setIsMenuOpen(!isMenuOpen)}
+                        aria-label="Menu"
+                    >
+                        <Menu className="w-6 h-6" />
+                    </button>
+
+                    {/* Logo - Centered on mobile, left on desktop */}
+                    <Link to="/" className="absolute left-1/2 -translate-x-1/2 lg:relative lg:left-0 lg:translate-x-0">
                         <span className="text-2xl md:text-3xl font-bold">SHOP.CO</span>
                     </Link>
 
                     {/* Desktop Navigation */}
                     <div className="hidden lg:flex items-center space-x-6">
-                        <div className="relative group">
-                            <button className="flex items-center gap-1 text-base font-normal hover:text-gray-600 transition-colors">
-                                Tienda
-                                <ChevronDown className="w-4 h-4" />
-                            </button>
-                        </div>
-                        <Link to="/catalog" className="text-base font-normal hover:text-gray-600 transition-colors">
-                            En Oferta
+                        <Link to="/" className="text-base font-normal hover:text-gray-600 transition-colors">
+                            Inicio
                         </Link>
                         <Link to="/catalog" className="text-base font-normal hover:text-gray-600 transition-colors">
-                            Nuevos Ingresos
+                            Catálogo
                         </Link>
-                        <Link to="/catalog" className="text-base font-normal hover:text-gray-600 transition-colors">
-                            Marcas
+                        <Link to="/contact" className="text-base font-normal hover:text-gray-600 transition-colors">
+                            Contacto
                         </Link>
                     </div>
 
-                    {/* Search Bar - Desktop */}
-                    <div className="hidden lg:flex relative flex-1 max-w-xl mx-8">
+                    {/* Search Bar - Desktop Only */}
+                    <form onSubmit={handleSearch} className="hidden lg:flex relative flex-1 max-w-xl mx-8">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                         <input
                             type="search"
@@ -47,10 +81,10 @@ export function Navbar() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                             className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 transition-all"
                         />
-                    </div>
+                    </form>
 
-                    {/* Icons */}
-                    <div className="flex items-center gap-3">
+                    {/* Icons - Right side */}
+                    <div className="flex items-center gap-2 lg:gap-3">
                         {/* Search Icon - Mobile */}
                         <button className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors">
                             <Search className="w-5 h-5" />
@@ -70,66 +104,110 @@ export function Navbar() {
                         <Link to="/admin/login" className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                             <User className="w-5 h-5" />
                         </Link>
-
-                        {/* Mobile Menu Toggle */}
-                        <button
-                            className="lg:hidden p-2 hover:bg-gray-100 rounded-full transition-colors"
-                            onClick={() => setIsMenuOpen(!isMenuOpen)}
-                        >
-                            {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                        </button>
                     </div>
                 </div>
             </div>
 
-            {/* Mobile Menu */}
+            {/* Mobile Drawer Menu */}
             {isMenuOpen && (
-                <div className="lg:hidden border-t border-gray-200 bg-white">
-                    <div className="container mx-auto px-4 py-4">
-                        {/* Mobile Search */}
-                        <div className="relative mb-4">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                            <input
-                                type="search"
-                                placeholder="Buscar productos..."
-                                className="w-full pl-12 pr-4 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
-                            />
+                <>
+                    {/* Overlay */}
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-50 z-40 lg:hidden"
+                        onClick={() => setIsMenuOpen(false)}
+                    />
+
+                    {/* Drawer */}
+                    <div className="fixed top-0 left-0 h-full w-80 bg-white z-50 shadow-2xl overflow-y-auto lg:hidden animate-slide-in">
+                        {/* Drawer Header */}
+                        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                            <span className="text-xl font-bold">Menú</span>
+                            <button
+                                onClick={() => setIsMenuOpen(false)}
+                                className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
                         </div>
 
-                        {/* Mobile Links */}
-                        <div className="flex flex-col space-y-4">
+                        {/* Search in Drawer */}
+                        <div className="p-4 border-b border-gray-200">
+                            <form onSubmit={handleSearch} className="relative">
+                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                                <input
+                                    type="search"
+                                    placeholder="Buscar productos..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="w-full pl-10 pr-4 py-3 bg-gray-100 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-gray-300"
+                                />
+                            </form>
+                        </div>
+
+                        {/* Main Links */}
+                        <div className="p-4 border-b border-gray-200">
                             <Link
-                                to="/catalog"
-                                className="text-base font-normal hover:text-gray-600 transition-colors"
+                                to="/"
+                                className="flex items-center justify-between py-3 text-base font-medium hover:text-gray-600 transition-colors"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Tienda
+                                Inicio
+                                <ChevronRight className="w-5 h-5" />
                             </Link>
                             <Link
                                 to="/catalog"
-                                className="text-base font-normal hover:text-gray-600 transition-colors"
+                                className="flex items-center justify-between py-3 text-base font-medium hover:text-gray-600 transition-colors"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                En Oferta
+                                Catálogo
+                                <ChevronRight className="w-5 h-5" />
                             </Link>
                             <Link
-                                to="/catalog"
-                                className="text-base font-normal hover:text-gray-600 transition-colors"
+                                to="/contact"
+                                className="flex items-center justify-between py-3 text-base font-medium hover:text-gray-600 transition-colors"
                                 onClick={() => setIsMenuOpen(false)}
                             >
-                                Nuevos Ingresos
-                            </Link>
-                            <Link
-                                to="/catalog"
-                                className="text-base font-normal hover:text-gray-600 transition-colors"
-                                onClick={() => setIsMenuOpen(false)}
-                            >
-                                Marcas
+                                Contacto
+                                <ChevronRight className="w-5 h-5" />
                             </Link>
                         </div>
+
+                        {/* Categories */}
+                        <div className="p-4">
+                            <h3 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
+                                Categorías
+                            </h3>
+                            <div className="space-y-1">
+                                {categories.map((category) => (
+                                    <button
+                                        key={category.id}
+                                        onClick={() => handleCategoryClick(category.name)}
+                                        className="flex items-center justify-between w-full py-3 text-base hover:bg-gray-50 rounded-lg px-2 transition-colors"
+                                    >
+                                        {category.name}
+                                        <ChevronRight className="w-5 h-5 text-gray-400" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
                     </div>
-                </div>
+                </>
             )}
+
+            {/* Add animation styles */}
+            <style jsx>{`
+                @keyframes slide-in {
+                    from {
+                        transform: translateX(-100%);
+                    }
+                    to {
+                        transform: translateX(0);
+                    }
+                }
+                .animate-slide-in {
+                    animation: slide-in 0.3s ease-out;
+                }
+            `}</style>
         </nav>
     );
 }

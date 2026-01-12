@@ -47,41 +47,41 @@ export function Home() {
                 <div className="container mx-auto px-4 md:px-16">
                     <div className="grid lg:grid-cols-2 gap-8 items-center py-12 lg:py-20">
                         {/* Left Content */}
-                        <div className="relative z-10">
-                            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold mb-6 leading-tight">
+                        <div className="relative z-10 text-center lg:text-left">
+                            <h1 className="text-3xl md:text-4xl lg:text-6xl font-extrabold mb-4 lg:mb-6 leading-tight">
                                 ENCUENTRA ROPA<br />
                                 QUE COMBINE<br />
                                 CON TU ESTILO
                             </h1>
-                            <p className="text-gray-600 text-base mb-8 max-w-lg">
+                            <p className="text-gray-600 text-sm md:text-base mb-6 lg:mb-8 max-w-lg mx-auto lg:mx-0">
                                 Explora nuestra diversa gama de prendas meticulosamente elaboradas, diseñadas
                                 para resaltar tu individualidad y satisfacer tu sentido del estilo.
                             </p>
-                            <Link to="/catalog">
-                                <Button size="lg" className="px-16">
+                            <Link to="/catalog" className="block lg:inline-block">
+                                <Button size="lg" className="w-full lg:w-auto lg:px-16">
                                     Comprar Ahora
                                 </Button>
                             </Link>
 
                             {/* Stats */}
-                            <div className="grid grid-cols-3 gap-4 mt-12">
-                                <div>
-                                    <p className="text-3xl md:text-4xl font-bold">200+</p>
-                                    <p className="text-sm text-gray-600">Marcas Internacionales</p>
+                            <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mt-8 lg:mt-12">
+                                <div className="text-center lg:text-left">
+                                    <p className="text-2xl md:text-3xl lg:text-4xl font-bold">200+</p>
+                                    <p className="text-xs md:text-sm text-gray-600">Marcas Internacionales</p>
                                 </div>
-                                <div className="border-l border-gray-300 pl-4">
-                                    <p className="text-3xl md:text-4xl font-bold">2,000+</p>
-                                    <p className="text-sm text-gray-600">Productos de Alta Calidad</p>
+                                <div className="border-l border-gray-300 pl-4 text-center lg:text-left">
+                                    <p className="text-2xl md:text-3xl lg:text-4xl font-bold">2,000+</p>
+                                    <p className="text-xs md:text-sm text-gray-600">Productos de Alta Calidad</p>
                                 </div>
-                                <div className="border-l border-gray-300 pl-4">
-                                    <p className="text-3xl md:text-4xl font-bold">30,000+</p>
-                                    <p className="text-sm text-gray-600">Clientes Felices</p>
+                                <div className="col-span-2 lg:col-span-1 border-t lg:border-t-0 lg:border-l border-gray-300 pt-4 lg:pt-0 lg:pl-4 text-center lg:text-left">
+                                    <p className="text-2xl md:text-3xl lg:text-4xl font-bold">30,000+</p>
+                                    <p className="text-xs md:text-sm text-gray-600">Clientes Felices</p>
                                 </div>
                             </div>
                         </div>
 
                         {/* Right Image */}
-                        <div className="relative">
+                        <div className="relative mt-8 lg:mt-0">
                             <img
                                 src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=800&q=80"
                                 alt="Fashion models"
@@ -105,59 +105,6 @@ export function Home() {
                         <span className="text-white text-3xl md:text-4xl font-bold">PRADA</span>
                         <span className="text-white text-3xl md:text-4xl font-bold">Calvin Klein</span>
                     </div>
-                </div>
-            </section>
-
-            {/* New Arrivals */}
-            <section className="py-16">
-                <div className="container mx-auto px-4 md:px-16">
-                    <h2 className="text-3xl md:text-5xl font-extrabold text-center mb-12">NUEVOS INGRESOS</h2>
-
-                    {loading ? (
-                        <div className="text-center py-12">Loading products...</div>
-                    ) : newArrivals.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {newArrivals.map((product) => (
-                                <ProductCard key={product.id} product={product} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 text-gray-500">
-                            No products available yet.
-                        </div>
-                    )}
-
-                    <div className="text-center mt-12">
-                        <Link to="/catalog">
-                            <Button variant="outline" size="lg" className="px-16">
-                                View All
-                            </Button>
-                        </Link>
-                    </div>
-                </div>
-            </section>
-
-            <hr className="container mx-auto" />
-
-            {/* Top Selling */}
-            <section className="py-16">
-                <div className="container mx-auto px-4 md:px-16">
-                    <h2 className="text-3xl md:text-5xl font-extrabold text-center mb-12">MÁS VENDIDOS</h2>
-
-                    {loading ? (
-                        <div className="text-center py-12">Loading products...</div>
-                    ) : topSelling.length > 0 ? (
-                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                            {topSelling.map((product) => (
-                                <ProductCard key={product.id} product={product} />
-                            ))}
-                        </div>
-                    ) : (
-                        <div className="text-center py-12 text-gray-500">
-                            No products available yet.
-                        </div>
-                    )}
-
                     <div className="text-center mt-12">
                         <Link to="/catalog">
                             <Button variant="outline" size="lg" className="px-16">
