@@ -5,6 +5,7 @@ import { ProductCard } from '../../components/products/ProductCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Button } from '../../components/ui/Button';
 import { ColorPicker } from '../../components/ui/ColorPicker';
+import { FilterDrawer } from '../../components/ui/FilterDrawer';
 import { supabase } from '../../lib/supabase';
 
 export function Catalog() {
@@ -14,12 +15,12 @@ export function Catalog() {
     const [products, setProducts] = useState([]);
     const [categories, setCategories] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isFilterOpen, setIsFilterOpen] = useState(false);
 
     // Filter states
     const [priceRange, setPriceRange] = useState([0, 500]);
     const [selectedColors, setSelectedColors] = useState([]);
     const [selectedSizes, setSelectedSizes] = useState([]);
-    const [selectedStyle, setSelectedStyle] = useState('');
     const [sortBy, setSortBy] = useState('popular');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 9;
@@ -113,12 +114,6 @@ export function Catalog() {
         return matchesSearch && matchesCategory && matchesPrice && matchesColor && matchesSize;
     });
 
-    // Debug logs
-    console.log('Total products:', products.length);
-    console.log('Filtered products:', filteredProducts.length);
-    console.log('Selected category:', selectedCategory);
-    console.log('Price range:', priceRange);
-
     // Pagination
     const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
     const paginatedProducts = filteredProducts.slice(
@@ -142,6 +137,25 @@ export function Catalog() {
 
     return (
         <div className="min-h-screen bg-white">
+            <FilterDrawer
+                isOpen={isFilterOpen}
+                onClose={() => setIsFilterOpen(false)}
+                categories={categories}
+                selectedCategory={selectedCategory}
+                setSelectedCategory={setSelectedCategory}
+                priceRange={priceRange}
+                setPriceRange={setPriceRange}
+                selectedColors={selectedColors}
+                handleColorToggle={handleColorToggle}
+                selectedSizes={selectedSizes}
+                handleSizeToggle={handleSizeToggle}
+                availableColors={availableColors}
+                availableSizes={availableSizes}
+                applyFilters={applyFilters}
+                expandedSections={expandedSections}
+                toggleSection={toggleSection}
+            />
+
             <div className="container mx-auto px-4 md:px-16 py-8">
                 {/* Breadcrumb */}
                 <Breadcrumb items={[
@@ -150,8 +164,8 @@ export function Catalog() {
                 ]} />
 
                 <div className="flex flex-col lg:flex-row gap-8">
-                    {/* Sidebar Filters */}
-                    <aside className="lg:w-72 flex-shrink-0">
+                    {/* Desktop Sidebar Filters */}
+                    <aside className="hidden lg:block lg:w-72 flex-shrink-0">
                         <div className="bg-white border border-gray-200 rounded-2xl p-6 sticky top-24">
                             <div className="flex items-center justify-between mb-6">
                                 <h3 className="font-bold text-lg">Filtros</h3>
@@ -210,7 +224,7 @@ export function Catalog() {
                                             max="500"
                                             value={priceRange[1]}
                                             onChange={(e) => setPriceRange([priceRange[0], parseInt(e.target.value)])}
-                                            className="w-full"
+                                            className="w-full accent-black"
                                         />
                                         <div className="flex items-center justify-between text-sm">
                                             <span className="font-medium">${priceRange[0]}</span>
@@ -292,22 +306,34 @@ export function Catalog() {
                     {/* Main Content */}
                     <div className="flex-1">
                         {/* Header */}
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-                            <h1 className="text-3xl font-bold">{selectedCategory === 'All' ? 'Todos los Productos' : selectedCategory}</h1>
-                            <div className="flex items-center gap-4">
-                                <span className="text-sm text-gray-600">
-                                    Mostrando {paginatedProducts.length} de {filteredProducts.length} productos
-                                </span>
-                                <select
-                                    value={sortBy}
-                                    onChange={(e) => setSortBy(e.target.value)}
-                                    className="px-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                            <h1 className="text-2xl md:text-3xl font-bold">{selectedCategory === 'All' ? 'Todos los Productos' : selectedCategory}</h1>
+
+                            <div className="flex items-center justify-between w-full sm:w-auto gap-4">
+                                {/* Mobile Filter Button */}
+                                <button
+                                    onClick={() => setIsFilterOpen(true)}
+                                    className="lg:hidden flex items-center gap-2 px-4 py-2 bg-gray-100 rounded-full font-medium"
                                 >
-                                    <option value="popular">Más Popular</option>
-                                    <option value="newest">Más Nuevo</option>
-                                    <option value="price-low">Precio: Menor a Mayor</option>
-                                    <option value="price-high">Precio: Mayor a Menor</option>
-                                </select>
+                                    <SlidersHorizontal className="w-4 h-4" />
+                                    Filtros
+                                </button>
+
+                                <div className="flex items-center gap-4">
+                                    <span className="text-sm text-gray-600 hidden sm:inline">
+                                        {paginatedProducts.length} de {filteredProducts.length}
+                                    </span>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="px-4 py-2 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-black"
+                                    >
+                                        <option value="popular">Más Popular</option>
+                                        <option value="newest">Más Nuevo</option>
+                                        <option value="price-low">Precio: Menor a Mayor</option>
+                                        <option value="price-high">Precio: Mayor a Menor</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
 
@@ -331,7 +357,7 @@ export function Catalog() {
                             </div>
                         ) : paginatedProducts.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
                                     {paginatedProducts.map((product) => (
                                         <ProductCard key={product.id} product={product} />
                                     ))}

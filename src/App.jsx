@@ -11,7 +11,12 @@ import { Dashboard } from './pages/admin/Dashboard';
 import { ProductList } from './pages/admin/ProductList';
 import { ProductForm } from './pages/admin/ProductForm';
 import { CategoryList } from './pages/admin/CategoryList';
+import { DebtList } from './pages/admin/DebtList';
+import { DebtForm } from './pages/admin/DebtForm';
 import { Settings } from './pages/admin/Settings';
+import { ListaTandas } from './components/mercancia/ListaTandas';
+import { AgregarTanda } from './components/mercancia/AgregarTanda';
+import { DetalleTanda } from './components/mercancia/DetalleTanda';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
 
 function App() {
@@ -56,7 +61,18 @@ function App() {
         <Route path="products" element={<ProductList />} />
         <Route path="products/new" element={<ProductForm />} />
         <Route path="products/edit/:id" element={<ProductForm />} />
+        <Route path="products/edit/:id" element={<ProductForm />} />
         <Route path="categories" element={<CategoryList />} />
+        <Route path="debts" element={<DebtList />} />
+        <Route path="debts/new" element={<DebtForm />} />
+        <Route path="debts/edit/:id" element={<DebtForm />} />
+
+        {/* Merchandise Routes */}
+        <Route path="mercancia" element={<ListaTandas />} />
+        <Route path="mercancia/new" element={<AgregarTanda />} /> {/* Handles /new and /nueva if updated */}
+        <Route path="mercancia/nueva" element={<AgregarTanda />} />
+        <Route path="mercancia/detalle/:tanda" element={<DetalleTanda />} />
+
         <Route path="settings" element={<Settings />} />
       </Route>
     </Routes>

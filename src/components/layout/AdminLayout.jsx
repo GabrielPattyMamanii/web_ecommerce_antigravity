@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut } from 'lucide-react';
+import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { BuscadorProductos } from '../mercancia/BuscadorProductos';
 
 export function AdminLayout() {
     const location = useLocation();
@@ -34,8 +35,8 @@ export function AdminLayout() {
                     <Link
                         to="/admin/dashboard"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/dashboard')
-                                ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                             }`}
                     >
                         <LayoutDashboard className="w-5 h-5" />
@@ -44,8 +45,8 @@ export function AdminLayout() {
                     <Link
                         to="/admin/products"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/products')
-                                ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                             }`}
                     >
                         <Heart className="w-5 h-5" />
@@ -54,18 +55,38 @@ export function AdminLayout() {
                     <Link
                         to="/admin/categories"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/categories')
-                                ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                             }`}
                     >
                         <Folder className="w-5 h-5" />
                         <span className="font-medium">Categories</span>
                     </Link>
                     <Link
+                        to="/admin/debts"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/debts')
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            }`}
+                    >
+                        <CircleDollarSign className="w-5 h-5" />
+                        <span className="font-medium">Deudas</span>
+                    </Link>
+                    <Link
+                        to="/admin/mercancia"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/mercancia')
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            }`}
+                    >
+                        <Layers className="w-5 h-5" />
+                        <span className="font-medium">Mercancía</span>
+                    </Link>
+                    <Link
                         to="/admin/settings"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/settings')
-                                ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
-                                : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                             }`}
                     >
                         <Settings className="w-5 h-5" />
@@ -100,18 +121,9 @@ export function AdminLayout() {
                         </button>
                     </div>
 
-                    <form onSubmit={handleSearch} className="relative w-96">
-                        <input
-                            type="text"
-                            placeholder="Search products..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-4 pr-10 py-2 rounded-full border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/20 text-sm"
-                        />
-                        <button type="submit" className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-primary">
-                            <Search className="w-4 h-4" />
-                        </button>
-                    </form>
+                    <div className="w-96">
+                        <BuscadorProductos />
+                    </div>
                 </header>
 
                 {/* Page Content */}
