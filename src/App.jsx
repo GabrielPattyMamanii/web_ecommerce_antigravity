@@ -18,6 +18,7 @@ import { ListaTandas } from './components/mercancia/ListaTandas';
 import { AgregarTanda } from './components/mercancia/AgregarTanda';
 import { DetalleTanda } from './components/mercancia/DetalleTanda';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
+import { CostCalculation } from './pages/admin/CostCalculation';
 
 function App() {
   const isConfigured = import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -72,6 +73,9 @@ function App() {
         <Route path="mercancia/new" element={<AgregarTanda />} /> {/* Handles /new and /nueva if updated */}
         <Route path="mercancia/nueva" element={<AgregarTanda />} />
         <Route path="mercancia/detalle/:tanda" element={<DetalleTanda />} />
+        <Route path="mercancia/editar/:tandaNombre" element={<AgregarTanda />} />
+
+        <Route path="calculo-costos" element={<CostCalculation />} />
 
         <Route path="settings" element={<Settings />} />
       </Route>

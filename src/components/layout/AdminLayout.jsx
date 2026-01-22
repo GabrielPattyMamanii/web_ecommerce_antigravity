@@ -83,6 +83,16 @@ export function AdminLayout() {
                         <span className="font-medium">Mercancía</span>
                     </Link>
                     <Link
+                        to="/admin/calculo-costos"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/calculo-costos')
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            }`}
+                    >
+                        <CircleDollarSign className="w-5 h-5" />
+                        <span className="font-medium">Cálculo de Costos</span>
+                    </Link>
+                    <Link
                         to="/admin/settings"
                         className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/settings')
                             ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plus, Search, Calendar, Package, ChevronRight, Layers } from 'lucide-react';
+import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit } from 'lucide-react';
 import { Button } from '../ui/Button';
 
 export function ListaTandas() {
@@ -26,7 +26,7 @@ export function ListaTandas() {
 
             const { data, error } = await supabase
                 .from('entradas')
-                .select('tanda_nombre, tanda_fecha, marca, producto_titulo, cantidad_docenas');
+                .select('tanda_nombre, tanda_fecha, marca, codigo_boleta, gastos, cantidad_docenas');
 
             if (error) throw error;
 
@@ -38,6 +38,8 @@ export function ListaTandas() {
                     grouped[key] = {
                         nombre: row.tanda_nombre,
                         fecha: row.tanda_fecha,
+                        codigoBoleta: row.codigo_boleta,
+                        gastos: row.gastos,
                         marcas: new Set(),
                         totalDocenas: 0,
                         totalProductos: 0
@@ -105,6 +107,9 @@ export function ListaTandas() {
                                 <span className="text-xs font-medium bg-gray-100 px-2 py-1 rounded-full text-gray-600 flex items-center gap-1">
                                     <Calendar className="w-3 h-3" /> {new Date(tanda.fecha).toLocaleDateString()}
                                 </span>
+                                <Link to={`/admin/mercancia/editar/${encodeURIComponent(tanda.nombre)}`} className="text-gray-400 hover:text-black z-10 p-1">
+                                    <Edit className="w-4 h-4" />
+                                </Link>
                             </div>
 
                             <h3 className="font-bold text-lg mb-2">{tanda.nombre}</h3>

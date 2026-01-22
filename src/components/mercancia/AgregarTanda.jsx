@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft, Save, Plus, Layers } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -8,16 +8,72 @@ import { supabase } from '../../lib/supabase';
 
 export function AgregarTanda() {
     const navigate = useNavigate();
+    const { tandaNombre: tandaNombreParam } = useParams(); // Get tanda name from URL if editing
+    const isEditing = Boolean(tandaNombreParam);
     const [loading, setLoading] = useState(false);
+    const [originalTandaNombre, setOriginalTandaNombre] = useState('');
 
     // Tanda State
     const [tandaNombre, setTandaNombre] = useState('');
     const [tandaFecha, setTandaFecha] = useState(new Date().toISOString().split('T')[0]);
+    const [codigoBoleta, setCodigoBoleta] = useState('');
+    const [gastos, setGastos] = useState('');
 
     // Marcas State (Array of objects: { nombre, productos: [] })
     const [marcas, setMarcas] = useState([]);
 
-    // New Brand Input State
+    // Load data if editing
+    React.useEffect(() => {
+        if (isEditing && tandaNombreParam) {
+            fetchTandaDetails(decodeURIComponent(tandaNombreParam));
+        }
+    }, [isEditing, tandaNombreParam]);
+
+    const fetchTandaDetails = async (nombre) => {
+        setLoading(true);
+        try {
+            const { data, error } = await supabase
+                .from('entradas')
+                .select('*')
+                .eq('tanda_nombre', nombre);
+
+            if (error) throw error;
+
+            if (data && data.length > 0) {
+                // Set Tanda Basic Info (take from first record)
+                setTandaNombre(data[0].tanda_nombre);
+                setOriginalTandaNombre(data[0].tanda_nombre);
+                setTandaFecha(data[0].tanda_fecha);
+                setCodigoBoleta(data[0].codigo_boleta || '');
+                setGastos(data[0].gastos || '');
+
+                // Group by Brand
+                const groupedMarcas = {};
+                data.forEach(row => {
+                    if (!groupedMarcas[row.marca]) {
+                        groupedMarcas[row.marca] = {
+                            nombre: row.marca,
+                            productos: []
+                        };
+                    }
+                    groupedMarcas[row.marca].productos.push({
+                        producto_titulo: row.producto_titulo,
+                        cantidad_docenas: row.cantidad_docenas,
+                        precio_docena: row.precio_docena || 0,
+                        codigo: row.codigo,
+                        observaciones: row.observaciones || ''
+                    });
+                });
+                setMarcas(Object.values(groupedMarcas));
+            }
+        } catch (error) {
+            console.error("Error loading tanda:", error);
+            alert("Error al cargar la tanda.");
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const [newMarcaName, setNewMarcaName] = useState('');
     const [marcaError, setMarcaError] = useState('');
 
@@ -80,9 +136,11 @@ export function AgregarTanda() {
                         marca: marca.nombre,
                         producto_titulo: prod.producto_titulo,
                         cantidad_docenas: prod.cantidad_docenas,
-                        precio_docena: prod.precio_docena, // New Field
+                        precio_docena: prod.precio_docena || 0, // Ensure numeric
                         codigo: prod.codigo,
-                        observaciones: prod.observaciones
+                        observaciones: prod.observaciones,
+                        codigo_boleta: codigoBoleta,
+                        gastos: gastos || 0
                     });
                 });
             });
@@ -91,6 +149,16 @@ export function AgregarTanda() {
                 alert('No hay productos para guardar.');
                 setLoading(false);
                 return;
+            }
+
+            if (isEditing) {
+                // DELETE previous entries for this tanda (using original name)
+                const { error: deleteError } = await supabase
+                    .from('entradas')
+                    .delete()
+                    .eq('tanda_nombre', originalTandaNombre);
+
+                if (deleteError) throw deleteError;
             }
 
             const { error } = await supabase
@@ -151,6 +219,21 @@ export function AgregarTanda() {
                                 className="w-full h-10 px-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
                             />
                         </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                        <Input
+                            label="Código de Boleta"
+                            placeholder="Ej: BOL-2026-001"
+                            value={codigoBoleta}
+                            onChange={(e) => setCodigoBoleta(e.target.value)}
+                        />
+                        <Input
+                            label="Gastos"
+                            type="number"
+                            placeholder="Ej: 15000"
+                            value={gastos}
+                            onChange={(e) => setGastos(e.target.value)}
+                        />
                     </div>
                 </section>
 

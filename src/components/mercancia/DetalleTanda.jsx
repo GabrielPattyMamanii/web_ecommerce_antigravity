@@ -34,7 +34,9 @@ export function DetalleTanda() {
                 // Assuming all rows in a Tanda have the same date
                 setTandaInfo({
                     date: data[0].tanda_fecha,
-                    count: data.length
+                    count: data.length,
+                    codigoBoleta: data[0].codigo_boleta,
+                    gastos: data[0].gastos
                 });
             }
 
@@ -84,6 +86,23 @@ export function DetalleTanda() {
                                 </div>
                             </div>
                         </div>
+
+                        {/* Middle Info: Boleta & Gastos */}
+                        <div className="flex flex-col md:flex-row gap-6 md:px-12 items-center flex-1 justify-center border-l border-r border-gray-100 mx-6 my-4 md:my-0">
+                            <div>
+                                <p className="text-xs uppercase text-gray-400 font-semibold mb-1">Código de Boleta</p>
+                                <p className={`font-mono font-medium ${tandaInfo.codigoBoleta ? 'text-gray-900' : 'text-red-400 italic'}`}>
+                                    {tandaInfo.codigoBoleta || "número de boleta no ingresada"}
+                                </p>
+                            </div>
+                            <div>
+                                <p className="text-xs uppercase text-gray-400 font-semibold mb-1">Gastos</p>
+                                <p className="font-mono font-medium text-gray-900">
+                                    ${Number(tandaInfo.gastos || 0).toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="text-right">
                             <p className="text-sm text-gray-500">Valor Total Estimado</p>
                             <p className="text-3xl font-bold text-green-600">${totalMoney.toLocaleString('es-AR')}</p>

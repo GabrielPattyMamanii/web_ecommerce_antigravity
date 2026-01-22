@@ -69,6 +69,7 @@ export function FormularioMarca({ marca, index, onUpdate, onDelete, isEditingIni
                                         <th className="px-4 py-2">Título</th>
                                         <th className="px-4 py-2">Código</th>
                                         <th className="px-4 py-2 text-center">Docenas</th>
+                                        <th className="px-4 py-2 text-right">Precio x Doc.</th>
                                         <th className="px-4 py-2">Observaciones</th>
                                         {isEditing && <th className="px-4 py-2 text-right">Acción</th>}
                                     </tr>
@@ -79,6 +80,9 @@ export function FormularioMarca({ marca, index, onUpdate, onDelete, isEditingIni
                                             <td className="px-4 py-2 font-medium">{prod.producto_titulo}</td>
                                             <td className="px-4 py-2 text-gray-600">{prod.codigo}</td>
                                             <td className="px-4 py-2 text-center font-bold">{prod.cantidad_docenas}</td>
+                                            <td className="px-4 py-2 text-right text-gray-600">
+                                                ${parseFloat(prod.precio_docena || 0).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                                            </td>
                                             <td className="px-4 py-2 text-gray-500 max-w-xs truncate">{prod.observaciones || '-'}</td>
                                             {isEditing && (
                                                 <td className="px-4 py-2 text-right">
