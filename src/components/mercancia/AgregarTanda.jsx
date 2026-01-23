@@ -1,29 +1,45 @@
-import React, { useState } from 'react';
+
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Layers } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Layers, Calculator, AlertTriangle } from 'lucide-react';
 import { Button } from '../ui/Button';
-import { Input } from '../ui/Input';
-import { FormularioMarca } from './FormularioMarca';
 import { supabase } from '../../lib/supabase';
+import { FormularioMarca } from './FormularioMarca';
 
 export function AgregarTanda() {
     const navigate = useNavigate();
-    const { tandaNombre: tandaNombreParam } = useParams(); // Get tanda name from URL if editing
+    const { tandaNombre: tandaNombreParam } = useParams();
     const isEditing = Boolean(tandaNombreParam);
     const [loading, setLoading] = useState(false);
     const [originalTandaNombre, setOriginalTandaNombre] = useState('');
 
-    // Tanda State
-    const [tandaNombre, setTandaNombre] = useState('');
-    const [tandaFecha, setTandaFecha] = useState(new Date().toISOString().split('T')[0]);
-    const [codigoBoleta, setCodigoBoleta] = useState('');
-    const [gastos, setGastos] = useState('');
+    const [formData, setFormData] = useState({
+        nombre: '',
+        fechaIngreso: new Date().toISOString().split('T')[0],
+        gastos: '',
+        marcas: []
+    });
 
-    // Marcas State (Array of objects: { nombre, productos: [] })
-    const [marcas, setMarcas] = useState([]);
+    const [newMarcaName, setNewMarcaName] = useState('');
+    const [newMarcaBoleta, setNewMarcaBoleta] = useState('');
 
-    // Load data if editing
-    React.useEffect(() => {
+    const [marcaError, setMarcaError] = useState('');
+
+    // Refs for navigation
+    const dateRef = useRef(null);
+    const gastosRef = useRef(null);
+    const marcaNameRef = useRef(null);
+    const marcaBoletaRef = useRef(null);
+
+    // Generic Enter Handler
+    const handleKeyDown = (e, nextRef) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            nextRef?.current?.focus();
+        }
+    };
+
+    useEffect(() => {
         if (isEditing && tandaNombreParam) {
             fetchTandaDetails(decodeURIComponent(tandaNombreParam));
         }
@@ -38,25 +54,20 @@ export function AgregarTanda() {
                 .eq('tanda_nombre', nombre);
 
             if (error) throw error;
-
             if (data && data.length > 0) {
-                // Set Tanda Basic Info (take from first record)
-                setTandaNombre(data[0].tanda_nombre);
-                setOriginalTandaNombre(data[0].tanda_nombre);
-                setTandaFecha(data[0].tanda_fecha);
-                setCodigoBoleta(data[0].codigo_boleta || '');
-                setGastos(data[0].gastos || '');
-
-                // Group by Brand
-                const groupedMarcas = {};
+                const first = data[0];
+                const grouped = {};
                 data.forEach(row => {
-                    if (!groupedMarcas[row.marca]) {
-                        groupedMarcas[row.marca] = {
+                    if (!grouped[row.marca]) {
+                        grouped[row.marca] = {
+                            id: Date.now() + Math.random(),
                             nombre: row.marca,
+                            codigo_boleta: row.codigo_boleta || '',
+                            collapsed: true,
                             productos: []
                         };
                     }
-                    groupedMarcas[row.marca].productos.push({
+                    grouped[row.marca].productos.push({
                         producto_titulo: row.producto_titulo,
                         cantidad_docenas: row.cantidad_docenas,
                         precio_docena: row.precio_docena || 0,
@@ -64,224 +75,250 @@ export function AgregarTanda() {
                         observaciones: row.observaciones || ''
                     });
                 });
-                setMarcas(Object.values(groupedMarcas));
+                setFormData({
+                    nombre: first.tanda_nombre,
+                    fechaIngreso: first.tanda_fecha,
+                    gastos: first.gastos || '',
+                    marcas: Object.values(grouped)
+                });
+                setOriginalTandaNombre(first.tanda_nombre);
             }
-        } catch (error) {
-            console.error("Error loading tanda:", error);
-            alert("Error al cargar la tanda.");
+        } catch (err) {
+            alert("Error al cargar la tanda");
         } finally {
             setLoading(false);
         }
     };
 
-    const [newMarcaName, setNewMarcaName] = useState('');
-    const [marcaError, setMarcaError] = useState('');
-
     const handleAddMarca = () => {
         if (!newMarcaName.trim()) return;
-
-        // Check duplicate brand in this Tanda
-        const exists = marcas.some(m => m.nombre.toLowerCase() === newMarcaName.trim().toLowerCase());
-        if (exists) {
-            setMarcaError('⚠️ Esta marca ya fue agregada a esta tanda.');
+        if (formData.marcas.some(m => m.nombre.toLowerCase() === newMarcaName.trim().toLowerCase())) {
+            setMarcaError('⚠️ Esta marca ya existe.');
             return;
         }
-
-        setMarcas([...marcas, { nombre: newMarcaName.trim(), productos: [] }]);
+        const newMarca = {
+            id: Date.now(),
+            nombre: newMarcaName.trim(),
+            codigo_boleta: newMarcaBoleta.trim(),
+            productos: [],
+            collapsed: false
+        };
+        setFormData(prev => ({ ...prev, marcas: [...prev.marcas, newMarca] }));
         setNewMarcaName('');
+        setNewMarcaBoleta('');
         setMarcaError('');
     };
 
     const handleUpdateMarca = (index, updatedMarca) => {
-        const newMarcas = [...marcas];
+        const newMarcas = [...formData.marcas];
         newMarcas[index] = updatedMarca;
-        setMarcas(newMarcas);
+        setFormData(prev => ({ ...prev, marcas: newMarcas }));
     };
 
     const handleDeleteMarca = (index) => {
-        if (!confirm('¿Eliminar esta marca y todos sus productos?')) return;
-        setMarcas(marcas.filter((_, i) => i !== index));
+        if (!confirm('¿Eliminar esta marca?')) return;
+        setFormData(prev => ({ ...prev, marcas: prev.marcas.filter((_, i) => i !== index) }));
     };
 
-    const handleSaveTanda = async () => {
-        if (!tandaNombre.trim() || !tandaFecha) {
-            alert('Por favor complete el nombre de la tanda y la fecha.');
-            return;
-        }
+    const resumen = useMemo(() => {
+        let totalProductos = 0;
+        let totalDocenas = 0;
+        let valorEstimado = 0;
+        formData.marcas.forEach(m => {
+            totalProductos += m.productos.length;
+            m.productos.forEach(p => {
+                const doc = parseFloat(p.cantidad_docenas) || 0;
+                const precio = parseFloat(p.precio_docena) || 0;
+                totalDocenas += doc;
+                valorEstimado += (doc * precio);
+            });
+        });
+        return { totalProductos, totalDocenas, valorEstimado };
+    }, [formData.marcas]);
 
-        if (marcas.length === 0) {
-            alert('Debe agregar al menos una marca.');
-            return;
-        }
-
-        // Validate that all brands have products (optional, but good practice)
-        const emptyBrands = marcas.filter(m => m.productos.length === 0);
-        if (emptyBrands.length > 0) {
-            if (!confirm(`Hay ${emptyBrands.length} marca(s) sin productos. ¿Desea continuar y guardarlas vacías? (No se guardarán productos para ellas)`)) {
-                return;
-            }
-        }
-
+    const handleSave = async () => {
+        if (!formData.nombre.trim()) { alert("Nombre de tanda requerido"); return; }
+        if (formData.marcas.length === 0) { alert("Agregue al menos una marca"); return; }
         setLoading(true);
         try {
-            // Prepare payload for "entradas" table
-            // We need to flatten the structure: Tanda -> Marcas -> Productos => Rows
             const entriesToInsert = [];
-
-            marcas.forEach(marca => {
+            formData.marcas.forEach(marca => {
                 marca.productos.forEach(prod => {
                     entriesToInsert.push({
-                        tanda_nombre: tandaNombre,
-                        tanda_fecha: tandaFecha,
+                        tanda_nombre: formData.nombre,
+                        tanda_fecha: formData.fechaIngreso,
                         marca: marca.nombre,
                         producto_titulo: prod.producto_titulo,
                         cantidad_docenas: prod.cantidad_docenas,
-                        precio_docena: prod.precio_docena || 0, // Ensure numeric
+                        precio_docena: prod.precio_docena,
                         codigo: prod.codigo,
                         observaciones: prod.observaciones,
-                        codigo_boleta: codigoBoleta,
-                        gastos: gastos || 0
+                        codigo_boleta: marca.codigo_boleta,
+                        gastos: formData.gastos || 0
                     });
                 });
             });
 
-            if (entriesToInsert.length === 0) {
-                alert('No hay productos para guardar.');
-                setLoading(false);
-                return;
+            if (entriesToInsert.length === 0 && !confirm("¿Guardar tanda vacía?")) {
+                setLoading(false); return;
             }
 
             if (isEditing) {
-                // DELETE previous entries for this tanda (using original name)
-                const { error: deleteError } = await supabase
-                    .from('entradas')
-                    .delete()
-                    .eq('tanda_nombre', originalTandaNombre);
-
-                if (deleteError) throw deleteError;
+                await supabase.from('entradas').delete().eq('tanda_nombre', originalTandaNombre);
+            }
+            if (entriesToInsert.length > 0) {
+                const { error } = await supabase.from('entradas').insert(entriesToInsert);
+                if (error) throw error;
             }
 
-            const { error } = await supabase
-                .from('entradas')
-                .insert(entriesToInsert);
-
-            if (error) throw error;
-
-            alert('✅ Tanda y mercancía guardada correctamente.');
+            alert("✅ Tanda guardada exitosamente");
             navigate('/admin/mercancia');
-
-        } catch (error) {
-            console.error('Error saving tanda:', error);
-            if (error.code === '23505') { // Unique violation
-                alert('Error: Algunos productos ya existen para esta Tanda y Marca. Verifique duplicados.');
-            } else {
-                alert('Error al guardar: ' + error.message);
-            }
+        } catch (e) {
+            alert("Error: " + e.message);
         } finally {
             setLoading(false);
         }
     };
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-4xl">
-            {/* Header */}
-            <div className="flex items-center justify-between mb-8">
-                <Button variant="ghost" className="pl-0 gap-2" onClick={() => navigate('/admin/mercancia')}>
-                    <ArrowLeft className="w-4 h-4" /> Volver al Listado
-                </Button>
-                <Button onClick={handleSaveTanda} disabled={loading} className="gap-2 bg-green-600 hover:bg-green-700 text-white">
-                    <Save className="w-4 h-4" /> {loading ? 'Guardando...' : 'Finalizar y Guardar Tanda'}
-                </Button>
+        <div className="tanda-form-page compact">
+            <div className="tanda-header compact">
+                <div className="header-left">
+                    <button onClick={() => navigate('/admin/mercancia')} className="back-button compact">
+                        ← Volver
+                    </button>
+                    <div className="header-title-group">
+                        <h1 className="text-2xl font-bold flex items-center gap-2">
+                            {isEditing ? '✏️ Editar Tanda' : '✨ Nueva Tanda'}
+                        </h1>
+                    </div>
+                </div>
+
+                <div className="header-actions">
+                    {/* "Finalizar" button now uses 'draft' style (white bg, colored border) but with green text/border potentially to indicate success action? Or indigo per 'draft' style? I will use the Indigo Draft Style for clean look as requested */}
+                    <button
+                        className="btn-save-draft"
+                        onClick={handleSave}
+                        disabled={loading}
+                    >
+                        <Save size={18} /> {loading ? 'Guardando...' : 'Finalizar y Guardar Tanda'}
+                    </button>
+                </div>
             </div>
 
-            <div className="space-y-8">
-                {/* 1. Datos Tanda */}
-                <section className="bg-white p-6 rounded-xl border shadow-sm">
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="p-2 bg-black text-white rounded-lg">
-                            <Layers className="w-5 h-5" />
+            <div className="tanda-form-container compact">
+                {/* 1. INFO TANDA */}
+                <div className="form-section compact">
+                    <div className="info-grid compact">
+                        <div className="flex-2">
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Nombre Tanda *</label>
+                            <input
+                                className="tanda-name-input compact"
+                                placeholder="Ej: Verano 2026..."
+                                value={formData.nombre}
+                                onChange={e => setFormData({ ...formData, nombre: e.target.value })}
+                                onKeyDown={(e) => handleKeyDown(e, dateRef)}
+                                autoFocus
+                            />
                         </div>
-                        <h2 className="text-xl font-bold">1. Datos de la Tanda</h2>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <Input
-                            label="Nombre de la Tanda *"
-                            placeholder="Ej: Verano 2026 - Primera Entrada"
-                            value={tandaNombre}
-                            onChange={(e) => setTandaNombre(e.target.value)}
-                        />
-                        <div className="space-y-1">
-                            <label className="text-sm font-medium text-gray-700">Fecha de Ingreso *</label>
+                        <div className="flex-1">
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Fecha *</label>
                             <input
                                 type="date"
-                                value={tandaFecha}
-                                onChange={(e) => setTandaFecha(e.target.value)}
-                                className="w-full h-10 px-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
+                                className="date-input compact"
+                                value={formData.fechaIngreso}
+                                onChange={e => setFormData({ ...formData, fechaIngreso: e.target.value })}
+                                ref={dateRef}
+                                onKeyDown={(e) => handleKeyDown(e, gastosRef)}
                             />
                         </div>
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
-                        <Input
-                            label="Código de Boleta"
-                            placeholder="Ej: BOL-2026-001"
-                            value={codigoBoleta}
-                            onChange={(e) => setCodigoBoleta(e.target.value)}
-                        />
-                        <Input
-                            label="Gastos"
-                            type="number"
-                            placeholder="Ej: 15000"
-                            value={gastos}
-                            onChange={(e) => setGastos(e.target.value)}
-                        />
-                    </div>
-                </section>
-
-                {/* 2. Agregar Marcas */}
-                <section className="bg-white p-6 rounded-xl border shadow-sm">
-                    <div className="flex items-center justify-between mb-6">
-                        <h2 className="text-xl font-bold">2. Marcas y Productos</h2>
-                        <span className="text-sm text-gray-500 bg-gray-100 px-3 py-1 rounded-full">
-                            {marcas.length} marcas agregadas
-                        </span>
-                    </div>
-
-                    {/* Add Brand Input */}
-                    <div className="flex gap-3 items-start mb-8 bg-gray-50 p-4 rounded-lg border">
                         <div className="flex-1">
-                            <Input
-                                placeholder="Nombre de la Marca (Ej: Adidas, Nike...)"
-                                value={newMarcaName}
-                                onChange={(e) => { setNewMarcaName(e.target.value); setMarcaError(''); }}
-                                onKeyDown={(e) => e.key === 'Enter' && handleAddMarca()}
+                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">Gastos ($)</label>
+                            <input
+                                type="number"
+                                className="gastos-input compact"
+                                placeholder="0"
+                                value={formData.gastos}
+                                onChange={e => setFormData({ ...formData, gastos: e.target.value })}
+                                ref={gastosRef}
+                                onKeyDown={(e) => handleKeyDown(e, marcaNameRef)}
                             />
-                            {marcaError && <p className="text-red-500 text-xs mt-1 animate-pulse font-medium">{marcaError}</p>}
                         </div>
-                        <Button onClick={handleAddMarca} variant="outline" className="mt-0.5 border-black text-black hover:bg-black hover:text-white">
-                            <Plus className="w-4 h-4 mr-2" /> Agregar Marca
-                        </Button>
                     </div>
+                </div>
+
+                {/* 2. MARCAS Y PRODUCTOS */}
+                <div className="form-section compact">
+                    {/* Add Brand Form */}
+                    <div className="add-marca-form compact">
+                        <input
+                            className="marca-name-input compact"
+                            placeholder="Nueva Marca..."
+                            value={newMarcaName}
+                            onChange={e => { setNewMarcaName(e.target.value); setMarcaError(''); }}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    marcaBoletaRef.current?.focus();
+                                }
+                            }}
+                            ref={marcaNameRef}
+                        />
+                        <input
+                            className="marca-boleta-input compact"
+                            placeholder="Nº Boleta"
+                            value={newMarcaBoleta}
+                            onChange={e => setNewMarcaBoleta(e.target.value)}
+                            onKeyDown={e => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    handleAddMarca();
+                                    // Focus back to name after add
+                                    setTimeout(() => marcaNameRef.current?.focus(), 10);
+                                }
+                            }}
+                            ref={marcaBoletaRef}
+                        />
+                        <button className="btn-add-marca compact" onClick={handleAddMarca}>
+                            <Plus size={16} />
+                        </button>
+                    </div>
+                    {marcaError && <div className="text-red-500 text-xs px-2 mb-2">{marcaError}</div>}
 
                     {/* Marcas List */}
-                    <div className="space-y-4">
-                        {marcas.length === 0 ? (
-                            <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
-                                No hay marcas agregadas. Comienza agregando una arriba.
-                            </div>
-                        ) : (
-                            marcas.map((marca, index) => (
-                                <FormularioMarca
-                                    key={index}
-                                    index={index}
-                                    marca={marca}
-                                    onUpdate={handleUpdateMarca}
-                                    onDelete={handleDeleteMarca}
-                                    isEditingInitially={true}
-                                />
-                            ))
-                        )}
+                    <div className="marcas-list compact">
+                        {formData.marcas.map((marca, idx) => (
+                            <FormularioMarca
+                                key={marca.id || idx}
+                                index={idx}
+                                marca={marca}
+                                onUpdate={handleUpdateMarca}
+                                onDelete={handleDeleteMarca}
+                                isEditingInitially={!marca.collapsed}
+                            />
+                        ))}
                     </div>
-                </section>
+                </div>
+
+                {/* 3. SUMMARY */}
+                <div className="summary-section compact">
+                    <div className="summary-grid compact">
+                        <div className="summary-item compact">
+                            <div className="summary-label">Prods</div>
+                            <div className="summary-value">{resumen.totalProductos}</div>
+                        </div>
+                        <div className="summary-item compact">
+                            <div className="summary-label">Doc.</div>
+                            <div className="summary-value">{resumen.totalDocenas}</div>
+                        </div>
+                        <div className="summary-item compact">
+                            <div className="summary-label">Estimado</div>
+                            <div className="summary-value currency">
+                                ${resumen.valorEstimado.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );

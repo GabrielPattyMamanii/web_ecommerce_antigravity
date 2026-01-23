@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers } from 'lucide-react';
+import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers, Tag } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
 
@@ -91,6 +91,16 @@ export function AdminLayout() {
                     >
                         <CircleDollarSign className="w-5 h-5" />
                         <span className="font-medium">Cálculo de Costos</span>
+                    </Link>
+                    <Link
+                        to="/admin/precio-venta-sugerido"
+                        className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive('/admin/precio-venta-sugerido')
+                            ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                            : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+                            }`}
+                    >
+                        <Tag className="w-5 h-5" />
+                        <span className="font-medium">Precio Venta Sugerido</span>
                     </Link>
                     <Link
                         to="/admin/settings"

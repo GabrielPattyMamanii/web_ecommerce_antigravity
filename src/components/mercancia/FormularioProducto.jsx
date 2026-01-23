@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { Plus, Trash2, AlertCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 
-export function FormularioProducto({ onAdd, existingProducts = [] }) {
+export function FormularioProducto({ onAdd, existingProducts = [], allCodesSet = new Set() }) {
     const [product, setProduct] = useState({
         producto_titulo: '',
         cantidad_docenas: '',
@@ -12,6 +12,23 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
         observaciones: ''
     });
     const [error, setError] = useState('');
+
+    // Refs
+    const docenasRef = useRef(null);
+    const precioRef = useRef(null);
+    const codigoRef = useRef(null);
+    const obsRef = useRef(null);
+    const addButtonRef = useRef(null);
+
+    const handleKeyDown = (e, nextRef) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            e.stopPropagation();
+            setTimeout(() => {
+                nextRef?.current?.focus();
+            }, 0);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -33,13 +50,18 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
             return;
         }
 
-        // Duplicate Check
-        const isDuplicate = existingProducts.some(p =>
-            p.producto_titulo.toLowerCase() === product.producto_titulo.toLowerCase()
-        );
+        // Duplicate Check (Strict Global)
+        const normalizeCode = (c) => c.trim().toLowerCase();
+        const newCode = normalizeCode(product.codigo);
 
-        if (isDuplicate) {
-            setError('Este producto ya existe en esta marca.');
+        // Check local first (just in case they are adding same product twice in a row before parent updates)
+        const isDuplicateLocal = existingProducts.some(p => normalizeCode(p.codigo) === newCode);
+
+        // Check global set
+        const isDuplicateGlobal = Array.from(allCodesSet).some(c => normalizeCode(c) === newCode);
+
+        if (isDuplicateLocal || isDuplicateGlobal) {
+            setError('⛔ ERROR: Este código de producto ya existe en esta tanda (en esta u otra marca). No se permiten duplicados.');
             return;
         }
 
@@ -71,6 +93,7 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
                         value={product.producto_titulo}
                         onChange={handleChange}
                         className="bg-white"
+                        onKeyDown={(e) => handleKeyDown(e, docenasRef)}
                     />
                 </div>
                 <div className="md:col-span-2">
@@ -82,6 +105,8 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
                         onChange={handleChange}
                         className="bg-white"
                         min="1"
+                        ref={docenasRef}
+                        onKeyDown={(e) => handleKeyDown(e, precioRef)}
                     />
                 </div>
                 <div className="md:col-span-2">
@@ -94,6 +119,8 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
                         className="bg-white"
                         min="0"
                         step="0.01"
+                        ref={precioRef}
+                        onKeyDown={(e) => handleKeyDown(e, codigoRef)}
                     />
                 </div>
                 <div className="md:col-span-2">
@@ -103,6 +130,8 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
                         value={product.codigo}
                         onChange={handleChange}
                         className="bg-white"
+                        ref={codigoRef}
+                        onKeyDown={(e) => handleKeyDown(e, obsRef)}
                     />
                 </div>
                 <div className="md:col-span-2">
@@ -112,6 +141,13 @@ export function FormularioProducto({ onAdd, existingProducts = [] }) {
                         value={product.observaciones}
                         onChange={handleChange}
                         className="bg-white"
+                        ref={obsRef}
+                        onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAdd(e);
+                            }
+                        }}
                     />
                 </div>
                 <div className="md:col-span-1 flex items-end">

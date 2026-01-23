@@ -1,122 +1,210 @@
-import React, { useState } from 'react';
-import { Trash2, Edit2, ChevronDown, ChevronUp, Package, AlertTriangle } from 'lucide-react';
-import { Button } from '../ui/Button';
-import { FormularioProducto } from './FormularioProducto';
 
-export function FormularioMarca({ marca, index, onUpdate, onDelete, isEditingInitially = false }) {
+import React, { useState } from 'react';
+import { Trash2, Edit2, ChevronDown, ChevronUp, Package, Plus } from 'lucide-react';
+
+export function FormularioMarca({
+    marca,
+    index,
+    onUpdate,
+    onDelete,
+    isEditingInitially = true
+}) {
     const [isExpanded, setIsExpanded] = useState(true);
     const [isEditing, setIsEditing] = useState(isEditingInitially);
 
-    // Handlers for products
-    const handleAddProduct = (newProduct) => {
-        const updatedProducts = [...(marca.productos || []), newProduct];
+    // Draft product state
+    const [productForm, setProductForm] = useState({
+        nombre: '',
+        docenas: '',
+        precioPorDocena: '',
+        codigo: '',
+        observaciones: ''
+    });
+
+    const calculateSubtotal = () => {
+        const d = parseFloat(productForm.docenas) || 0;
+        const p = parseFloat(productForm.precioPorDocena) || 0;
+        return d * p;
+    };
+
+    const handleAddProduct = () => {
+        if (!productForm.nombre || !productForm.docenas || !productForm.precioPorDocena || !productForm.codigo) {
+            alert("Complete los campos obligatorios (*)");
+            return;
+        }
+
+        const newProd = {
+            producto_titulo: productForm.nombre,
+            cantidad_docenas: parseFloat(productForm.docenas),
+            precio_docena: parseFloat(productForm.precioPorDocena),
+            codigo: productForm.codigo.toUpperCase(),
+            observaciones: productForm.observaciones,
+            subtotal: parseFloat(productForm.docenas) * parseFloat(productForm.precioPorDocena)
+        };
+
+        const updatedProducts = [...(marca.productos || []), newProd];
         onUpdate(index, { ...marca, productos: updatedProducts });
+
+        setProductForm({ nombre: '', docenas: '', precioPorDocena: '', codigo: '', observaciones: '' });
     };
 
     const handleRemoveProduct = (prodIndex) => {
+        if (!confirm('¿Eliminar producto?')) return;
         const updatedProducts = marca.productos.filter((_, i) => i !== prodIndex);
         onUpdate(index, { ...marca, productos: updatedProducts });
     };
 
     return (
-        <div className="bg-white rounded-lg border shadow-sm mb-4 overflow-hidden">
+        <div className={`marca-card ${!isExpanded ? 'collapsed' : ''} compact`}>
             {/* Header */}
-            <div className="flex items-center justify-between p-4 bg-gray-50 border-b cursor-pointer" onClick={() => setIsExpanded(!isExpanded)}>
-                <div className="flex items-center gap-3">
-                    <div className="p-2 bg-blue-100 text-blue-700 rounded-md">
-                        <Package className="w-5 h-5" />
-                    </div>
-                    <div>
-                        <h3 className="font-bold text-lg text-gray-900">{marca.nombre}</h3>
-                        <p className="text-xs text-gray-500">
-                            {(marca.productos || []).length} productos cargados
-                        </p>
+            <div className="marca-header compact" onClick={() => setIsExpanded(!isExpanded)}>
+                <div className="flex items-center gap-3 flex-1">
+                    <div className="marca-icon compact">📦</div>
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 flex-1">
+                        <h3 className="text-base font-bold text-gray-900 whitespace-nowrap">{marca.nombre}</h3>
+
+                        {/* Orange Box: Editable Boleta Input in Header */}
+                        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
+                            <span className="text-xs font-semibold text-gray-500 uppercase">Boleta:</span>
+                            <input
+                                type="text"
+                                className="marca-header-input"
+                                placeholder="Ingresar N°"
+                                value={marca.codigo_boleta || ''}
+                                onChange={(e) => onUpdate(index, { ...marca, codigo_boleta: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Red Box: Separated Product Count */}
+                        <div className="product-count-badge">
+                            {marca.productos?.length || 0} productos
+                        </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <Button
-                        variant="ghost"
-                        size="sm"
+
+                <div className="marca-actions compact">
+                    <button
+                        className="marca-action-btn edit"
                         onClick={(e) => { e.stopPropagation(); setIsEditing(!isEditing); setIsExpanded(true); }}
-                        className={isEditing ? "bg-blue-50 text-blue-600" : ""}
+                        title={isEditing ? 'Terminar Edición' : 'Editar'}
                     >
-                        {isEditing ? 'Terminar Edición' : 'Editar'} <Edit2 className="ml-2 w-3 h-3" />
-                    </Button>
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-red-500 hover:bg-red-50 hover:text-red-700"
+                        {isEditing ? 'Listo' : 'Editar'} ✏️
+                    </button>
+                    <button
+                        className="marca-action-btn delete"
                         onClick={(e) => { e.stopPropagation(); onDelete(index); }}
+                        title="Eliminar Marca"
                     >
-                        <Trash2 className="w-4 h-4" />
-                    </Button>
-                    <div className="text-gray-400 ml-2">
-                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
-                    </div>
+                        🗑️
+                    </button>
+                    <button className="marca-action-btn collapse" title="Colapsar/Expandir">
+                        {isExpanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                    </button>
                 </div>
             </div>
 
             {/* Content */}
             {isExpanded && (
-                <div className="p-4">
+                <div className="marca-content compact">
+                    {/* Inline Add Product Form */}
+                    {isEditing && (
+                        <div className="add-product-section compact">
+                            <div className="add-product-form compact">
+                                <input
+                                    className="product-input compact"
+                                    placeholder="Nombre Producto *"
+                                    value={productForm.nombre}
+                                    onChange={e => setProductForm({ ...productForm, nombre: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    className="product-input compact text-center"
+                                    placeholder="Docenas *"
+                                    value={productForm.docenas}
+                                    onChange={e => setProductForm({ ...productForm, docenas: e.target.value })}
+                                />
+                                <input
+                                    type="number"
+                                    className="product-input compact font-mono"
+                                    placeholder="$/Docena *"
+                                    value={productForm.precioPorDocena}
+                                    onChange={e => setProductForm({ ...productForm, precioPorDocena: e.target.value })}
+                                />
+                                <input
+                                    className="product-input compact uppercase"
+                                    placeholder="Código *"
+                                    value={productForm.codigo}
+                                    onChange={e => setProductForm({ ...productForm, codigo: e.target.value })}
+                                />
+                                <input
+                                    className="product-input compact"
+                                    placeholder="Obs."
+                                    value={productForm.observaciones}
+                                    onChange={e => setProductForm({ ...productForm, observaciones: e.target.value })}
+                                />
 
-                    {/* List of Products */}
-                    {marca.productos && marca.productos.length > 0 ? (
-                        <div className="overflow-x-auto mb-4">
-                            <table className="w-full text-sm text-left">
-                                <thead className="text-xs text-gray-500 uppercase bg-gray-50 border-b">
+                                <button className="btn-add-product compact" onClick={handleAddProduct}>
+                                    <Plus size={16} />
+                                </button>
+                            </div>
+                            {/* Compact Subtotal */}
+                            {(productForm.docenas && productForm.precioPorDocena) && (
+                                <div className="subtotal-preview compact">
+                                    <span className="text-xs font-semibold text-gray-600">Subtotal:</span>
+                                    <span className="text-sm font-bold text-green-600 font-mono">
+                                        ${calculateSubtotal().toLocaleString()}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Product List Table */}
+                    <div className="products-list-section compact">
+                        {marca.productos && marca.productos.length > 0 ? (
+                            <table className="products-table compact">
+                                <thead>
                                     <tr>
-                                        <th className="px-4 py-2">Título</th>
-                                        <th className="px-4 py-2">Código</th>
-                                        <th className="px-4 py-2 text-center">Docenas</th>
-                                        <th className="px-4 py-2 text-right">Precio x Doc.</th>
-                                        <th className="px-4 py-2">Observaciones</th>
-                                        {isEditing && <th className="px-4 py-2 text-right">Acción</th>}
+                                        <th>Producto</th>
+                                        <th>Código</th>
+                                        <th className="text-center">Doc</th>
+                                        <th className="text-right">$/Doc</th>
+                                        <th className="text-right">Subtotal</th>
+                                        <th></th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y">
-                                    {marca.productos.map((prod, pIndex) => (
-                                        <tr key={pIndex} className="hover:bg-gray-50">
-                                            <td className="px-4 py-2 font-medium">{prod.producto_titulo}</td>
-                                            <td className="px-4 py-2 text-gray-600">{prod.codigo}</td>
-                                            <td className="px-4 py-2 text-center font-bold">{prod.cantidad_docenas}</td>
-                                            <td className="px-4 py-2 text-right text-gray-600">
-                                                ${parseFloat(prod.precio_docena || 0).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                                <tbody>
+                                    {marca.productos.map((prod, idx) => (
+                                        <tr key={idx}>
+                                            <td className="font-semibold">{prod.producto_titulo}</td>
+                                            <td className="text-gray-500 font-mono text-xs">{prod.codigo}</td>
+                                            <td className="text-center font-bold">{prod.cantidad_docenas}</td>
+                                            <td className="text-right text-gray-600 font-mono">
+                                                ${parseFloat(prod.precio_docena).toLocaleString()}
                                             </td>
-                                            <td className="px-4 py-2 text-gray-500 max-w-xs truncate">{prod.observaciones || '-'}</td>
-                                            {isEditing && (
-                                                <td className="px-4 py-2 text-right">
+                                            <td className="text-right font-bold text-green-600 font-mono">
+                                                ${(prod.cantidad_docenas * prod.precio_docena).toLocaleString()}
+                                            </td>
+                                            <td className="text-right">
+                                                {isEditing && (
                                                     <button
-                                                        onClick={() => handleRemoveProduct(pIndex)}
-                                                        className="text-red-500 hover:text-red-700 p-1 rounded-md hover:bg-red-50"
-                                                        title="Eliminar producto"
+                                                        onClick={() => handleRemoveProduct(idx)}
+                                                        className="text-red-500 hover:bg-red-50 p-1 rounded"
                                                     >
-                                                        <Trash2 className="w-4 h-4" />
+                                                        <Trash2 size={14} />
                                                     </button>
-                                                </td>
-                                            )}
+                                                )}
+                                            </td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
-                        </div>
-                    ) : (
-                        <div className="text-center py-6 text-gray-400 text-sm border-2 border-dashed rounded-lg mb-4">
-                            No hay productos en esta marca aún.
-                        </div>
-                    )}
-
-                    {/* Add Product Form (Only if Editing) */}
-                    {isEditing ? (
-                        <FormularioProducto
-                            onAdd={handleAddProduct}
-                            existingProducts={marca.productos || []}
-                        />
-                    ) : (
-                        <div className="text-center text-xs text-gray-400 mt-2">
-                            Haz click en "Editar" para agregar o quitar productos.
-                        </div>
-                    )}
+                        ) : (
+                            <div className="text-center py-4 text-xs text-gray-400 border border-dashed rounded-lg">
+                                Sin productos
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
