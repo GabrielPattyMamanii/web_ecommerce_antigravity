@@ -21,6 +21,9 @@ export function FormularioMarca({
         observaciones: ''
     });
 
+    // Validation State
+    const [codigoError, setCodigoError] = useState('');
+
     const calculateSubtotal = () => {
         const d = parseFloat(productForm.docenas) || 0;
         const p = parseFloat(productForm.precioPorDocena) || 0;
@@ -33,11 +36,28 @@ export function FormularioMarca({
             return;
         }
 
+        // Final Validation before adding
+        // Final Validation before adding
+        const normalizedNewCode = productForm.codigo.trim().toLowerCase();
+        // Check if exists in CURRENT brand's products
+        const existsInBrand = marca.productos && marca.productos.some(p => p.codigo && p.codigo.trim().toLowerCase() === normalizedNewCode);
+
+        if (existsInBrand) {
+            setCodigoError('⚠️ Código ya existe en esta marca');
+            alert('⚠️ ERROR: Este código ya existe en esta marca. No se permiten duplicados dentro de la misma marca.');
+            return;
+        }
+
+        if (codigoError) {
+            alert(codigoError);
+            return;
+        }
+
         const newProd = {
             producto_titulo: productForm.nombre,
             cantidad_docenas: parseFloat(productForm.docenas),
             precio_docena: parseFloat(productForm.precioPorDocena),
-            codigo: productForm.codigo.toUpperCase(),
+            codigo: productForm.codigo.trim().toUpperCase(),
             observaciones: productForm.observaciones,
             subtotal: parseFloat(productForm.docenas) * parseFloat(productForm.precioPorDocena)
         };
@@ -46,6 +66,24 @@ export function FormularioMarca({
         onUpdate(index, { ...marca, productos: updatedProducts });
 
         setProductForm({ nombre: '', docenas: '', precioPorDocena: '', codigo: '', observaciones: '' });
+        setCodigoError('');
+    };
+
+    const validateCode = (code) => {
+        if (!code.trim()) {
+            setCodigoError('');
+            return;
+        }
+
+        const normalizedCode = code.trim().toLowerCase();
+        // Check if exists in CURRENT brand's products
+        const existsInBrand = marca.productos && marca.productos.some(p => p.codigo && p.codigo.trim().toLowerCase() === normalizedCode);
+
+        if (existsInBrand) {
+            setCodigoError('⚠️ Código ya existe en esta marca');
+        } else {
+            setCodigoError('');
+        }
     };
 
     const handleRemoveProduct = (prodIndex) => {
@@ -109,7 +147,7 @@ export function FormularioMarca({
                     {/* Inline Add Product Form */}
                     {isEditing && (
                         <div className="add-product-section compact">
-                            <div className="add-product-form compact">
+                            <div className="add-product-form compact relative">
                                 <input
                                     className="product-input compact"
                                     placeholder="Nombre Producto *"
@@ -130,12 +168,23 @@ export function FormularioMarca({
                                     value={productForm.precioPorDocena}
                                     onChange={e => setProductForm({ ...productForm, precioPorDocena: e.target.value })}
                                 />
-                                <input
-                                    className="product-input compact uppercase"
-                                    placeholder="Código *"
-                                    value={productForm.codigo}
-                                    onChange={e => setProductForm({ ...productForm, codigo: e.target.value })}
-                                />
+                                <div className="relative">
+                                    <input
+                                        className={`product-input compact uppercase ${codigoError ? 'border-red-500 bg-red-50 text-red-900' : ''}`}
+                                        placeholder="Código *"
+                                        value={productForm.codigo}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setProductForm({ ...productForm, codigo: val });
+                                            validateCode(val);
+                                        }}
+                                    />
+                                    {codigoError && (
+                                        <div className="absolute top-full left-0 mt-1 z-10 bg-red-100 text-red-700 text-[10px] px-2 py-1 rounded shadow-sm whitespace-nowrap font-bold">
+                                            {codigoError}
+                                        </div>
+                                    )}
+                                </div>
                                 <input
                                     className="product-input compact"
                                     placeholder="Obs."
@@ -143,7 +192,11 @@ export function FormularioMarca({
                                     onChange={e => setProductForm({ ...productForm, observaciones: e.target.value })}
                                 />
 
-                                <button className="btn-add-product compact" onClick={handleAddProduct}>
+                                <button
+                                    className={`btn-add-product compact ${codigoError ? 'opacity-50 cursor-not-allowed bg-gray-400' : ''}`}
+                                    onClick={handleAddProduct}
+                                    disabled={!!codigoError}
+                                >
                                     <Plus size={16} />
                                 </button>
                             </div>

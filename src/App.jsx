@@ -53,7 +53,7 @@ function App() {
         {/* Add other routes here later */}
         <Route path="catalog" element={<Catalog />} />
         <Route path="contact" element={<Contact />} />
-        <Route path="product/:id" element={<ProductDetail />} />
+        <Route path="catalog/:id" element={<ProductDetail />} />
         <Route path="cart" element={<Cart />} />
       </Route>
 

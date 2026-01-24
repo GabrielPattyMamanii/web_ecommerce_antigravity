@@ -1,67 +1,124 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit, Trash2, X, AlertTriangle, CheckCircle } from 'lucide-react';
 import { Button } from '../ui/Button';
+import BuscadorMercancia from './BuscadorMercancia';
 
 export function ListaTandas() {
     const [tandas, setTandas] = useState([]);
+
     const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
+
+    // Search State
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState([]); // Array of matching products
+    const [filteredTandas, setFilteredTandas] = useState([]); // Subset of tandas matching search
 
     // Delete State
+
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [tandaToDelete, setTandaToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+
+
     useEffect(() => {
+        // Initial load
         fetchTandas();
     }, []);
 
     const fetchTandas = async () => {
         setLoading(true);
         try {
-            // We need to group by tanda_nombre. 
-            // Since Supabase doesn't support easy GROUP BY in JS client for returning structured objects without RPC, 
-            // we will fetch all distinct tanda info or use a slightly different approach.
-            // A common pattern is to fetch all unique (tanda_name, tanda_date) pairs.
-            // Or fetch everything and group client side if dataset is small.
-            // For scalability, let's use .select('tanda_nombre, tanda_fecha, created_at') and remove duplicates client side.
-            // *Optimization tip: Ideally use a View or RPC. For now, client-side grouping.*
-
             const { data, error } = await supabase
                 .from('entradas')
                 .select('tanda_nombre, tanda_fecha, marca, codigo_boleta, gastos, cantidad_docenas');
 
             if (error) throw error;
 
-            // Grouping logic
-            const grouped = {};
-            data.forEach(row => {
-                const key = row.tanda_nombre;
-                if (!grouped[key]) {
-                    grouped[key] = {
-                        nombre: row.tanda_nombre,
-                        fecha: row.tanda_fecha,
-                        codigoBoleta: row.codigo_boleta,
-                        gastos: row.gastos,
-                        marcas: new Set(),
-                        totalDocenas: 0,
-                        totalProductos: 0
-                    };
-                }
-                grouped[key].marcas.add(row.marca);
-                grouped[key].totalDocenas += row.cantidad_docenas;
-                grouped[key].totalProductos += 1;
-            });
+            const grouped = groupTandas(data);
+            const sorted = Object.values(grouped).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            setTandas(sorted);
 
-            setTandas(Object.values(grouped).sort((a, b) => new Date(b.fecha) - new Date(a.fecha)));
+            // If not searching, filtered is all
+            if (!isSearching) {
+                setFilteredTandas(sorted);
+            }
 
         } catch (error) {
             console.error('Error fetching tandas:', error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const groupTandas = (data) => {
+        const grouped = {};
+        data.forEach(row => {
+            const key = row.tanda_nombre;
+            if (!grouped[key]) {
+                grouped[key] = {
+                    nombre: row.tanda_nombre,
+                    fecha: row.tanda_fecha,
+                    codigoBoleta: row.codigo_boleta,
+                    gastos: row.gastos,
+                    marcas: new Set(),
+                    totalDocenas: 0,
+                    totalProductos: 0
+                };
+            }
+            grouped[key].marcas.add(row.marca);
+            grouped[key].totalDocenas += row.cantidad_docenas;
+            grouped[key].totalProductos += 1;
+        });
+        return grouped;
+    };
+
+    const handleSearch = async (term) => {
+        if (!term.trim()) {
+            handleClearSearch();
+            return;
+        }
+
+        setIsSearching(true);
+        setLoading(true);
+        try {
+            // Search for code or boleta code
+            // Note: .or() syntax is column.operator.value,column.operator.value
+            const { data, error } = await supabase
+                .from('entradas')
+                .select('*')
+                .or(`codigo.ilike.%${term}%,codigo_boleta.ilike.%${term}%`);
+
+            if (error) throw error;
+
+            setSearchResults(data);
+
+            // Get unique tanda names from results
+            const uniqueTandaNames = [...new Set(data.map(item => item.tanda_nombre))];
+
+            // Filter main list (or re-fetch if pagination existed)
+            // Since we have all tandas loaded locally in 'tandas', we can filter those 
+            // BUT 'tandas' currently only has summarized info. 
+            // We want to show the tandas that contain the matching products.
+            // Best approach: Filter 'tandas' where name is in uniqueTandaNames
+            const matches = tandas.filter(t => uniqueTandaNames.includes(t.nombre));
+            setFilteredTandas(matches);
+
+        } catch (err) {
+            console.error(err);
+            alert('Error en búsqueda');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleClearSearch = () => {
+        setIsSearching(false);
+        setSearchResults([]);
+        setFilteredTandas(tandas);
+        setLoading(false);
     };
 
     const handleDeleteClick = (tanda) => {
@@ -96,9 +153,7 @@ export function ListaTandas() {
         }
     };
 
-    const filteredTandas = tandas.filter(t =>
-        t.nombre.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+
 
     return (
         <div className="container mx-auto px-4 py-8">
@@ -115,15 +170,8 @@ export function ListaTandas() {
             </div>
 
             {/* Search */}
-            <div className="relative mb-6">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input
-                    type="text"
-                    placeholder="Buscar tanda..."
-                    className="w-full pl-10 h-12 rounded-xl border border-gray-200 shadow-sm focus:outline-none focus:ring-2 focus:ring-black"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                />
+            <div className="mb-6 max-w-lg mx-auto">
+                <BuscadorMercancia onSearch={handleSearch} onClear={handleClearSearch} />
             </div>
 
             {/* Grid */}
@@ -174,6 +222,29 @@ export function ListaTandas() {
                                     <span className="font-bold text-green-600">{tanda.totalDocenas}</span>
                                 </div>
                             </div>
+
+                            {/* Search Matches Overlay/Badge */}
+                            {isSearching && (
+                                <div className="mt-4 pt-4 border-t border-gray-100">
+                                    <p className="text-xs font-semibold text-gray-500 mb-2 uppercase tracking-wide">Coincidencias:</p>
+                                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                                        {searchResults
+                                            .filter(p => p.tanda_nombre === tanda.nombre)
+                                            .map((prod, idx) => (
+                                                <div key={idx} className="flex items-center gap-2 text-sm bg-green-50 p-1.5 rounded-md">
+                                                    <CheckCircle className="w-3 h-3 text-green-600 flex-shrink-0" />
+                                                    <div className="flex flex-col overflow-hidden">
+                                                        <span className="font-medium text-green-800 truncate">{prod.producto_titulo}</span>
+                                                        <span className="text-xs text-gray-500 truncate">
+                                                            Código: {prod.codigo} {prod.codigo_boleta ? `/ Bol: ${prod.codigo_boleta}` : ''}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ))
+                                        }
+                                    </div>
+                                </div>
+                            )}
 
                             <Link to={`/admin/mercancia/detalle/${encodeURIComponent(tanda.nombre)}`} className="absolute inset-0" aria-label="Ver detalle" />
                         </div>

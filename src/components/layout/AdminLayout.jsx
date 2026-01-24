@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers, Tag } from 'lucide-react';
+import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
 
@@ -140,6 +140,15 @@ export function AdminLayout() {
                             <Mail className="w-5 h-5" />
                         </button>
                     </div>
+
+                    <button
+                        onClick={() => window.open('/tienda', '_blank')}
+                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg mx-4"
+                    >
+                        <Store className="h-5 w-5" />
+                        <span className="font-medium">Ver Tienda</span>
+                        <ExternalLink className="h-4 w-4" />
+                    </button>
 
                     <div className="w-96">
                         <BuscadorProductos />

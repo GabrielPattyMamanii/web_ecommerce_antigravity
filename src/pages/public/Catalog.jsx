@@ -54,7 +54,11 @@ export function Catalog() {
                 setCategories(catsData);
             }
 
-            const { data: prodsData } = await supabase.from('products').select('*, categories(name)');
+            const { data: prodsData } = await supabase
+                .from('products')
+                .select('*, categories(name)')
+                .eq('published', true)
+                .order('created_at', { ascending: false });
             if (prodsData) {
                 const mappedProducts = prodsData.map(p => ({
                     ...p,

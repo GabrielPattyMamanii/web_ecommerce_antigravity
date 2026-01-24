@@ -153,7 +153,8 @@ export function DebtForm() {
 
                     if (uploadError) {
                         console.error('Error uploading file:', uploadError);
-                        continue; // Skip failed upload but continue others
+                        alert(`Error subiendo imagen: ${uploadError.message}`);
+                        continue;
                     }
 
                     // Get Public URL
@@ -162,12 +163,17 @@ export function DebtForm() {
                         .getPublicUrl(fileName);
 
                     // Insert into DB
-                    await supabase.from('debt_evidence').insert({
+                    const { error: insertError } = await supabase.from('debt_evidence').insert({
                         debt_id: debtId,
                         owner_id: session.user.id,
                         file_path: fileName,
                         file_url: publicUrl
                     });
+
+                    if (insertError) {
+                        console.error('Error saving evidence record:', insertError);
+                        alert(`Error guardando registro de imagen: ${insertError.message}`);
+                    }
                 }
             }
 

@@ -56,7 +56,24 @@ export function DebtDetailModal({ debtId, onClose }) {
                 .eq('debt_id', debtId);
 
             if (evidenceError) throw evidenceError;
-            setEvidence(evidenceData || []);
+
+            // Generate Signed URLs for all evidence
+            const evidenceWithUrls = await Promise.all((evidenceData || []).map(async (item) => {
+                // If we have a file_path, try to get a signed URL (safer for private buckets)
+                if (item.file_path) {
+                    const { data, error } = await supabase.storage
+                        .from('debt-evidence')
+                        .createSignedUrl(item.file_path, 3600); // 1 hour expiry
+
+                    if (!error && data?.signedUrl) {
+                        return { ...item, displayUrl: data.signedUrl };
+                    }
+                }
+                // Fallback to stored file_url if available, or empty
+                return { ...item, displayUrl: item.file_url };
+            }));
+
+            setEvidence(evidenceWithUrls);
 
         } catch (error) {
             console.error('Error fetching details:', error);
@@ -184,7 +201,7 @@ export function DebtDetailModal({ debtId, onClose }) {
                                                 onClick={() => setSelectedImageIndex(index)}
                                             >
                                                 <img
-                                                    src={file.file_url}
+                                                    src={file.displayUrl}
                                                     alt="Evidencia"
                                                     className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                                                 />
@@ -241,7 +258,7 @@ export function DebtDetailModal({ debtId, onClose }) {
                     )}
 
                     <img
-                        src={evidence[selectedImageIndex].file_url}
+                        src={evidence[selectedImageIndex].displayUrl}
                         alt="Evidencia Ampliada"
                         className="max-h-[85vh] max-w-[90vw] object-contain shadow-2xl rounded-sm"
                         onClick={(e) => e.stopPropagation()}

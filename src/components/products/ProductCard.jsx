@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Star } from 'lucide-react';
 import { usePriceStore } from '../../context/priceStore';
 
+import { getProductUrl } from '../../lib/urlUtils';
+
 export function ProductCard({ product }) {
     const { isWholesale } = usePriceStore();
 
@@ -13,7 +15,7 @@ export function ProductCard({ product }) {
     const rating = product.rating || 4.5;
 
     return (
-        <Link to={`/product/${product.id}`} className="group block">
+        <Link to={getProductUrl(product.id)} className="group block">
             <div className="space-y-3">
                 {/* Image Container */}
                 <div className="relative aspect-[1/1.1] bg-gray-100 rounded-[20px] overflow-hidden">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { Star } from 'lucide-react';
+import { useParams, Link } from 'react-router-dom';
+import { Star, ChevronLeft } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../context/cartStore';
 import { usePriceStore } from '../../context/priceStore';
@@ -99,11 +99,16 @@ export function ProductDetail() {
                 <div className="hidden md:block mb-6">
                     <Breadcrumb items={[
                         { label: 'Inicio', href: '/' },
-                        { label: 'Tienda', href: '/catalog' },
+                        { label: 'Catálogo', href: '/catalog' },
                         { label: product.categories?.name || 'Productos', href: '/catalog' },
                         { label: product.name }
                     ]} />
                 </div>
+
+                <Link to="/catalog" className="md:hidden flex items-center text-sm text-gray-600 mb-4 hover:text-black">
+                    <ChevronLeft className="w-4 h-4 mr-1" />
+                    Volver al Catálogo
+                </Link>
 
                 <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
                     {/* Image Section */}

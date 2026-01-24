@@ -1,5 +1,7 @@
 
 import React from 'react';
+import { Eye, Edit, Trash2, ExternalLink } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const ProductsTable = ({
     productos,
@@ -19,6 +21,26 @@ const ProductsTable = ({
         if (stock < 10) return `${stock} (Bajo)`;
         if (stock < 50) return `${stock} (Medio)`;
         return `${stock}`;
+    };
+
+    const verProductoEnTienda = (producto) => {
+        // Opción 1: Por ID
+        const url = `/catalog/${producto.id}`;
+
+        // Abrir en nueva pestaña
+        window.open(url, '_blank', 'noopener,noreferrer');
+
+        // Mostrar toast de confirmación
+        toast.success(
+            <div className="flex items-center gap-2">
+                <ExternalLink className="h-4 w-4" />
+                <span>Abriendo producto en nueva pestaña</span>
+            </div>,
+            {
+                duration: 2000,
+                position: 'bottom-right'
+            }
+        );
     };
 
     return (
@@ -75,20 +97,33 @@ const ProductsTable = ({
                                 </span>
                             </td>
                             <td>
-                                <div className="actions-cell">
+                                <div className="flex items-center gap-2">
+                                    {/* Botón Ver */}
                                     <button
-                                        className="action-btn action-btn-edit"
-                                        onClick={() => onEdit(producto.id)}
-                                        data-tooltip="Editar"
+                                        onClick={() => verProductoEnTienda(producto)}
+                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group relative"
+                                        title="Ver producto en tienda"
                                     >
-                                        ✏️
+                                        <Eye className="h-5 w-5" />
+                                        <ExternalLink className="h-3 w-3 absolute -top-0.5 -right-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
                                     </button>
+
+                                    {/* Botón Editar */}
                                     <button
-                                        className="action-btn action-btn-delete"
-                                        onClick={() => onDelete(producto.id)}
-                                        data-tooltip="Eliminar"
+                                        onClick={() => onEdit(producto.id)}
+                                        className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
+                                        title="Editar producto"
                                     >
-                                        🗑️
+                                        <Edit className="h-5 w-5" />
+                                    </button>
+
+                                    {/* Botón Eliminar */}
+                                    <button
+                                        onClick={() => onDelete(producto.id)}
+                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                                        title="Eliminar producto"
+                                    >
+                                        <Trash2 className="h-5 w-5" />
                                     </button>
                                 </div>
                             </td>

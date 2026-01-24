@@ -21,7 +21,7 @@ export function ProductForm() {
         sizes: [], // Array of strings
         colors: [], // Array of strings
         image_url: '',
-        published: true, // "Publicar en catálogo inmediatamente"
+        published: true, // "Publicar en catálogo inmediatamente" - Default TRUE
         featured: false,
         notify_clients: false
     });
@@ -96,7 +96,7 @@ export function ProductForm() {
                 sizes: data.sizes || [],
                 colors: data.colors || [],
                 image_url: (data.images && data.images[0]) || '',
-                published: data.published ?? true,
+                published: data.published === true, // Ensure boolean
                 featured: false, // Column might not exist
                 notify_clients: false
             });
