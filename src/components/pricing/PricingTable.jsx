@@ -4,8 +4,6 @@ import { BrandAccordion } from './BrandAccordion';
 export function PricingTable({ products, settings }) {
 
     // 1. Calculate Global Expenses for Prorating
-    // We assume 'gastos' is available on the product rows (denormalized) or we default to 0.
-    // We grab the first non-zero 'gastos' we find, assuming it's the Total Tanda Expense.
     const totalTandaExpense = parseFloat(products.find(p => p.gastos)?.gastos || 0);
     const totalRows = products.length;
     // Expense Per Row (Prorated)
@@ -15,11 +13,6 @@ export function PricingTable({ products, settings }) {
     const groupedProducts = useMemo(() => {
         return products.reduce((acc, product) => {
             const brand = product.marca || 'Sin Marca';
-            // Boleta code should be per brand? prompt says "al lado de cada nombre de la marca debes colocar el numero de boleta".
-            // But in the DB schema `entradas`, `codigo_boleta` is per ROW (or per Tanda?).
-            // In sql-05, we added `codigo_boleta` to `entradas`.
-            // So detailed rows have it. If we group by Brand, we assume all pros in brand share boleta? 
-            // Or we just take the first one found for that brand.
 
             if (!acc[brand]) {
                 acc[brand] = {
@@ -36,12 +29,12 @@ export function PricingTable({ products, settings }) {
     return (
         <div className="pb-12">
             <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center px-1">
-                <h3 className="text-xl font-bold text-gray-800 mb-2 sm:mb-0">Listado de Marcas y Precios</h3>
-                <div className="text-sm text-gray-700 bg-white shadow-sm border border-gray-200 px-4 py-2 rounded-lg flex items-center gap-2">
+                <h3 className="text-xl font-bold text-foreground mb-2 sm:mb-0">Listado de Marcas y Precios</h3>
+                <div className="text-sm text-foreground bg-card shadow-sm border border-border px-4 py-2 rounded-lg flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
                     Gastos Totales Tanda: <span className="font-bold">${totalTandaExpense.toLocaleString('es-AR')}</span>
-                    <span className="text-gray-400 mx-2">|</span>
-                    <span className="text-gray-500">Prorrateo: ${expensePerRow.toFixed(2)} / ítem</span>
+                    <span className="text-muted-foreground mx-2">|</span>
+                    <span className="text-muted-foreground">Prorrateo: ${expensePerRow.toFixed(2)} / ítem</span>
                 </div>
             </div>
 

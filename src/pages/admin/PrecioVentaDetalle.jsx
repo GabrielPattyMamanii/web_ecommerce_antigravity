@@ -54,13 +54,13 @@ export function PrecioVentaDetalle() {
     };
 
     if (loading && !data) return (
-        <div className="flex justify-center items-center h-screen">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="flex justify-center items-center h-screen bg-background">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
     );
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-background">
             <PricingControlPanel
                 tanda={{ tanda_nombre: decodeURIComponent(tandaNombre), products: data?.products || [] }}
                 settings={settings}

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -238,30 +239,33 @@ export function DebtForm() {
         }
     };
 
-    if (fetching) return <div className="p-8 text-center text-gray-500">Cargando...</div>;
+    if (fetching) return <div className="p-8 text-center text-muted-foreground">Cargando...</div>;
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-2xl text-left">
+        <div className="container mx-auto px-4 py-8 max-w-2xl text-left bg-background min-h-screen">
             <div className="mb-6 flex items-center justify-between">
-                <Button variant="ghost" className="pl-0 gap-2" onClick={() => navigate('/admin/debts')}>
+                <Button variant="ghost" className="pl-0 gap-2 text-muted-foreground hover:text-foreground" onClick={() => navigate('/admin/debts')}>
                     <ArrowLeft className="w-4 h-4" /> Volver
                 </Button>
                 {isEditing && (
-                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={loading}>
+                    <Button variant="destructive" size="sm" onClick={handleDelete} disabled={loading} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                         <Trash2 className="w-4 h-4 mr-2" /> Eliminar
                     </Button>
                 )}
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border p-6">
-                <h1 className="text-2xl font-bold mb-6">{isEditing ? 'Editar Deuda' : 'Nueva Deuda / Anotación'}</h1>
+            <div className="bg-card rounded-xl shadow-sm border border-border p-6">
+                <h1 className="text-2xl font-bold mb-6 text-foreground">{isEditing ? 'Editar Deuda' : 'Nueva Deuda / Anotación'}</h1>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Direction - NEW FIELD */}
                     <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Dirección *</label>
+                        <label className="text-sm font-medium text-foreground mb-2 block">Dirección *</label>
                         <div className="flex gap-4">
-                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-all ${formData.direction === 'receivable' ? 'bg-green-50 border-green-500 ring-1 ring-green-500 text-green-700 font-bold' : 'bg-white hover:bg-gray-50 border-gray-200'}`}>
+                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-all ${formData.direction === 'receivable'
+                                    ? 'bg-green-500/10 border-green-500 ring-1 ring-green-500 text-green-600 dark:text-green-400 font-bold'
+                                    : 'bg-card hover:bg-muted/50 border-input text-foreground'
+                                }`}>
                                 <input
                                     type="radio"
                                     name="direction"
@@ -272,7 +276,10 @@ export function DebtForm() {
                                 />
                                 📥 Por cobrar (Me deben)
                             </label>
-                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-all ${formData.direction === 'payable' ? 'bg-red-50 border-red-500 ring-1 ring-red-500 text-red-700 font-bold' : 'bg-white hover:bg-gray-50 border-gray-200'}`}>
+                            <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-lg border cursor-pointer transition-all ${formData.direction === 'payable'
+                                    ? 'bg-red-500/10 border-red-500 ring-1 ring-red-500 text-red-600 dark:text-red-400 font-bold'
+                                    : 'bg-card hover:bg-muted/50 border-input text-foreground'
+                                }`}>
                                 <input
                                     type="radio"
                                     name="direction"
@@ -294,15 +301,16 @@ export function DebtForm() {
                             onChange={handleChange}
                             placeholder="Nombre de quien debe"
                             required
+                            className="bg-background text-foreground border-input"
                         />
                         <div className="space-y-1">
-                            <label className="text-sm font-medium text-gray-700">Fecha *</label>
+                            <label className="text-sm font-medium text-foreground">Fecha *</label>
                             <input
                                 type="date"
                                 name="date"
                                 value={formData.date}
                                 onChange={handleChange}
-                                className="w-full h-10 px-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black"
+                                className="w-full h-10 px-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
                                 required
                             />
                         </div>
@@ -314,13 +322,17 @@ export function DebtForm() {
                         value={formData.reason}
                         onChange={handleChange}
                         placeholder="Por qué se generó esta deuda..."
+                        className="bg-background text-foreground border-input"
                     />
 
                     {/* Type Selector */}
                     <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 block">Tipo de Deuda</label>
+                        <label className="text-sm font-medium text-foreground mb-2 block">Tipo de Deuda</label>
                         <div className="flex gap-4">
-                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${formData.debt_type === 'money' ? 'bg-black text-white border-black' : 'bg-white hover:bg-gray-50'}`}>
+                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${formData.debt_type === 'money'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-card hover:bg-muted/50 border-input text-foreground'
+                                }`}>
                                 <input
                                     type="radio"
                                     name="debt_type"
@@ -331,7 +343,10 @@ export function DebtForm() {
                                 />
                                 💵 Dinero
                             </label>
-                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${formData.debt_type === 'item' ? 'bg-black text-white border-black' : 'bg-white hover:bg-gray-50'}`}>
+                            <label className={`flex items-center gap-2 px-4 py-2 rounded-lg border cursor-pointer transition-colors ${formData.debt_type === 'item'
+                                    ? 'bg-primary text-primary-foreground border-primary'
+                                    : 'bg-card hover:bg-muted/50 border-input text-foreground'
+                                }`}>
                                 <input
                                     type="radio"
                                     name="debt_type"
@@ -358,6 +373,7 @@ export function DebtForm() {
                                 required
                                 min="0"
                                 step="0.01"
+                                className="bg-background text-foreground border-input"
                             />
                             <Input
                                 label="Moneda"
@@ -365,6 +381,7 @@ export function DebtForm() {
                                 value={formData.money_currency}
                                 onChange={handleChange}
                                 placeholder="ARS"
+                                className="bg-background text-foreground border-input"
                             />
                         </div>
                     ) : (
@@ -378,6 +395,7 @@ export function DebtForm() {
                                         onChange={handleChange}
                                         placeholder="Ej: Taladro"
                                         required
+                                        className="bg-background text-foreground border-input"
                                     />
                                 </div>
                                 <Input
@@ -387,6 +405,7 @@ export function DebtForm() {
                                     value={formData.item_quantity}
                                     onChange={handleChange}
                                     placeholder="1"
+                                    className="bg-background text-foreground border-input"
                                 />
                             </div>
                             <textarea
@@ -395,25 +414,25 @@ export function DebtForm() {
                                 onChange={handleChange}
                                 rows="3"
                                 placeholder="Detalles, estado, marca, etc..."
-                                className="w-full p-3 rounded-md border border-gray-300 focus:outline-none focus:ring-2 focus:ring-black text-sm"
+                                className="w-full p-3 rounded-md border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary text-sm"
                             />
                         </div>
                     )}
 
-                    <hr />
+                    <hr className="border-border" />
 
                     {/* Existing Evidence (Edit Mode) */}
                     {isEditing && existingEvidence.length > 0 && (
                         <div>
-                            <label className="text-sm font-medium text-gray-700 mb-2 block">Evidencia Guardada</label>
+                            <label className="text-sm font-medium text-foreground mb-2 block">Evidencia Guardada</label>
                             <div className="grid grid-cols-4 gap-4 mb-4">
                                 {existingEvidence.map((file, index) => (
-                                    <div key={file.id} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
+                                    <div key={file.id} className="relative group aspect-square bg-muted/50 rounded-lg overflow-hidden border border-border">
                                         <img src={file.url} alt="Evidence" className="w-full h-full object-cover" />
                                         <button
                                             type="button"
                                             onClick={() => handleDeleteExistingEvidence(file.id, file.file_path, index)}
-                                            className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                                            className="absolute top-1 right-1 p-1 bg-destructive text-destructive-foreground rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -431,7 +450,7 @@ export function DebtForm() {
                     />
 
                     <div className="pt-4">
-                        <Button type="submit" className="w-full h-12 text-base" disabled={loading}>
+                        <Button type="submit" className="w-full h-12 text-base bg-primary text-primary-foreground hover:bg-primary/90" disabled={loading}>
                             {loading ? 'Guardando...' : 'Guardar Registro'} <Save className="ml-2 w-4 h-4" />
                         </Button>
                     </div>

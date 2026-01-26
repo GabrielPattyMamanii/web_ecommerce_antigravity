@@ -81,9 +81,6 @@ export function CostCalculation() {
             setTandas(grouped);
             setTandaExpenses(prev => ({ ...prev, ...initialExpenses }));
 
-            // Do NOT auto-select first tanda anymore. Start in List View.
-            // if (sortedNames.length > 0) setSelectedTandaName(sortedNames[0]);
-
         } catch (error) {
             console.error('Error fetching data for costs:', error);
         } finally {
@@ -102,7 +99,6 @@ export function CostCalculation() {
             if (tanda.nombre.toLowerCase().includes(lowerTerm)) return true;
 
             // Check Products Codes inside Tanda
-            // tanda.marcas is an array of { name, products: [] }
             return tanda.marcas.some(marca =>
                 marca.products.some(prod =>
                     (prod.codigo && prod.codigo.toLowerCase().includes(lowerTerm)) ||
@@ -158,17 +154,17 @@ export function CostCalculation() {
 
     const grandTotal = calculateGrandTotal();
 
-    if (loading) return <div className="p-8 text-center text-gray-500">Cargando datos...</div>;
+    if (loading) return <div className="p-8 text-center text-muted-foreground">Cargando datos...</div>;
 
     // View: Detail
     if (selectedTandaName) {
-        if (!currentTanda) return <div>Tanda no encontrada</div>;
+        if (!currentTanda) return <div className="text-foreground">Tanda no encontrada</div>;
 
         return (
             <div className="container mx-auto px-4 py-8 max-w-7xl">
                 <button
                     onClick={() => setSelectedTandaName(null)}
-                    className="mb-6 flex items-center text-gray-500 hover:text-gray-900 transition-colors"
+                    className="mb-6 flex items-center text-muted-foreground hover:text-foreground transition-colors"
                 >
                     <ArrowLeft className="w-5 h-5 mr-2" />
                     Volver al listado
@@ -187,7 +183,7 @@ export function CostCalculation() {
                     brands={currentTanda.marcas}
                     dollarRate={dollarRate}
                     expensePerItem={expensePerItem}
-                    highlightCode={searchTerm} // Pass search term to highlight if we implemented it in BrandList
+                    highlightCode={searchTerm}
                 />
             </div>
         );
@@ -200,12 +196,12 @@ export function CostCalculation() {
         <div className="container mx-auto px-4 py-8 max-w-7xl">
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
                 <div className="flex items-center gap-3">
-                    <div className="p-3 bg-blue-600 text-white rounded-xl shadow-lg shadow-blue-200">
+                    <div className="p-3 bg-primary text-primary-foreground rounded-xl shadow-lg">
                         <Calculator className="w-8 h-8" />
                     </div>
                     <div>
-                        <h1 className="text-3xl font-bold tracking-tight text-gray-900">Cálculo de Costos</h1>
-                        <p className="text-gray-500 mt-1">Estimación de costos y gastos por tanda</p>
+                        <h1 className="text-3xl font-bold tracking-tight text-foreground">Cálculo de Costos</h1>
+                        <p className="text-muted-foreground mt-1">Estimación de costos y gastos por tanda</p>
                     </div>
                 </div>
             </div>
@@ -217,41 +213,41 @@ export function CostCalculation() {
 
             {/* Grid */}
             {filteredTandas.length === 0 ? (
-                <div className="text-center py-12 bg-white rounded-xl border border-dashed text-gray-400">
+                <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border text-muted-foreground">
                     No se encontraron tandas con el criterio de búsqueda.
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredTandas.map(tanda => (
-                        <div key={tanda.nombre} className="bg-white p-6 rounded-xl border shadow-sm hover:shadow-md transition-shadow group">
+                        <div key={tanda.nombre} className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-200 group">
                             <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-600 group-hover:text-white transition-colors">
+                                <div className="p-3 bg-primary/10 text-primary rounded-lg group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                                     <Layers className="w-6 h-6" />
                                 </div>
-                                <span className="text-xs font-medium bg-gray-100 px-2 py-1 rounded-full text-gray-600 flex items-center gap-1">
+                                <span className="text-xs font-medium bg-muted px-2 py-1 rounded-full text-muted-foreground flex items-center gap-1 border border-border">
                                     <Calendar className="w-3 h-3" /> {new Date(tanda.fecha).toLocaleDateString()}
                                 </span>
                             </div>
 
-                            <h3 className="font-bold text-lg mb-4 text-gray-900 line-clamp-1" title={tanda.nombre}>{tanda.nombre}</h3>
+                            <h3 className="font-bold text-lg mb-4 text-foreground line-clamp-1" title={tanda.nombre}>{tanda.nombre}</h3>
 
-                            <div className="grid grid-cols-3 gap-2 py-4 border-t border-b border-gray-50 mb-4">
+                            <div className="grid grid-cols-3 gap-2 py-4 border-t border-b border-border mb-4">
                                 <div className="text-center">
-                                    <span className="block text-xs text-gray-500 uppercase">Marcas</span>
-                                    <span className="font-bold text-gray-900">{tanda.marcas.length}</span>
+                                    <span className="block text-xs text-muted-foreground uppercase">Marcas</span>
+                                    <span className="font-bold text-foreground">{tanda.marcas.length}</span>
                                 </div>
-                                <div className="text-center border-l border-gray-100">
-                                    <span className="block text-xs text-gray-500 uppercase">Prods</span>
-                                    <span className="font-bold text-gray-900">{tanda.totalProductos}</span>
+                                <div className="text-center border-l border-border">
+                                    <span className="block text-xs text-muted-foreground uppercase">Prods</span>
+                                    <span className="font-bold text-foreground">{tanda.totalProductos}</span>
                                 </div>
-                                <div className="text-center border-l border-gray-100">
-                                    <span className="block text-xs text-gray-500 uppercase">Docenas</span>
-                                    <span className="font-bold text-green-600">{tanda.totalDocenas}</span>
+                                <div className="text-center border-l border-border">
+                                    <span className="block text-xs text-muted-foreground uppercase">Docenas</span>
+                                    <span className="font-bold text-primary">{tanda.totalDocenas}</span>
                                 </div>
                             </div>
 
                             <Button
-                                className="w-full bg-blue-600 hover:bg-blue-700"
+                                className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                                 onClick={() => setSelectedTandaName(tanda.nombre)}
                             >
                                 Calcular Costos

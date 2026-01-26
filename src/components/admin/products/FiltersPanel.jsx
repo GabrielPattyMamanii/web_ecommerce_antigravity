@@ -1,8 +1,8 @@
-
 import React, { useState } from 'react';
 import Slider from 'rc-slider';
 import 'rc-slider/assets/index.css';
 import CategorySelect from './CategorySelect';
+import { ChevronDown } from 'lucide-react';
 
 const FiltersPanel = ({
     categoria,
@@ -20,7 +20,6 @@ const FiltersPanel = ({
 }) => {
     const [collapsed, setCollapsed] = useState(false);
 
-    // Helper wrappers because standard checkbox sends event, user wants bool
     const handleVisiblesChange = (checked) => {
         onSoloVisiblesChange(checked);
         if (checked) onSoloOcultosChange(false);
@@ -32,27 +31,27 @@ const FiltersPanel = ({
     };
 
     return (
-        <div className="filters-panel">
+        <div className="bg-card border border-border rounded-lg p-6 mb-6 shadow-md">
             <div
-                className="filters-header"
+                className="flex justify-between items-center cursor-pointer pb-4 border-b border-border mb-5"
                 onClick={() => setCollapsed(!collapsed)}
             >
-                <div className="filters-title">
-                    <span>🔧</span>
-                    Filtros Avanzados
+                <div className="flex items-center gap-3">
+                    <span className="text-xl">🔧</span>
+                    <h3 className="text-lg font-semibold text-foreground">Filtros Avanzados</h3>
                 </div>
-                <span className={`filters-toggle-icon ${collapsed ? 'collapsed' : ''}`}>
-                    ▼
-                </span>
+                <ChevronDown
+                    className={`w-5 h-5 text-muted-foreground transition-transform ${collapsed ? '-rotate-90' : ''}`}
+                />
             </div>
 
             {!collapsed && (
                 <>
-                    <div className="filters-grid">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
                         {/* Filtro por Categoría */}
-                        <div className="filter-group">
-                            <label className="filter-label">
-                                <span className="filter-label-icon">📁</span>
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <span>📁</span>
                                 Categoría
                             </label>
                             <CategorySelect
@@ -63,69 +62,53 @@ const FiltersPanel = ({
                         </div>
 
                         {/* Filtro por Precio */}
-                        <div className="filter-group">
-                            <label className="filter-label">
-                                <span className="filter-label-icon">💰</span>
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <span>💰</span>
                                 Rango de Precio
                             </label>
-                            <div className="range-slider-container">
-                                <div className="range-slider-header">
-                                    <span className="range-value">
+                            <div className="p-4 bg-muted/30 border border-border rounded-lg">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-sm font-semibold text-primary bg-card px-3 py-1 rounded border border-border">
                                         ${precioRange.min.toLocaleString()}
                                     </span>
-                                    <span className="range-value">
+                                    <span className="text-sm font-semibold text-primary bg-card px-3 py-1 rounded border border-border">
                                         ${precioRange.max.toLocaleString()}
                                     </span>
                                 </div>
                                 <Slider
                                     range
                                     min={0}
-                                    max={10000} // This should ideally be dynamic max based on props, but fixed for now or handled by parent passing dynamic max logic if implied
-                                    // The prompt implementation used fixed or calc. We use props if passed as limits, but here we just blindly use what is passed as current range state.
-                                    // Actually the prompt had: 
-                                    // const [precioRange, setPrecioRange] = useState({ min: 0, max: 10000 });
-                                    // And Slider uses hardcoded min=0 max=10000? 
-                                    // "Rango dinámico basado en productos existentes" -> This implies the SLIDER BOUNDS should be dynamic. 
-                                    // But the props passed are `precioRange` which is the SELECTED range. 
-                                    // Usually we need `minPrice` and `maxPrice` available in data.
-                                    // For now I will stick to 0-10000 as default or maybe 0-20000. 
-                                    // Ideally the parent should pass `minLimit` and `maxLimit`.
-                                    // The user code snippet: useEffect(() => ... setPrecioRange({min, max}))
-                                    // So `precioRange` IS the limit? No, `precioFilter` is the selection.
-                                    // Use prompt logic: 
-                                    // value={[precioRange.min, precioRange.max]} -> onChange setPrecioRange?
-                                    // Wait, usually: 
-                                    // limits: availableMin, availableMax
-                                    // selection: selectedMin, selectedMax
-                                    // User code:
-                                    // const [precioRange, setPrecioRange] = useState({ min: 0, max: 10000 }); // This seems to be the LIMITS?
-                                    // const [precioFilter, setPrecioFilter] = useState({ min: 0, max: 10000 }); // This is SELECTION?
-                                    // In FiltersPanel, props are `precioRange` and `onPrecioChange`.
-                                    // Slider value={[precioRange.min, precioRange.max]}.
-                                    // This means `precioRange` IS the selection. 
-                                    // Where are the limits? The user hardcoded `max={10000}` inside the component in the prompt example.
-                                    // I'll keep it hardcoded to 10000 or 100000 for safety, or better, pass `maxPrice` prop if I can.
-                                    // I'll stick to the user's prompt code for exactness: max={10000}.
+                                    max={10000}
                                     value={[precioRange.min, precioRange.max]}
                                     onChange={(values) => onPrecioChange({
                                         min: values[0],
                                         max: values[1]
                                     })}
                                     allowCross={false}
+                                    styles={{
+                                        track: { backgroundColor: 'var(--primary)' },
+                                        handle: { borderColor: 'var(--primary)', backgroundColor: 'var(--card)' },
+                                        rail: { backgroundColor: 'var(--muted)' }
+                                    }}
                                 />
                             </div>
                         </div>
 
                         {/* Filtro por Stock */}
-                        <div className="filter-group">
-                            <label className="filter-label">
-                                <span className="filter-label-icon">📦</span>
+                        <div className="flex flex-col gap-3">
+                            <label className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                                <span>📦</span>
                                 Rango de Stock
                             </label>
-                            <div className="range-slider-container">
-                                <div className="range-slider-header">
-                                    <span className="range-value">{stockRange.min}</span>
-                                    <span className="range-value">{stockRange.max}</span>
+                            <div className="p-4 bg-muted/30 border border-border rounded-lg">
+                                <div className="flex justify-between items-center mb-4">
+                                    <span className="text-sm font-semibold text-primary bg-card px-3 py-1 rounded border border-border">
+                                        {stockRange.min}
+                                    </span>
+                                    <span className="text-sm font-semibold text-primary bg-card px-3 py-1 rounded border border-border">
+                                        {stockRange.max}
+                                    </span>
                                 </div>
                                 <Slider
                                     range
@@ -137,41 +120,55 @@ const FiltersPanel = ({
                                         max: values[1]
                                     })}
                                     allowCross={false}
+                                    styles={{
+                                        track: { backgroundColor: 'var(--primary)' },
+                                        handle: { borderColor: 'var(--primary)', backgroundColor: 'var(--card)' },
+                                        rail: { backgroundColor: 'var(--muted)' }
+                                    }}
                                 />
                             </div>
                         </div>
                     </div>
 
                     {/* Filtros de Visibilidad */}
-                    <div className="visibility-filters">
-                        <label className="visibility-filter-option">
+                    <div className="flex gap-6 p-4 bg-muted/30 border border-border rounded-lg mb-4">
+                        <label className="flex items-center gap-3 cursor-pointer px-3 py-2 rounded-lg hover:bg-card transition-colors">
                             <div
-                                className={`visibility-checkbox ${soloVisibles ? 'checked' : ''}`}
+                                className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-all ${soloVisibles
+                                        ? 'bg-primary border-primary'
+                                        : 'border-border bg-card'
+                                    }`}
                                 onClick={() => handleVisiblesChange(!soloVisibles)}
                             >
-                                <span className="visibility-checkbox-icon">✓</span>
+                                {soloVisibles && <span className="text-primary-foreground text-xs">✓</span>}
                             </div>
-                            <span className="visibility-filter-label">
+                            <span className="text-sm font-medium text-foreground select-none">
                                 Solo productos visibles en catálogo
                             </span>
                         </label>
 
-                        <label className="visibility-filter-option">
+                        <label className="flex items-center gap-3 cursor-pointer px-3 py-2 rounded-lg hover:bg-card transition-colors">
                             <div
-                                className={`visibility-checkbox ${soloOcultos ? 'checked' : ''}`}
+                                className={`w-5 h-5 border-2 rounded flex items-center justify-center transition-all ${soloOcultos
+                                        ? 'bg-primary border-primary'
+                                        : 'border-border bg-card'
+                                    }`}
                                 onClick={() => handleOcultosChange(!soloOcultos)}
                             >
-                                <span className="visibility-checkbox-icon">✓</span>
+                                {soloOcultos && <span className="text-primary-foreground text-xs">✓</span>}
                             </div>
-                            <span className="visibility-filter-label">
+                            <span className="text-sm font-medium text-foreground select-none">
                                 Solo productos ocultos del catálogo
                             </span>
                         </label>
                     </div>
 
                     {/* Botón Limpiar Filtros */}
-                    <button className="clear-filters-btn" onClick={onLimpiar}>
-                        <span className="clear-filters-icon">🗑️</span>
+                    <button
+                        className="px-5 py-2 bg-transparent text-muted-foreground hover:bg-muted hover:text-foreground border-2 border-border rounded-lg font-semibold text-sm flex items-center gap-2 transition-all"
+                        onClick={onLimpiar}
+                    >
+                        <span>🗑️</span>
                         Limpiar Filtros
                     </button>
                 </>

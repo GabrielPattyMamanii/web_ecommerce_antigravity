@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink } from 'lucide-react';
+import { LayoutDashboard, Heart, Folder, Settings, Search, Bell, Mail, User, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
+import { useDarkMode } from '../../hooks/useDarkMode';
 
 export function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
     const [searchTerm, setSearchTerm] = useState('');
+    const { isDark, toggleDarkMode } = useDarkMode();
+
 
     const isActive = (path) => location.pathname === path;
 
@@ -126,27 +129,31 @@ export function AdminLayout() {
             </aside>
 
             {/* Main Content */}
-            <div className="flex-1 flex flex-col overflow-hidden bg-[#F0F4F8]">
+            <div className="flex-1 flex flex-col overflow-hidden bg-background">
                 {/* Header */}
-                <header className="h-20 bg-white border-b flex items-center justify-between px-8 shadow-sm">
+                <header className="h-20 bg-card border-b border-border flex items-center justify-between px-8 shadow-sm">
                     <div className="flex items-center gap-4">
-                        <button className="p-2 rounded-full bg-sidebar text-white">
-                            <User className="w-5 h-5" />
+                        <button
+                            onClick={toggleDarkMode}
+                            className="p-2 rounded-lg bg-muted hover:bg-accent text-foreground transition-colors"
+                            title={isDark ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+                        >
+                            {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-primary">
+                        <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                             <Bell className="w-5 h-5" />
                         </button>
-                        <button className="p-2 text-gray-500 hover:text-primary">
+                        <button className="p-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
                             <Mail className="w-5 h-5" />
                         </button>
                     </div>
 
                     <button
                         onClick={() => window.open('/tienda', '_blank')}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg mx-4"
+                        className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow-md mx-4 font-medium"
                     >
                         <Store className="h-5 w-5" />
-                        <span className="font-medium">Ver Tienda</span>
+                        <span>Ver Tienda</span>
                         <ExternalLink className="h-4 w-4" />
                     </button>
 
