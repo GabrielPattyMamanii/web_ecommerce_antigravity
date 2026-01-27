@@ -149,7 +149,7 @@ export function AdminLayout() {
                     </div>
 
                     <button
-                        onClick={() => window.open('/tienda', '_blank')}
+                        onClick={() => window.open('/', '_blank')}
                         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all duration-200 shadow-sm hover:shadow-md mx-4 font-medium"
                     >
                         <Store className="h-5 w-5" />

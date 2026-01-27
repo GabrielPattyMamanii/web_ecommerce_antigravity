@@ -229,7 +229,7 @@ export function AgregarTanda() {
         const errors = [];
         if (!formData.nombre.trim()) errors.push("El nombre de la tanda es obligatorio");
         if (!formData.fechaIngreso) errors.push("La fecha es obligatoria");
-        if (formData.gastos === '' || formData.gastos === null || formData.gastos === undefined) errors.push("Debe ingresar un valor de gastos (puede ser 0)");
+        // if (formData.gastos === '' || formData.gastos === null || formData.gastos === undefined) errors.push("Debe ingresar un valor de gastos (puede ser 0)");
         if (formData.marcas.length === 0) errors.push("Debe agregar al menos una marca");
 
         let totalProds = 0;
@@ -354,19 +354,19 @@ export function AgregarTanda() {
 
                     <div className="flex flex-col items-end">
                         <button
-                            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${(!formData.nombre.trim() || formData.gastos === '')
+                            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${(!formData.nombre.trim())
                                 ? 'bg-muted text-muted-foreground cursor-not-allowed'
                                 : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg'
                                 }`}
                             onClick={handlePreSave}
-                            disabled={loading || !formData.nombre.trim() || formData.gastos === ''}
+                            disabled={loading || !formData.nombre.trim()}
                         >
                             <Save size={18} /> {loading ? 'Guardando...' : 'Finalizar y Guardar Tanda'}
                         </button>
-                        {(!formData.nombre.trim() || formData.gastos === '') && (
+                        {(!formData.nombre.trim()) && (
                             <div className="mt-2 text-xs text-destructive flex items-center gap-1 font-medium bg-destructive/10 px-2 py-1 rounded">
                                 <AlertCircle className="h-3 w-3" />
-                                <span>Completa nombre y gastos</span>
+                                <span>Completa el nombre</span>
                             </div>
                         )}
                     </div>
@@ -411,23 +411,18 @@ export function AgregarTanda() {
                         </div>
                         <div>
                             <label className="text-xs font-bold text-muted-foreground uppercase mb-2 block">
-                                Gastos ($) <span className="text-destructive">*</span>
+                                Gastos ($)
                             </label>
                             <input
                                 type="number"
-                                className={`w-full px-4 py-2.5 rounded-lg border bg-background text-foreground focus:outline-none focus:ring-2 transition-all ${formData.gastos === ''
-                                    ? 'border-input focus:ring-ring'
-                                    : 'border-green-500 bg-green-50 dark:bg-green-900/20 focus:ring-green-500'
-                                    }`}
+                                className={`w-full px-4 py-2.5 rounded-lg border bg-background text-foreground focus:outline-none focus:ring-2 transition-all border-input focus:ring-ring`}
                                 placeholder="0"
                                 value={formData.gastos}
                                 onChange={e => setFormData({ ...formData, gastos: e.target.value })}
                                 ref={gastosRef}
                                 onKeyDown={(e) => handleKeyDown(e, marcaNameRef)}
                             />
-                            {formData.gastos === '' && (
-                                <p className="text-[10px] text-muted-foreground mt-1 pl-1">Ingresa 0 si no hubo</p>
-                            )}
+
                         </div>
                     </div>
                 </div>
