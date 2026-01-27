@@ -138,7 +138,17 @@ export function FormularioMarca({
                         📦
                     </div>
                     <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-6 flex-1 min-w-0">
-                        <h3 className="text-base font-bold text-foreground whitespace-nowrap">{marca.nombre}</h3>
+                        {isEditing ? (
+                            <input
+                                type="text"
+                                className="text-base font-bold text-foreground bg-background border border-input rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-ring w-full max-w-[200px]"
+                                value={marca.nombre}
+                                onClick={(e) => e.stopPropagation()}
+                                onChange={(e) => onUpdate(index, { ...marca, nombre: e.target.value })}
+                            />
+                        ) : (
+                            <h3 className="text-base font-bold text-foreground whitespace-nowrap">{marca.nombre}</h3>
+                        )}
 
                         {/* Editable Boleta Input in Header */}
                         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -216,8 +226,8 @@ export function FormularioMarca({
                                 <div className="relative w-24">
                                     <input
                                         className={`w-full px-3 py-2 rounded-md border bg-background text-foreground text-sm focus:outline-none focus:ring-2 transition-all uppercase placeholder:text-muted-foreground font-mono ${codigoError
-                                                ? 'border-destructive focus:ring-destructive'
-                                                : 'border-input focus:ring-ring'
+                                            ? 'border-destructive focus:ring-destructive'
+                                            : 'border-input focus:ring-ring'
                                             }`}
                                         placeholder="Código *"
                                         value={productForm.codigo}
@@ -243,10 +253,10 @@ export function FormularioMarca({
                                 <div className="flex gap-1 h-full">
                                     <button
                                         className={`h-[38px] w-[38px] flex items-center justify-center rounded-md transition-all shadow-sm ${codigoError
-                                                ? 'opacity-50 cursor-not-allowed bg-muted text-muted-foreground'
-                                                : editingProductIndex !== null
-                                                    ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                                                    : 'bg-primary hover:bg-primary/90 text-primary-foreground'
+                                            ? 'opacity-50 cursor-not-allowed bg-muted text-muted-foreground'
+                                            : editingProductIndex !== null
+                                                ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                                                : 'bg-primary hover:bg-primary/90 text-primary-foreground'
                                             }`}
                                         onClick={handleAddProduct}
                                         disabled={!!codigoError}
