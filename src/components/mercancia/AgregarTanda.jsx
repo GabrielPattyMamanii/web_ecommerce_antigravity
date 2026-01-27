@@ -5,6 +5,7 @@ import { ArrowLeft, Save, Plus, Layers, Calculator, AlertTriangle, AlertCircle }
 import { Button } from '../ui/Button';
 import { supabase } from '../../lib/supabase';
 import { FormularioMarca } from './FormularioMarca';
+import { PhotoUploader } from './PhotoUploader';
 import toast, { Toaster } from 'react-hot-toast'; // Assuming available, otherwise will fallback to alert but user requester toast. Using alert if toast not installed but the user asked for toast.
 // Checking if toast is available in project... I will assume I can use a simple custom toast or just alerts if I can't find it. 
 // But the prompt specifically asked for "Toasts para notificaciones (react-hot-toast o similar)".
@@ -17,47 +18,51 @@ import toast, { Toaster } from 'react-hot-toast'; // Assuming available, otherwi
 function ConfirmationModal({ isOpen, onClose, onConfirm, data }) {
     if (!isOpen) return null;
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-in fade-in duration-200">
-            <div className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-200">
-                <h3 className="text-xl font-bold mb-4 text-gray-900 border-b pb-2">
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 flex items-center justify-center z-50 animate-in fade-in duration-200">
+            <div className="bg-card rounded-xl shadow-2xl p-6 max-w-md w-full mx-4 animate-in zoom-in-95 duration-200 border border-border">
+                <h3 className="text-xl font-bold mb-4 text-foreground border-b border-border pb-2">
                     Confirmar Guardado de Tanda
                 </h3>
 
-                <div className="space-y-3 mb-6 text-sm text-gray-600">
+                <div className="space-y-3 mb-6 text-sm text-muted-foreground">
                     <div className="flex justify-between items-center">
                         <span>Nombre:</span>
-                        <span className="font-bold text-gray-800">{data.nombre}</span>
+                        <span className="font-bold text-foreground">{data.nombre}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span>Fecha:</span>
-                        <span className="font-semibold text-gray-800">{data.fechaIngreso}</span>
+                        <span className="font-semibold text-foreground">{data.fechaIngreso}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span>Marcas:</span>
-                        <span className="font-semibold text-gray-800">{data.marcasCount}</span>
+                        <span className="font-semibold text-foreground">{data.marcasCount}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span>Total Productos:</span>
-                        <span className="font-semibold text-gray-800">{data.totalProductos}</span>
+                        <span className="font-semibold text-foreground">{data.totalProductos}</span>
                     </div>
-                    <div className="flex justify-between items-center bg-gray-50 p-2 rounded">
+                    <div className="flex justify-between items-center bg-muted/30 p-2 rounded">
                         <span>Gastos:</span>
-                        <span className="font-bold text-red-600 font-mono">
+                        <span className="font-bold text-destructive font-mono">
                             ${parseFloat(data.gastos || 0).toLocaleString()}
                         </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span>Fotos:</span>
+                        <span className="font-semibold text-foreground">{data.fotosCount || 0}</span>
                     </div>
                 </div>
 
                 <div className="flex gap-3">
                     <button
                         onClick={onClose}
-                        className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 font-medium transition-colors"
+                        className="flex-1 px-4 py-2 border border-input rounded-lg hover:bg-muted text-foreground font-medium transition-colors"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={onConfirm}
-                        className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors shadow-sm"
+                        className="flex-1 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 font-medium transition-colors shadow-sm"
                     >
                         Confirmar y Guardar
                     </button>
@@ -86,6 +91,11 @@ export function AgregarTanda() {
 
     const [marcaError, setMarcaError] = useState('');
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+
+    // Photo state
+    const [photos, setPhotos] = useState([]);
+    const [existingPhotoUrls, setExistingPhotoUrls] = useState([]);
+    const [photosToDelete, setPhotosToDelete] = useState([]);
 
     // Derived state for code validation
     const allCodesInTanda = useMemo(() => {
@@ -155,6 +165,12 @@ export function AgregarTanda() {
                     marcas: Object.values(grouped)
                 });
                 setOriginalTandaNombre(first.tanda_nombre);
+
+                // Load existing photos
+                if (first.fotos && Array.isArray(first.fotos)) {
+                    setExistingPhotoUrls(first.fotos);
+                    setPhotos(first.fotos);
+                }
             }
         } catch (err) {
             alert("Error al cargar la tanda");
@@ -236,6 +252,51 @@ export function AgregarTanda() {
         setShowConfirmModal(false);
         setLoading(true);
         try {
+            // 1. Handle photo uploads and deletions
+            let photoUrls = [...existingPhotoUrls];
+
+            // Delete removed photos from storage
+            if (photosToDelete.length > 0) {
+                for (const url of photosToDelete) {
+                    try {
+                        const path = url.split('/').pop();
+                        await supabase.storage.from('tanda-fotos').remove([path]);
+                    } catch (err) {
+                        console.error('Error deleting photo:', err);
+                    }
+                }
+                photoUrls = photoUrls.filter(url => !photosToDelete.includes(url));
+            }
+
+            // Upload new photos
+            const newPhotos = photos.filter(p => typeof p !== 'string');
+            if (newPhotos.length > 0) {
+                for (const photo of newPhotos) {
+                    try {
+                        const fileExt = photo.name.split('.').pop();
+                        const fileName = `${formData.nombre}_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+                        const filePath = fileName;
+
+                        const { data: uploadData, error: uploadError } = await supabase.storage
+                            .from('tanda-fotos')
+                            .upload(filePath, photo);
+
+                        if (uploadError) throw uploadError;
+
+                        // Get public URL
+                        const { data: { publicUrl } } = supabase.storage
+                            .from('tanda-fotos')
+                            .getPublicUrl(filePath);
+
+                        photoUrls.push(publicUrl);
+                    } catch (err) {
+                        console.error('Error uploading photo:', err);
+                        alert('Error al subir una foto: ' + err.message);
+                    }
+                }
+            }
+
+            // 2. Prepare entries with photo URLs
             const entriesToInsert = [];
             formData.marcas.forEach(marca => {
                 marca.productos.forEach(prod => {
@@ -249,11 +310,13 @@ export function AgregarTanda() {
                         codigo: prod.codigo,
                         observaciones: prod.observaciones,
                         codigo_boleta: marca.codigo_boleta,
-                        gastos: formData.gastos || 0
+                        gastos: formData.gastos || 0,
+                        fotos: photoUrls.length > 0 ? photoUrls : null
                     });
                 });
             });
 
+            // 3. Save to database
             if (isEditing) {
                 await supabase.from('entradas').delete().eq('tanda_nombre', originalTandaNombre);
             }
@@ -262,8 +325,6 @@ export function AgregarTanda() {
                 if (error) throw error;
             }
 
-            // Optional success feedback
-            // alert("✅ Tanda guardada exitosamente");
             navigate('/admin/mercancia');
         } catch (e) {
             alert("Error: " + e.message);
@@ -273,52 +334,58 @@ export function AgregarTanda() {
     };
 
     return (
-        <div className="tanda-form-page compact">
+        <div className="min-h-screen bg-background">
             <Toaster position="top-center" reverseOrder={false} />
-            <div className="tanda-header compact">
-                <div className="header-left">
-                    <button onClick={() => navigate('/admin/mercancia')} className="back-button compact">
-                        ← Volver
-                    </button>
-                    <div className="header-title-group">
-                        <h1 className="text-2xl font-bold flex items-center gap-2">
-                            {isEditing ? '✏️ Editar Tanda' : '✨ Nueva Tanda'}
-                        </h1>
-                    </div>
-                </div>
-
-                <div className="header-actions flex flex-col items-end">
-                    <button
-                        className={`
-                            flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200
-                            ${(!formData.nombre.trim() || formData.gastos === '')
-                                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                : 'bg-indigo-600 text-white hover:bg-indigo-700 hover:shadow-lg'}
-                        `}
-                        onClick={handlePreSave}
-                        disabled={loading || !formData.nombre.trim() || formData.gastos === ''}
-                    >
-                        <Save size={18} /> {loading ? 'Guardando...' : 'Finalizar y Guardar Tanda'}
-                    </button>
-                    {(!formData.nombre.trim() || formData.gastos === '') && (
-                        <div className="mt-2 text-xs text-red-600 flex items-center gap-1 font-medium bg-red-50 px-2 py-1 rounded">
-                            <AlertCircle className="h-3 w-3" />
-                            <span>Completa nombre y gastos</span>
+            <div className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
+                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <button
+                            onClick={() => navigate('/admin/mercancia')}
+                            className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
+                        >
+                            ← Volver
+                        </button>
+                        <div>
+                            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                                {isEditing ? '✏️ Editar Tanda' : '✨ Nueva Tanda'}
+                            </h1>
                         </div>
-                    )}
+                    </div>
+
+                    <div className="flex flex-col items-end">
+                        <button
+                            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${(!formData.nombre.trim() || formData.gastos === '')
+                                ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg'
+                                }`}
+                            onClick={handlePreSave}
+                            disabled={loading || !formData.nombre.trim() || formData.gastos === ''}
+                        >
+                            <Save size={18} /> {loading ? 'Guardando...' : 'Finalizar y Guardar Tanda'}
+                        </button>
+                        {(!formData.nombre.trim() || formData.gastos === '') && (
+                            <div className="mt-2 text-xs text-destructive flex items-center gap-1 font-medium bg-destructive/10 px-2 py-1 rounded">
+                                <AlertCircle className="h-3 w-3" />
+                                <span>Completa nombre y gastos</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
 
-            <div className="tanda-form-container compact">
+            <div className="max-w-7xl mx-auto px-6 py-6 space-y-6">
                 {/* 1. INFO TANDA */}
-                <div className="form-section compact">
-                    <div className="info-grid compact">
-                        <div className="flex-2">
-                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
-                                Nombre Tanda <span className="text-red-500">*</span>
+                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-2 block">
+                                Nombre Tanda <span className="text-destructive">*</span>
                             </label>
                             <input
-                                className={`tanda-name-input compact ${!formData.nombre.trim() ? 'border-gray-300' : 'border-green-500 bg-green-50'}`}
+                                className={`w-full px-4 py-2.5 rounded-lg border bg-background text-foreground focus:outline-none focus:ring-2 transition-all ${!formData.nombre.trim()
+                                    ? 'border-input focus:ring-ring'
+                                    : 'border-green-500 bg-green-50 dark:bg-green-900/20 focus:ring-green-500'
+                                    }`}
                                 placeholder="Ej: Verano 2026..."
                                 value={formData.nombre}
                                 onChange={e => setFormData({ ...formData, nombre: e.target.value })}
@@ -326,29 +393,32 @@ export function AgregarTanda() {
                                 autoFocus
                             />
                             {!formData.nombre.trim() && (
-                                <p className="text-[10px] text-gray-400 mt-1 pl-1">Obligatorio</p>
+                                <p className="text-[10px] text-muted-foreground mt-1 pl-1">Obligatorio</p>
                             )}
                         </div>
-                        <div className="flex-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
-                                Fecha <span className="text-red-500">*</span>
+                        <div>
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-2 block">
+                                Fecha <span className="text-destructive">*</span>
                             </label>
                             <input
                                 type="date"
-                                className="date-input compact"
+                                className="w-full px-4 py-2.5 rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                                 value={formData.fechaIngreso}
                                 onChange={e => setFormData({ ...formData, fechaIngreso: e.target.value })}
                                 ref={dateRef}
                                 onKeyDown={(e) => handleKeyDown(e, gastosRef)}
                             />
                         </div>
-                        <div className="flex-1">
-                            <label className="text-xs font-bold text-gray-500 uppercase mb-1 block">
-                                Gastos ($) <span className="text-red-500">*</span>
+                        <div>
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-2 block">
+                                Gastos ($) <span className="text-destructive">*</span>
                             </label>
                             <input
                                 type="number"
-                                className={`gastos-input compact ${formData.gastos === '' ? 'border-gray-300' : 'border-green-500 bg-green-50'}`}
+                                className={`w-full px-4 py-2.5 rounded-lg border bg-background text-foreground focus:outline-none focus:ring-2 transition-all ${formData.gastos === ''
+                                    ? 'border-input focus:ring-ring'
+                                    : 'border-green-500 bg-green-50 dark:bg-green-900/20 focus:ring-green-500'
+                                    }`}
                                 placeholder="0"
                                 value={formData.gastos}
                                 onChange={e => setFormData({ ...formData, gastos: e.target.value })}
@@ -356,18 +426,35 @@ export function AgregarTanda() {
                                 onKeyDown={(e) => handleKeyDown(e, marcaNameRef)}
                             />
                             {formData.gastos === '' && (
-                                <p className="text-[10px] text-gray-400 mt-1 pl-1">Ingresa 0 si no hubo</p>
+                                <p className="text-[10px] text-muted-foreground mt-1 pl-1">Ingresa 0 si no hubo</p>
                             )}
                         </div>
                     </div>
                 </div>
 
-                {/* 2. MARCAS Y PRODUCTOS */}
-                <div className="form-section compact">
+                {/* 2. FOTOS (OPTIONAL) */}
+                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+                    <PhotoUploader
+                        photos={photos}
+                        onPhotosChange={(newPhotos) => {
+                            const removedUrls = existingPhotoUrls.filter(
+                                url => !newPhotos.includes(url)
+                            );
+                            if (removedUrls.length > 0) {
+                                setPhotosToDelete([...photosToDelete, ...removedUrls]);
+                            }
+                            setPhotos(newPhotos);
+                        }}
+                        maxPhotos={5}
+                    />
+                </div>
+
+                {/* 3. MARCAS Y PRODUCTOS */}
+                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
                     {/* Add Brand Form */}
-                    <div className="add-marca-form compact">
+                    <div className="flex gap-3 mb-4">
                         <input
-                            className="marca-name-input compact"
+                            className="flex-1 px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                             placeholder="Nueva Marca..."
                             value={newMarcaName}
                             onChange={e => { setNewMarcaName(e.target.value); setMarcaError(''); }}
@@ -380,7 +467,7 @@ export function AgregarTanda() {
                             ref={marcaNameRef}
                         />
                         <input
-                            className="marca-boleta-input compact"
+                            className="w-32 px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
                             placeholder="Nº Boleta"
                             value={newMarcaBoleta}
                             onChange={e => setNewMarcaBoleta(e.target.value)}
@@ -388,20 +475,22 @@ export function AgregarTanda() {
                                 if (e.key === 'Enter') {
                                     e.preventDefault();
                                     handleAddMarca();
-                                    // Focus back to name after add
                                     setTimeout(() => marcaNameRef.current?.focus(), 10);
                                 }
                             }}
                             ref={marcaBoletaRef}
                         />
-                        <button className="btn-add-marca compact" onClick={handleAddMarca}>
+                        <button
+                            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center"
+                            onClick={handleAddMarca}
+                        >
                             <Plus size={16} />
                         </button>
                     </div>
-                    {marcaError && <div className="text-red-500 text-xs px-2 mb-2">{marcaError}</div>}
+                    {marcaError && <div className="text-destructive text-xs px-2 mb-4">{marcaError}</div>}
 
                     {/* Marcas List */}
-                    <div className="marcas-list compact">
+                    <div className="space-y-4 mt-4">
                         {formData.marcas.map((marca, idx) => (
                             <FormularioMarca
                                 key={marca.id || idx}
@@ -415,20 +504,20 @@ export function AgregarTanda() {
                     </div>
                 </div>
 
-                {/* 3. SUMMARY */}
-                <div className="summary-section compact">
-                    <div className="summary-grid compact">
-                        <div className="summary-item compact">
-                            <div className="summary-label">Prods</div>
-                            <div className="summary-value">{resumen.totalProductos}</div>
+                {/* 4. SUMMARY */}
+                <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6 shadow-sm">
+                    <div className="grid grid-cols-3 gap-4">
+                        <div className="text-center">
+                            <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Prods</div>
+                            <div className="text-2xl font-bold text-foreground">{resumen.totalProductos}</div>
                         </div>
-                        <div className="summary-item compact">
-                            <div className="summary-label">Doc.</div>
-                            <div className="summary-value">{resumen.totalDocenas}</div>
+                        <div className="text-center">
+                            <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Doc.</div>
+                            <div className="text-2xl font-bold text-foreground">{resumen.totalDocenas}</div>
                         </div>
-                        <div className="summary-item compact">
-                            <div className="summary-label">Estimado</div>
-                            <div className="summary-value currency">
+                        <div className="text-center">
+                            <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Estimado</div>
+                            <div className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono">
                                 ${resumen.valorEstimado.toLocaleString('en-US', { minimumFractionDigits: 0 })}
                             </div>
                         </div>
@@ -445,7 +534,8 @@ export function AgregarTanda() {
                     fechaIngreso: formData.fechaIngreso,
                     gastos: formData.gastos,
                     marcasCount: formData.marcas.length,
-                    totalProductos: resumen.totalProductos
+                    totalProductos: resumen.totalProductos,
+                    fotosCount: photos.length
                 }}
             />
         </div>

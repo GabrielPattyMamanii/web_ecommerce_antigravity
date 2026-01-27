@@ -139,8 +139,11 @@ export function ListaTandas() {
 
             if (error) throw error;
 
-            // Remove from local state to avoid refetch
-            setTandas(tandas.filter(t => t.nombre !== tandaToDelete.nombre));
+            // Remove from both tandas and filteredTandas states for reactive update
+            const updatedTandas = tandas.filter(t => t.nombre !== tandaToDelete.nombre);
+            setTandas(updatedTandas);
+            setFilteredTandas(filteredTandas.filter(t => t.nombre !== tandaToDelete.nombre));
+
             setShowDeleteModal(false);
             setTandaToDelete(null);
             // Optional: Show success toast/alert

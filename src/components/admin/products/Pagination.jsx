@@ -11,7 +11,10 @@ const Pagination = ({ paginaActual, totalPaginas, onChange }) => {
         pages.push(
             <button
                 key={1}
-                className={`pagination-btn ${paginaActual === 1 ? 'active' : ''}`}
+                className={`px-3 py-2 rounded-lg font-medium transition-colors ${paginaActual === 1
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-card text-foreground hover:bg-muted border border-border'
+                    }`}
                 onClick={() => onChange(1)}
             >
                 1
@@ -20,7 +23,7 @@ const Pagination = ({ paginaActual, totalPaginas, onChange }) => {
 
         // Ellipsis start
         if (paginaActual > 3) {
-            pages.push(<span key="dots-1" className="pagination-ellipsis">...</span>);
+            pages.push(<span key="dots-1" className="px-2 text-muted-foreground">...</span>);
         }
 
         // Pages around current
@@ -28,7 +31,10 @@ const Pagination = ({ paginaActual, totalPaginas, onChange }) => {
             pages.push(
                 <button
                     key={i}
-                    className={`pagination-btn ${paginaActual === i ? 'active' : ''}`}
+                    className={`px-3 py-2 rounded-lg font-medium transition-colors ${paginaActual === i
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-card text-foreground hover:bg-muted border border-border'
+                        }`}
                     onClick={() => onChange(i)}
                 >
                     {i}
@@ -38,14 +44,17 @@ const Pagination = ({ paginaActual, totalPaginas, onChange }) => {
 
         // Ellipsis end
         if (paginaActual < totalPaginas - 2) {
-            pages.push(<span key="dots-2" className="pagination-ellipsis">...</span>);
+            pages.push(<span key="dots-2" className="px-2 text-muted-foreground">...</span>);
         }
 
         // Always show last page
         pages.push(
             <button
                 key={totalPaginas}
-                className={`pagination-btn ${paginaActual === totalPaginas ? 'active' : ''}`}
+                className={`px-3 py-2 rounded-lg font-medium transition-colors ${paginaActual === totalPaginas
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-card text-foreground hover:bg-muted border border-border'
+                    }`}
                 onClick={() => onChange(totalPaginas)}
             >
                 {totalPaginas}
@@ -56,22 +65,25 @@ const Pagination = ({ paginaActual, totalPaginas, onChange }) => {
     };
 
     return (
-        <div className="pagination">
+        <div className="flex items-center justify-center gap-2 mt-6">
             {/* Previous Button */}
             <button
-                className="pagination-btn"
+                className="px-3 py-2 rounded-lg font-medium transition-colors bg-card text-foreground hover:bg-muted border border-border disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={paginaActual === 1}
                 onClick={() => onChange(paginaActual - 1)}
             >
                 ←
             </button>
 
-            {/* Page Numbers for small counts, logic matches the one inside renderPageNumbers somewhat but simpler to just use the function */}
+            {/* Page Numbers */}
             {totalPaginas <= 7 ? (
                 Array.from({ length: totalPaginas }, (_, i) => i + 1).map(num => (
                     <button
                         key={num}
-                        className={`pagination-btn ${paginaActual === num ? 'active' : ''}`}
+                        className={`px-3 py-2 rounded-lg font-medium transition-colors ${paginaActual === num
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-card text-foreground hover:bg-muted border border-border'
+                            }`}
                         onClick={() => onChange(num)}
                     >
                         {num}
@@ -83,7 +95,7 @@ const Pagination = ({ paginaActual, totalPaginas, onChange }) => {
 
             {/* Next Button */}
             <button
-                className="pagination-btn"
+                className="px-3 py-2 rounded-lg font-medium transition-colors bg-card text-foreground hover:bg-muted border border-border disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={paginaActual === totalPaginas}
                 onClick={() => onChange(paginaActual + 1)}
             >

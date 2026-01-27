@@ -10,10 +10,10 @@ const ProductsTable = ({
     onDelete
 }) => {
     const getStockBadgeClass = (stock) => {
-        if (stock === 0) return 'out';
-        if (stock < 10) return 'low';
-        if (stock < 50) return 'medium';
-        return 'high';
+        if (stock === 0) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+        if (stock < 10) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
+        if (stock < 50) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
     };
 
     const getStockLabel = (stock) => {
@@ -24,13 +24,9 @@ const ProductsTable = ({
     };
 
     const verProductoEnTienda = (producto) => {
-        // Opción 1: Por ID
         const url = `/catalog/${producto.id}`;
-
-        // Abrir en nueva pestaña
         window.open(url, '_blank', 'noopener,noreferrer');
 
-        // Mostrar toast de confirmación
         toast.success(
             <div className="flex items-center gap-2">
                 <ExternalLink className="h-4 w-4" />
@@ -44,98 +40,82 @@ const ProductsTable = ({
     };
 
     return (
-        <div className="products-table-container">
-            <table className="products-table">
-                <thead>
+        <div className="overflow-x-auto bg-card border border-border rounded-lg shadow-sm">
+            <table className="w-full text-sm text-left">
+                <thead className="bg-muted/30 border-b border-border text-xs uppercase text-muted-foreground">
                     <tr>
-                        <th>Imagen</th>
-                        <th className="sortable">Nombre</th>
-                        <th>Categoría</th>
-                        <th className="sortable">Precio</th>
-                        <th className="sortable">Stock</th>
-                        <th>Visible</th>
-                        <th>Acciones</th>
+                        <th className="px-6 py-3">Imagen</th>
+                        <th className="px-6 py-3 cursor-pointer hover:text-foreground transition-colors">Nombre</th>
+                        <th className="px-6 py-3">Categoría</th>
+                        <th className="px-6 py-3 cursor-pointer hover:text-foreground transition-colors">Precio</th>
+                        <th className="px-6 py-3 cursor-pointer hover:text-foreground transition-colors">Stock</th>
+                        <th className="px-6 py-3">Visible</th>
+                        <th className="px-6 py-3">Acciones</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody className="divide-y divide-border bg-card">
                     {productos.map((producto) => (
-                        <tr key={producto.id}>
-                            <td className="product-image-cell">
+                        <tr key={producto.id} className="hover:bg-muted/10 transition-colors">
+                            <td className="px-6 py-4">
                                 <img
                                     src={(producto.images && producto.images[0]) || '/placeholder.png'}
                                     alt={producto.name}
-                                    className="product-image"
+                                    className="w-12 h-12 object-cover rounded-lg border border-border"
                                 />
                             </td>
-                            <td className="product-name-cell">{producto.name}</td>
-                            <td>
-                                <span className="product-category">
+                            <td className="px-6 py-4 font-medium text-foreground">{producto.name}</td>
+                            <td className="px-6 py-4">
+                                <span className="px-2 py-1 bg-primary/10 text-primary text-xs rounded-full border border-primary/20">
                                     {producto.categories?.name || 'Sin Categoría'}
                                 </span>
                             </td>
-                            <td className="product-price-cell">
+                            <td className="px-6 py-4 font-semibold text-foreground">
                                 ${parseFloat(producto.price || 0).toLocaleString('es-AR')}
                             </td>
-                            <td className="product-stock-cell">
-                                <span className={`stock-badge ${getStockBadgeClass(producto.stock)}`}>
+                            <td className="px-6 py-4">
+                                <span className={`px-2 py-1 text-xs font-medium rounded-full ${getStockBadgeClass(producto.stock)}`}>
                                     {getStockLabel(producto.stock)}
                                 </span>
                             </td>
-                            <td className="visibility-toggle-cell">
-                                <label className="visibility-toggle">
-                                    <input
-                                        type="checkbox"
-                                        checked={producto.published || false}
-                                        onChange={(e) => onToggleVisibilidad(producto.id, e.target.checked)}
+                            <td className="px-6 py-4">
+                                <button
+                                    onClick={() => onToggleVisibilidad(producto.id, !producto.published)}
+                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${producto.published ? 'bg-primary' : 'bg-muted'
+                                        }`}
+                                >
+                                    <span
+                                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${producto.published ? 'translate-x-6' : 'translate-x-1'
+                                            }`}
                                     />
-                                    <span className="visibility-slider">
-                                        <span className="eye-off-icon">👁️‍🗨️</span>
-                                    </span>
-                                </label>
-                                <span className="visibility-label">
-                                    {producto.published ? 'Visible' : 'Oculto'}
-                                </span>
+                                </button>
                             </td>
-                            <td>
+                            <td className="px-6 py-4">
                                 <div className="flex items-center gap-2">
-                                    {/* Botón Ver */}
                                     <button
                                         onClick={() => verProductoEnTienda(producto)}
-                                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors group relative"
-                                        title="Ver producto en tienda"
+                                        className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                        title="Ver en tienda"
                                     >
-                                        <Eye className="h-5 w-5" />
-                                        <ExternalLink className="h-3 w-3 absolute -top-0.5 -right-0.5 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <Eye className="w-4 h-4" />
                                     </button>
-
-                                    {/* Botón Editar */}
                                     <button
                                         onClick={() => onEdit(producto.id)}
-                                        className="p-2 text-yellow-600 hover:bg-yellow-50 rounded-lg transition-colors"
-                                        title="Editar producto"
+                                        className="p-2 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                                        title="Editar"
                                     >
-                                        <Edit className="h-5 w-5" />
+                                        <Edit className="w-4 h-4" />
                                     </button>
-
-                                    {/* Botón Eliminar */}
                                     <button
                                         onClick={() => onDelete(producto.id)}
-                                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                                        title="Eliminar producto"
+                                        className="p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
+                                        title="Eliminar"
                                     >
-                                        <Trash2 className="h-5 w-5" />
+                                        <Trash2 className="w-4 h-4" />
                                     </button>
                                 </div>
                             </td>
                         </tr>
                     ))}
-                    {productos.length === 0 && (
-                        <tr>
-                            <td colSpan={7} style={{ textAlign: 'center', padding: '32px' }}>
-                                No se encontraron productos
-                            </td>
-                        </tr>
-                    )}
                 </tbody>
             </table>
         </div>

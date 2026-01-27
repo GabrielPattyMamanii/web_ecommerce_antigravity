@@ -227,21 +227,22 @@ export const ProductList = () => {
     };
 
     return (
-        <div className="products-page container mx-auto px-4 pb-8">
-            {/* Header handled by Layout usually but we add the specific header here as per design */}
-            <div className="products-header rounded-t-xl mt-6">
-                <h1 className="products-title">Productos</h1>
-                <div className="header-actions">
-                    <Link to="/admin/products/new">
-                        <button className="new-product-btn">
-                            <span className="new-product-icon">+</span>
-                            Nuevo Producto
-                        </button>
-                    </Link>
+        <div className="p-6 max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="flex items-center justify-between mb-8">
+                <div>
+                    <h1 className="text-3xl font-bold text-foreground mb-2">Productos</h1>
+                    <p className="text-muted-foreground">Gestiona el catálogo de productos</p>
                 </div>
+                <Link to="/admin/products/new">
+                    <Button className="flex items-center gap-2">
+                        <span className="text-xl">+</span>
+                        Nuevo Producto
+                    </Button>
+                </Link>
             </div>
 
-            <div className="products-content bg-gray-50 p-6 rounded-b-xl border border-t-0 border-border-light">
+            <div className="space-y-6">
                 <SearchBar
                     value={busqueda}
                     onChange={setBusqueda}
