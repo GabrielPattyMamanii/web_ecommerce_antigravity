@@ -1,0 +1,494 @@
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { supabase } from '../../lib/supabase';
+import {
+    ArrowLeft, Layers, Calendar, Package, ClipboardList, ChevronLeft,
+    QrCode, Download, X
+} from 'lucide-react';
+import { Button } from '../../components/ui/Button';
+import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
+
+export function ControlMercanciaTanda() {
+    const { tanda } = useParams();
+    const navigate = useNavigate();
+    const tandaName = decodeURIComponent(tanda);
+
+    const [products, setProducts] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [tandaInfo, setTandaInfo] = useState({ date: null, count: 0, gastos: 0 });
+    const [users, setUsers] = useState([]);
+
+    // Filters
+    const [filterBrand, setFilterBrand] = useState('');
+    const [filterOwner, setFilterOwner] = useState('');
+    const [filterCode, setFilterCode] = useState('');
+
+    // QR state: persisted in localStorage so it survives page refreshes
+    const localKey = `generated_qrs_${tandaName}`;
+    const [generatedQRs, setGeneratedQRs] = useState(() => {
+        try {
+            const saved = localStorage.getItem(localKey);
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch { return new Set(); }
+    });
+    // QR modal state
+    const [qrModal, setQrModal] = useState(null); // { id, titulo, url }
+
+    useEffect(() => {
+        fetchDetails();
+    }, [tandaName]);
+
+    const fetchDetails = async () => {
+        setLoading(true);
+        try {
+            const [entradasRes, usersRes] = await Promise.all([
+                supabase
+                    .from('entradas')
+                    .select('*')
+                    .eq('tanda_nombre', tandaName)
+                    .order('marca', { ascending: true }),
+                supabase
+                    .from('app_users')
+                    .select('username, color')
+            ]);
+
+            const { data, error } = entradasRes;
+            const { data: usersData } = usersRes;
+
+            if (error) throw error;
+
+            setProducts(data || []);
+            setUsers(usersData || []);
+
+            if (data && data.length > 0) {
+                setTandaInfo({
+                    date: data[0].tanda_fecha,
+                    count: data.length,
+                    gastos: data[0].gastos || 0
+                });
+            }
+        } catch (err) {
+            console.error('Error fetching control detail:', err);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // --- Filter options ---
+    const uniqueBrands = [...new Set(products.map(p => p.marca))].sort();
+    const uniqueOwners = [...new Set(products.map(p => p.propietario).filter(Boolean))].sort();
+    const uniqueCodes = [...new Set(products.map(p => p.codigo_boleta).filter(Boolean))].sort();
+
+    // --- Filtered products ---
+    const filteredProducts = products.filter(p => {
+        const matchBrand = filterBrand ? p.marca === filterBrand : true;
+        const matchOwner = filterOwner ? p.propietario === filterOwner : true;
+        const matchCode = filterCode ? p.codigo_boleta === filterCode : true;
+        return matchBrand && matchOwner && matchCode;
+    });
+
+    // Totals using cant_docenas_copy
+    const totalDocenasCopy = filteredProducts.reduce((sum, p) => sum + (p.cant_docenas_copy ?? p.cantidad_docenas ?? 0), 0);
+    const totalMoney = filteredProducts.reduce((sum, p) => {
+        const docenas = p.cant_docenas_copy ?? p.cantidad_docenas ?? 0;
+        return sum + (docenas * (Number(p.precio_docena) || 0));
+    }, 0);
+
+    // --- Group by brand ---
+    const brandGroups = Object.values(
+        filteredProducts.reduce((acc, prod) => {
+            const key = prod.marca_id
+                ? prod.marca_id
+                : `${prod.marca}_${prod.codigo_boleta || 'sin_boleta'}_${prod.propietario || 'sin_prop'}`;
+
+            if (!acc[key]) {
+                acc[key] = {
+                    key,
+                    name: prod.marca,
+                    boleta: prod.codigo_boleta,
+                    propietario: prod.propietario || '',
+                    items: []
+                };
+            }
+            acc[key].items.push(prod);
+            return acc;
+        }, {})
+    );
+
+    // --- QR Handlers ---
+    const handleGenerateQR = (prod) => {
+        const updated = new Set([...generatedQRs, prod.id]);
+        setGeneratedQRs(updated);
+        try { localStorage.setItem(localKey, JSON.stringify([...updated])); } catch { }
+    };
+
+    const getQRUrl = (prodId) => {
+        // Use env var for production URL if set, otherwise use current origin
+        const base = import.meta.env.VITE_APP_URL || window.location.origin;
+        return `${base}/scan/${prodId}`;
+    };
+
+    const handleOpenQR = (prod) => {
+        const url = getQRUrl(prod.id);
+        setQrModal({ id: prod.id, titulo: prod.producto_titulo, marca: prod.marca, url });
+    };
+
+    const handleDownloadQR = () => {
+        if (!qrModal) return;
+        const canvas = document.getElementById('qr-download-canvas');
+        if (!canvas) return;
+        const url = canvas.toDataURL('image/png');
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `QR-${qrModal.titulo || qrModal.id}.png`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    };
+
+    return (
+        <div className="container mx-auto px-4 py-8 max-w-6xl">
+            {/* Back button */}
+            <div className="flex items-center justify-between mb-8">
+                <Button
+                    variant="ghost"
+                    className="pl-0 gap-2 text-muted-foreground hover:text-foreground"
+                    onClick={() => navigate('/admin/control-mercancia')}
+                >
+                    <ArrowLeft className="w-4 h-4" /> Volver al Listado
+                </Button>
+            </div>
+
+            {loading ? (
+                <div className="text-center py-16">
+                    <div className="inline-flex items-center gap-3 text-muted-foreground">
+                        <div className="w-5 h-5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Cargando detalles...
+                    </div>
+                </div>
+            ) : products.length === 0 ? (
+                <div className="text-center py-16 bg-card rounded-xl border border-dashed border-border text-muted-foreground">
+                    No se encontraron registros para esta tanda.
+                </div>
+            ) : (
+                <div className="space-y-6">
+                    {/* Header Card */}
+                    <div className="bg-card p-6 rounded-xl border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div className="flex items-center gap-4">
+                            <div className="p-3 bg-indigo-500 text-white rounded-lg">
+                                <ClipboardList className="w-6 h-6" />
+                            </div>
+                            <div>
+                                <h1 className="text-2xl font-bold text-foreground">{tandaName}</h1>
+                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
+                                    <span className="flex items-center gap-1">
+                                        <Calendar className="w-4 h-4" />
+                                        {tandaInfo.date ? new Date(tandaInfo.date).toLocaleDateString('es-AR') : '—'}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <Package className="w-4 h-4" /> {tandaInfo.count} productos
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Middle: Gastos */}
+                        <div className="flex flex-col md:flex-row gap-6 md:px-12 items-center flex-1 justify-center border-t border-b md:border-t-0 md:border-b-0 md:border-l md:border-r border-border py-4 md:py-0">
+                            <div>
+                                <p className="text-xs uppercase text-muted-foreground font-semibold mb-1 text-center">Gastos Totales</p>
+                                <p className="font-mono font-medium text-foreground text-center text-lg">
+                                    ${Number(tandaInfo.gastos || 0).toLocaleString()}
+                                </p>
+                            </div>
+                        </div>
+
+                        {/* Right: total value */}
+                        <div className="text-right">
+                            <p className="text-sm text-muted-foreground">Valor Control Estimado</p>
+                            <p className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
+                                ${totalMoney.toLocaleString('es-AR')}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{totalDocenasCopy} docenas (control)</p>
+                        </div>
+                    </div>
+
+                    {/* Filters */}
+                    <div className="flex gap-4 mb-4 bg-muted/20 p-4 rounded-xl border border-border flex-wrap">
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Marca</label>
+                            <select
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                value={filterBrand}
+                                onChange={e => setFilterBrand(e.target.value)}
+                            >
+                                <option value="">Todas las Marcas</option>
+                                {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Propietario</label>
+                            <select
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                value={filterOwner}
+                                onChange={e => setFilterOwner(e.target.value)}
+                            >
+                                <option value="">Todos los Propietarios</option>
+                                {uniqueOwners.map(o => <option key={o} value={o}>{o}</option>)}
+                            </select>
+                        </div>
+                        <div className="flex-1 min-w-[200px]">
+                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">N° Boleta</label>
+                            <select
+                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                                value={filterCode}
+                                onChange={e => setFilterCode(e.target.value)}
+                            >
+                                <option value="">Todas las Boletas</option>
+                                {uniqueCodes.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+                        {(filterBrand || filterOwner || filterCode) && (
+                            <div className="flex items-end">
+                                <button
+                                    onClick={() => { setFilterBrand(''); setFilterOwner(''); setFilterCode(''); }}
+                                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-md text-sm font-medium transition-colors"
+                                >
+                                    Limpiar Filtros
+                                </button>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Brand Groups */}
+                    <div className="space-y-6">
+                        {brandGroups.map((brandGroup, idx) => {
+                            const owner = users.find(u => u.username === brandGroup.propietario);
+                            const ownerColor = owner ? owner.color : null;
+                            return (
+                                <ControlBrandSection
+                                    key={idx}
+                                    brandGroup={brandGroup}
+                                    ownerColor={ownerColor}
+                                    generatedQRs={generatedQRs}
+                                    onGenerate={handleGenerateQR}
+                                    onOpen={handleOpenQR}
+                                />
+                            );
+                        })}
+                    </div>
+                </div>
+            )}
+
+            {/* QR Modal */}
+            {qrModal && (
+                <div
+                    className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+                    onClick={() => setQrModal(null)}
+                >
+                    <div
+                        className="bg-card rounded-2xl shadow-2xl border border-border p-8 max-w-sm w-full flex flex-col items-center gap-5"
+                        onClick={e => e.stopPropagation()}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between w-full">
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase font-semibold">QR del producto</p>
+                                <h3 className="font-bold text-foreground text-lg leading-tight">{qrModal.titulo}</h3>
+                                <p className="text-xs text-muted-foreground">{qrModal.marca}</p>
+                            </div>
+                            <button
+                                onClick={() => setQrModal(null)}
+                                className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* QR Code visible (SVG) */}
+                        <div className="p-4 bg-white rounded-xl shadow-inner">
+                            <QRCodeSVG
+                                value={qrModal.url}
+                                size={200}
+                                level="H"
+                                includeMargin={false}
+                            />
+                        </div>
+
+                        {/* Hidden canvas for download */}
+                        <div className="hidden">
+                            <QRCodeCanvas
+                                id="qr-download-canvas"
+                                value={qrModal.url}
+                                size={400}
+                                level="H"
+                                includeMargin={true}
+                            />
+                        </div>
+
+                        <p className="text-xs text-muted-foreground text-center break-all font-mono bg-muted px-3 py-2 rounded-lg w-full">
+                            {qrModal.url}
+                        </p>
+
+                        {/* Actions */}
+                        <div className="flex gap-3 w-full">
+                            <button
+                                onClick={() => setQrModal(null)}
+                                className="flex-1 px-4 py-2.5 border border-input rounded-lg text-sm font-medium text-muted-foreground hover:bg-muted transition-colors"
+                            >
+                                Cerrar
+                            </button>
+                            <button
+                                onClick={handleDownloadQR}
+                                className="flex-1 px-4 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                            >
+                                <Download className="w-4 h-4" />
+                                Descargar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
+// --- Brand Section ---
+function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate, onOpen }) {
+    const [isExpanded, setIsExpanded] = useState(false);
+
+    const totalDocenasCopy = brandGroup.items.reduce((sum, p) =>
+        sum + (p.cant_docenas_copy ?? p.cantidad_docenas ?? 0), 0
+    );
+    const totalMoney = brandGroup.items.reduce((sum, p) => {
+        const docenas = p.cant_docenas_copy ?? p.cantidad_docenas ?? 0;
+        return sum + (docenas * (Number(p.precio_docena) || 0));
+    }, 0);
+
+    return (
+        <div
+            className="bg-card rounded-xl border border-border shadow-sm overflow-hidden"
+            style={ownerColor ? { borderLeft: `4px solid ${ownerColor}` } : {}}
+        >
+            {/* Header */}
+            <div
+                className="bg-muted/30 px-6 py-4 border-b border-border flex justify-between items-center cursor-pointer hover:bg-muted/50 transition-colors"
+                onClick={() => setIsExpanded(!isExpanded)}
+            >
+                <div className="flex items-center gap-4 flex-wrap">
+                    <h3 className="text-lg font-bold text-foreground uppercase tracking-wide flex items-center gap-3">
+                        {brandGroup.name}
+                        {!isExpanded && (
+                            <span className="text-xs font-normal text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">
+                                {brandGroup.items.length} productos
+                            </span>
+                        )}
+                    </h3>
+
+                    {/* Owner Badge */}
+                    {brandGroup.propietario && (
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background border border-border shadow-sm">
+                            <div
+                                className="w-2.5 h-2.5 rounded-full"
+                                style={{ backgroundColor: ownerColor || '#9ca3af' }}
+                            />
+                            <span className="text-xs font-bold text-muted-foreground uppercase">
+                                {brandGroup.propietario}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Doc. Control badge */}
+                    <div className="text-sm font-medium px-3 py-1 rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
+                        <span className="flex items-center gap-1.5">
+                            <ClipboardList className="w-4 h-4" />
+                            {totalDocenasCopy} doc. control
+                        </span>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-4 flex-shrink-0">
+                    {/* Boleta */}
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-semibold text-muted-foreground uppercase">Boleta:</span>
+                        <span className={`font-mono text-sm font-medium ${brandGroup.boleta ? 'text-foreground' : 'text-destructive italic'}`}>
+                            {brandGroup.boleta || 'NO INGRESADA'}
+                        </span>
+                    </div>
+
+                    {/* Total money */}
+                    <div className="hidden md:block text-right">
+                        <p className="text-xs text-muted-foreground">Total</p>
+                        <p className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-sm">
+                            ${totalMoney.toLocaleString('es-AR')}
+                        </p>
+                    </div>
+
+                    <div className="text-muted-foreground">
+                        <ChevronLeft className={`w-5 h-5 transition-transform ${isExpanded ? '-rotate-90' : 'rotate-90'}`} />
+                    </div>
+                </div>
+            </div>
+
+            {/* Collapsible content */}
+            {isExpanded && (
+                <div className="overflow-x-auto">
+                    <table className="w-full text-sm text-left">
+                        <thead className="bg-muted/20 border-b border-border text-xs uppercase text-muted-foreground">
+                            <tr>
+                                <th className="px-6 py-3">Producto</th>
+                                <th className="px-6 py-3">Código</th>
+                                <th className="px-6 py-3 text-center">Doc. Control</th>
+                                <th className="px-6 py-3 text-right">Precio Doc.</th>
+                                <th className="px-6 py-3 text-right">Total</th>
+                                <th className="px-6 py-3 text-center">QR</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-border bg-card">
+                            {brandGroup.items.map((prod) => {
+                                const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                                const total = docenasCopy * (Number(prod.precio_docena) || 0);
+                                const isGenerated = generatedQRs.has(prod.id);
+                                return (
+                                    <tr key={prod.id} className="hover:bg-muted/10 transition-colors">
+                                        <td className="px-6 py-4 font-medium text-foreground">{prod.producto_titulo}</td>
+                                        <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">
+                                                {docenasCopy}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right text-muted-foreground">
+                                            ${Number(prod.precio_docena || 0).toLocaleString('es-AR')}
+                                        </td>
+                                        <td className="px-6 py-4 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                                            ${total.toLocaleString('es-AR')}
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            {!isGenerated ? (
+                                                <button
+                                                    onClick={() => onGenerate(prod)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-indigo-50 hover:text-indigo-700 border border-border hover:border-indigo-300 text-muted-foreground rounded-lg text-xs font-semibold transition-all"
+                                                >
+                                                    <QrCode className="w-3.5 h-3.5" />
+                                                    Generar
+                                                </button>
+                                            ) : (
+                                                <button
+                                                    onClick={() => onOpen(prod)}
+                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
+                                                >
+                                                    <QrCode className="w-3.5 h-3.5" />
+                                                    Abrir
+                                                </button>
+                                            )}
+                                        </td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </div>
+    );
+}

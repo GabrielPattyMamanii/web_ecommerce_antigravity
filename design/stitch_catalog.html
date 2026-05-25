@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#000000",
+                        "error-dim": "#a70138",
+                        "secondary-fixed": "#fed9b8",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#d9dde1",
+                        "on-primary-container": "#001a63",
+                        "surface-container-low": "#eef1f4",
+                        "tertiary-container": "#98ffd9",
+                        "tertiary-fixed": "#98ffd9",
+                        "primary-fixed": "#829bff",
+                        "on-secondary": "#fff0e5",
+                        "inverse-surface": "#0b0f11",
+                        "on-surface": "#2c2f32",
+                        "on-primary": "#f2f1ff",
+                        "surface-container-high": "#dfe3e7",
+                        "secondary": "#71563d",
+                        "surface-bright": "#f5f7fa",
+                        "primary-dim": "#0040cb",
+                        "tertiary-fixed-dim": "#89f0cb",
+                        "on-tertiary-container": "#00634b",
+                        "tertiary-dim": "#005b45",
+                        "outline": "#74777a",
+                        "inverse-on-surface": "#9a9da0",
+                        "tertiary": "#00684f",
+                        "primary": "#0049e6",
+                        "on-secondary-fixed-variant": "#6f553b",
+                        "secondary-dim": "#644b32",
+                        "secondary-container": "#fed9b8",
+                        "on-primary-fixed-variant": "#002278",
+                        "on-error-container": "#510017",
+                        "on-secondary-container": "#644b32",
+                        "on-error": "#ffefef",
+                        "secondary-fixed-dim": "#efcbab",
+                        "error": "#b41340",
+                        "outline-variant": "#abadb0",
+                        "on-surface-variant": "#595c5e",
+                        "primary-fixed-dim": "#6e8cff",
+                        "surface-tint": "#0049e6",
+                        "surface-container": "#e5e8ec",
+                        "surface-dim": "#d0d5d9",
+                        "primary-container": "#829bff",
+                        "background": "#f5f7fa",
+                        "error-container": "#f74b6d",
+                        "on-tertiary-fixed-variant": "#006e54",
+                        "on-tertiary-fixed": "#004f3b",
+                        "inverse-primary": "#6a89ff",
+                        "surface": "#f5f7fa",
+                        "on-background": "#2c2f32",
+                        "surface-container-highest": "#d9dde1",
+                        "on-tertiary": "#c6ffe7",
+                        "on-secondary-fixed": "#503921"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Plus Jakarta Sans"],
+                        "label": ["Plus Jakarta Sans"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+    </style>
+</head>
+<body class="bg-surface text-on-surface">
+<!-- Top Navigation Bar -->
+<header class="bg-[#f5f7fa] dark:bg-slate-900 font-['Plus_Jakarta_Sans'] font-bold tracking-tight shadow-[0_20px_40px_rgba(0,73,230,0.06)] docked full-width top-0 sticky z-50">
+<div class="flex justify-between items-center w-full px-8 py-4 max-w-[1440px] mx-auto">
+<div class="text-2xl font-black italic tracking-tighter text-[#0052FF] dark:text-[#0049e6]">THE KINETIC GALLERY</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-[#595c5e] hover:text-[#2c2f32] hover:opacity-80 transition-opacity duration-300" href="#">Home</a>
+<a class="text-[#0052FF] border-b-2 border-[#0052FF] pb-1 hover:opacity-80 transition-opacity duration-300" href="#">Catalog</a>
+<a class="text-[#595c5e] hover:text-[#2c2f32] hover:opacity-80 transition-opacity duration-300" href="#">Contact</a>
+</nav>
+<div class="flex items-center gap-6">
+<button class="active:scale-95 duration-200 transition-transform text-[#595c5e] hover:opacity-80">
+<span class="material-symbols-outlined">favorite</span>
+</button>
+<button class="active:scale-95 duration-200 transition-transform text-[#595c5e] hover:opacity-80">
+<span class="material-symbols-outlined">shopping_cart</span>
+</button>
+<button class="active:scale-95 duration-200 transition-transform text-[#595c5e] hover:opacity-80">
+<span class="material-symbols-outlined">person</span>
+</button>
+</div>
+</div>
+</header>
+<main class="max-w-[1440px] mx-auto px-8 py-12">
+<!-- Editorial Header Section -->
+<div class="relative mb-20">
+<div class="absolute -top-10 -left-4 text-[120px] font-black text-primary/5 select-none pointer-events-none uppercase tracking-tighter">Kinetic</div>
+<h1 class="text-6xl md:text-8xl font-black text-on-surface tracking-tighter mb-4 relative z-10">Vibrant <br/><span class="text-primary italic">Catalog</span></h1>
+<p class="text-on-surface-variant max-w-md text-lg leading-relaxed">A curated collection of movement-ready fashion. Editorial precision meets high-performance textiles.</p>
+</div>
+<!-- Layout Wrapper -->
+<div class="flex flex-col md:flex-row gap-12">
+<!-- Filters Sidebar -->
+<aside class="w-full md:w-64 space-y-12">
+<div>
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-6">Filter by Category</h3>
+<div class="space-y-4">
+<label class="flex items-center group cursor-pointer">
+<input class="w-5 h-5 rounded-sm border-outline-variant text-primary focus:ring-primary-container bg-surface-container-high transition-all" type="checkbox"/>
+<span class="ml-3 text-on-surface group-hover:text-primary transition-colors">Women</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input class="w-5 h-5 rounded-sm border-outline-variant text-primary focus:ring-primary-container bg-surface-container-high transition-all" type="checkbox"/>
+<span class="ml-3 text-on-surface group-hover:text-primary transition-colors">Men</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input class="w-5 h-5 rounded-sm border-outline-variant text-primary focus:ring-primary-container bg-surface-container-high transition-all" type="checkbox"/>
+<span class="ml-3 text-on-surface group-hover:text-primary transition-colors">Baby</span>
+</label>
+</div>
+</div>
+<div>
+<h3 class="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-6">Apparel Type</h3>
+<div class="space-y-4">
+<label class="flex items-center group cursor-pointer">
+<input class="w-5 h-5 rounded-sm border-outline-variant text-primary focus:ring-primary-container bg-surface-container-high transition-all" type="checkbox"/>
+<span class="ml-3 text-on-surface group-hover:text-primary transition-colors">Pants &amp; Joggers</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input class="w-5 h-5 rounded-sm border-outline-variant text-primary focus:ring-primary-container bg-surface-container-high transition-all" type="checkbox"/>
+<span class="ml-3 text-on-surface group-hover:text-primary transition-colors">Jackets</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input class="w-5 h-5 rounded-sm border-outline-variant text-primary focus:ring-primary-container bg-surface-container-high transition-all" type="checkbox"/>
+<span class="ml-3 text-on-surface group-hover:text-primary transition-colors">Active Sets</span>
+</label>
+</div>
+</div>
+<div class="p-6 bg-secondary-container/30 rounded-xl">
+<h4 class="font-bold text-on-secondary-container mb-2">Summer Drop</h4>
+<p class="text-sm text-on-secondary-container opacity-80 mb-4">Discover our new mint-accented performance wear.</p>
+<button class="text-primary font-bold text-sm flex items-center gap-2 group">
+                        Explore Now 
+                        <span class="material-symbols-outlined text-sm group-hover:translate-x-1 transition-transform">arrow_forward</span>
+</button>
+</div>
+</aside>
+<!-- Product Grid (Asymmetric Staggered Feel) -->
+<div class="flex-1">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-8 gap-y-16">
+<!-- Product 1: Elegant Women's Pants -->
+<div class="group relative">
+<div class="aspect-[3/4] overflow-hidden rounded-xl bg-surface-container-lowest relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Modern woman wearing high-waisted elegant wide-leg cream pants walking through a sunlit minimalist architectural space" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCDPbWsvPJ_hY9K2cG3LeaGELb3Gofj7DGVASYg2dZA4kqaMcAPf7pjqCTK4P3a7IcFFdvbHhHzhyxH_h5JbCDAF57pUtOQFtLgotCIgJLg9B_Cgf5I9K2F2iL3OCVXkhbzoEk_XT9bU4BDmlvDKQNauwS6VH2Taj1cn1y8-gcIqMqUpVxZ50JB76ZsxvV7mSctzmO1_lhpL-ba0sgCihiGBClnrp1_Z4Ul_3mSMCK6SWR3n0qvCMM1rN03GFvPbqWsx6NOewu7zwPg"/>
+<div class="absolute top-4 left-4 bg-primary text-on-primary text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-lg">New Arrival</div>
+</div>
+<div class="mt-6 flex justify-between items-start">
+<div>
+<h3 class="font-bold text-xl text-on-surface mb-1">Sculpted Tailored Pant</h3>
+<p class="text-on-surface-variant text-sm">Women • Elegant</p>
+</div>
+<p class="font-black text-primary">$185</p>
+</div>
+<div class="mt-4 flex gap-2">
+<div class="w-4 h-4 rounded-full bg-[#f5f5f5] border border-outline-variant/20"></div>
+<div class="w-4 h-4 rounded-full bg-primary-dim"></div>
+<div class="w-4 h-4 rounded-full bg-secondary"></div>
+</div>
+</div>
+<!-- Product 2: Men's Sports Set -->
+<div class="group relative md:translate-y-12">
+<div class="aspect-[3/4] overflow-hidden rounded-xl bg-surface-container-lowest relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Athletic man in high-performance cobalt blue compression sports set training in a dark urban gym with cinematic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC3RMeLPedPqJA5SSH6tyeO6THla5178hoLlq6PiefhDydbgi7iPdWnz-Ww3VhbdHn9UChie8k9Xgos85ZHOKRFx4nRyQQrJnayDlctwsjQ-AeLzvLT6I5OfHOnWtAVIsCYc33zDfKt-4QaOW-WmL1nB3UA5dx1Ro6ElfcmXGZvBUN-BPghiMB8C5B0E3TItPjlYpW8U9IgoejvZUfsN4pfLgelN_FkKCuT5m2IdkRFguifxe1rX9_KnYQlcrFfOpV7o-7FKLY6ejie"/>
+<div class="absolute top-4 right-4 bg-tertiary-container text-on-tertiary-container text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest shadow-md">Bestseller</div>
+</div>
+<div class="mt-6 flex justify-between items-start">
+<div>
+<h3 class="font-bold text-xl text-on-surface mb-1">Velocity Tech Set</h3>
+<p class="text-on-surface-variant text-sm">Men • Sports</p>
+</div>
+<p class="font-black text-primary">$140</p>
+</div>
+<div class="mt-4 flex gap-2">
+<div class="w-4 h-4 rounded-full bg-primary"></div>
+<div class="w-4 h-4 rounded-full bg-inverse-surface"></div>
+</div>
+</div>
+<!-- Product 3: Baby Boy Set -->
+<div class="group relative">
+<div class="aspect-[3/4] overflow-hidden rounded-xl bg-surface-container-lowest relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Cute baby boy set with a miniature navy bomber jacket and grey joggers on a clean white wooden floor" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD-OTLyLDCtksp3JE_lfBDg-VUbGGrv1MsYrFYu4fqKLIPvzbxLOO8icUt6G-W5SVSRqngTGctpIRBREFjNrOEqtkqr9blmI_RibtVOQJphaag0auZ1SH9cCVyFcsmt--supAnaPernfOSKUusFHx9aGuTxxTOA2CvRficQo9Gl0eNnix5nGZRsuFpgog8v3aRuG8vdGT26YgQF9Skz3smLzVNOBmnP3WwiX6Rzyhpt3hd5bY6yxLhUe7BHSLbuFS7RI9a5waQo7kfz"/>
+</div>
+<div class="mt-6 flex justify-between items-start">
+<div>
+<h3 class="font-bold text-xl text-on-surface mb-1">Mini-Kinetic Duo</h3>
+<p class="text-on-surface-variant text-sm">Baby • Boys</p>
+</div>
+<p class="font-black text-primary">$65</p>
+</div>
+<div class="mt-4 flex gap-2">
+<div class="w-4 h-4 rounded-full bg-secondary-fixed"></div>
+<div class="w-4 h-4 rounded-full bg-primary-container"></div>
+</div>
+</div>
+<!-- Product 4: Women's Tech Jacket -->
+<div class="group relative">
+<div class="aspect-[3/4] overflow-hidden rounded-xl bg-surface-container-lowest relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Fashionable woman wearing a structured mint green windbreaker jacket against a soft grey concrete background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDi3caeUQOCh6i3tx5aiepxIIZTxRisBRtYQVzPhn89nXGFt1aymISTQ3F4S1NW7IDXstsxFiMA56ZJjWXpCGDn7i_yrfulR2QX95ITh2fkxvDY0AaX4bQIGjRIlhVjfxPRDXGt2f97r4bd0sHtz-pKf3_1-mNopFVl_FijgWhkjUxlCCpJkgBPiRl5P_Rrcc27OcKWOREbwhshE7vl1FS79u3oSpNsOGDhOKv0rCXlLnhoVr4FNUVNoHqlf6Lth0Cor3VwN348tVMQ"/>
+</div>
+<div class="mt-6 flex justify-between items-start">
+<div>
+<h3 class="font-bold text-xl text-on-surface mb-1">Aero-Shell Parka</h3>
+<p class="text-on-surface-variant text-sm">Women • Jackets</p>
+</div>
+<p class="font-black text-primary">$210</p>
+</div>
+<div class="mt-4 flex gap-2">
+<div class="w-4 h-4 rounded-full bg-tertiary-fixed-dim"></div>
+<div class="w-4 h-4 rounded-full bg-outline"></div>
+</div>
+</div>
+<!-- Product 5: Men's Urban Jacket -->
+<div class="group relative md:translate-y-12">
+<div class="aspect-[3/4] overflow-hidden rounded-xl bg-surface-container-lowest relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Cool man in a black technical utility jacket standing in a misty urban alleyway with neon blue lights" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCljJEUiH0cmxNThUT07ZQRe4ZAOPWMSs---7NXY-dv4WDTDXlqjh5DlWgeS5_VvdsVEmTnZ5AHsSw_nPBsFJmf34NlWh2RgHmQiAohCoQL1MXZObaysjfaVoOrpDTA-Q6uzDiDYSc0b6a6Yn4gjRuKgo6xJEqlKR2oeeEoJLR-VBd_FGrzU5f8VkqxKqAT77kkqdWDbdVNm8QVGft0VS6LOuKxrcwB2AudWHvpHUWyXTzMW2y7Qrtac-iL3Sda1be7NNfkd8DNehnk"/>
+<div class="absolute bottom-4 left-4 right-4 bg-surface-container-lowest/80 backdrop-blur-md p-3 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+<p class="text-[10px] font-bold text-center uppercase tracking-tighter">Quick Add To Cart</p>
+</div>
+</div>
+<div class="mt-6 flex justify-between items-start">
+<div>
+<h3 class="font-bold text-xl text-on-surface mb-1">Metropolis Tech Blazer</h3>
+<p class="text-on-surface-variant text-sm">Men • Jackets</p>
+</div>
+<p class="font-black text-primary">$245</p>
+</div>
+<div class="mt-4 flex gap-2">
+<div class="w-4 h-4 rounded-full bg-inverse-surface"></div>
+</div>
+</div>
+<!-- Product 6: Baby Girl Set -->
+<div class="group relative">
+<div class="aspect-[3/4] overflow-hidden rounded-xl bg-surface-container-lowest relative">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" data-alt="Baby girl apparel set featuring a soft peach knit sweater and matching floral leggings on a natural linen background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCb9F4rafjQSXMv3wvO-HaNajx9HBRHZAGlR3S1YmkybPI0x8Q5yI9BZyJg6a2X01Dd8yrR20NBhXin9sxbTvUZm5ylVI4n57RMGyrlIoFqgteK8d9jd_HPhDoag9LLsSIoE3cSIvV3LYibKlRzCPv3Dvnbkf6nN4fPZH5zB8MvHz6OA0VrrNZNGqWJ2grvhxEaO5m2P9NkYUlbREnT4Z3ngi85fvfpaPtVD5wCAvsPXHkkZ8Q3hfhMz1JjsiUtb136JFglD5PCE4Qh"/>
+</div>
+<div class="mt-6 flex justify-between items-start">
+<div>
+<h3 class="font-bold text-xl text-on-surface mb-1">Bloom Comfort Set</h3>
+<p class="text-on-surface-variant text-sm">Baby • Girls</p>
+</div>
+<p class="font-black text-primary">$58</p>
+</div>
+<div class="mt-4 flex gap-2">
+<div class="w-4 h-4 rounded-full bg-secondary-fixed"></div>
+<div class="w-4 h-4 rounded-full bg-on-tertiary"></div>
+</div>
+</div>
+</div>
+<!-- Pagination/Load More -->
+<div class="mt-24 flex flex-col items-center gap-6">
+<button class="px-12 py-5 bg-gradient-to-r from-primary to-primary-dim text-on-primary font-black rounded-xl active:scale-95 transition-transform duration-300 shadow-xl shadow-primary/20">
+                        LOAD MORE COLLECTIONS
+                    </button>
+<p class="text-on-surface-variant text-sm italic">Showing 6 of 148 results</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-[#eef1f4] dark:bg-slate-800 font-['Plus_Jakarta_Sans'] text-sm leading-relaxed w-full rounded-t-[32px] mt-20">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 px-12 py-16 w-full max-w-[1440px] mx-auto">
+<div class="col-span-1 md:col-span-1">
+<span class="text-xl font-black text-[#2c2f32] dark:text-white mb-4 block">THE KINETIC GALLERY</span>
+<p class="text-[#595c5e] mb-6">Redefining the motion of modern style through editorial discovery and premium craftsmanship.</p>
+<div class="flex gap-4">
+<span class="material-symbols-outlined text-[#0052FF] cursor-pointer hover:opacity-70">public</span>
+<span class="material-symbols-outlined text-[#0052FF] cursor-pointer hover:opacity-70">videocam</span>
+<span class="material-symbols-outlined text-[#0052FF] cursor-pointer hover:opacity-70">photo_camera</span>
+</div>
+</div>
+<div>
+<h4 class="font-bold text-[#2c2f32] mb-6 uppercase tracking-widest text-xs">Customer Service</h4>
+<ul class="space-y-4">
+<li><a class="text-[#595c5e] hover:text-[#0052FF] hover:translate-x-1 transition-transform duration-200 block" href="#">Help</a></li>
+<li><a class="text-[#595c5e] hover:text-[#0052FF] hover:translate-x-1 transition-transform duration-200 block" href="#">Shipping</a></li>
+<li><a class="text-[#595c5e] hover:text-[#0052FF] hover:translate-x-1 transition-transform duration-200 block" href="#">Changes</a></li>
+<li><a class="text-[#595c5e] hover:text-[#0052FF] hover:translate-x-1 transition-transform duration-200 block" href="#">Contact</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-bold text-[#2c2f32] mb-6 uppercase tracking-widest text-xs">Payment Methods</h4>
+<div class="grid grid-cols-3 gap-4">
+<span class="text-[#595c5e] text-[10px] font-bold">Visa</span>
+<span class="text-[#595c5e] text-[10px] font-bold">Mastercard</span>
+<span class="text-[#595c5e] text-[10px] font-bold">Amex</span>
+<span class="text-[#595c5e] text-[10px] font-bold">PayPal</span>
+</div>
+</div>
+<div>
+<h4 class="font-bold text-[#2c2f32] mb-6 uppercase tracking-widest text-xs">Support</h4>
+<button class="flex items-center gap-2 px-6 py-3 bg-[#0052FF] text-white rounded-full font-bold w-full justify-center group active:scale-95 transition-transform">
+<span class="material-symbols-outlined">chat</span>
+                    Live Chat
+                </button>
+</div>
+</div>
+<div class="px-12 py-8 border-t border-outline-variant/10 text-center">
+<p class="text-[#595c5e] text-xs">© 2024 THE KINETIC GALLERY. All rights reserved.</p>
+</div>
+</footer>
+</body></html>

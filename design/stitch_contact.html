@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,300;0,400;0,500;0,600;0,700;0,800;1,800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-primary-fixed": "#000000",
+                        "error-dim": "#a70138",
+                        "secondary-fixed": "#fed9b8",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-variant": "#d9dde1",
+                        "on-primary-container": "#001a63",
+                        "surface-container-low": "#eef1f4",
+                        "tertiary-container": "#98ffd9",
+                        "tertiary-fixed": "#98ffd9",
+                        "primary-fixed": "#829bff",
+                        "on-secondary": "#fff0e5",
+                        "inverse-surface": "#0b0f11",
+                        "on-surface": "#2c2f32",
+                        "on-primary": "#f2f1ff",
+                        "surface-container-high": "#dfe3e7",
+                        "secondary": "#71563d",
+                        "surface-bright": "#f5f7fa",
+                        "primary-dim": "#0040cb",
+                        "tertiary-fixed-dim": "#89f0cb",
+                        "on-tertiary-container": "#00634b",
+                        "tertiary-dim": "#005b45",
+                        "outline": "#74777a",
+                        "inverse-on-surface": "#9a9da0",
+                        "tertiary": "#00684f",
+                        "primary": "#0049e6",
+                        "on-secondary-fixed-variant": "#6f553b",
+                        "secondary-dim": "#644b32",
+                        "secondary-container": "#fed9b8",
+                        "on-primary-fixed-variant": "#002278",
+                        "on-error-container": "#510017",
+                        "on-secondary-container": "#644b32",
+                        "on-error": "#ffefef",
+                        "secondary-fixed-dim": "#efcbab",
+                        "error": "#b41340",
+                        "outline-variant": "#abadb0",
+                        "on-surface-variant": "#595c5e",
+                        "primary-fixed-dim": "#6e8cff",
+                        "surface-tint": "#0049e6",
+                        "surface-container": "#e5e8ec",
+                        "surface-dim": "#d0d5d9",
+                        "primary-container": "#829bff",
+                        "background": "#f5f7fa",
+                        "error-container": "#f74b6d",
+                        "on-tertiary-fixed-variant": "#006e54",
+                        "on-tertiary-fixed": "#004f3b",
+                        "inverse-primary": "#6a89ff",
+                        "surface": "#f5f7fa",
+                        "on-background": "#2c2f32",
+                        "surface-container-highest": "#d9dde1",
+                        "on-tertiary": "#c6ffe7",
+                        "on-secondary-fixed": "#503921"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Plus Jakarta Sans"],
+                        "body": ["Plus Jakarta Sans"],
+                        "label": ["Plus Jakarta Sans"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.7);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .editorial-shadow {
+            box-shadow: 0 20px 40px rgba(0, 73, 230, 0.06);
+        }
+    </style>
+</head>
+<body class="bg-surface font-body text-on-surface">
+<!-- TopNavBar -->
+<header class="bg-[#f5f7fa] dark:bg-slate-900 sticky top-0 z-50 bg-gradient-to-b from-[#eef1f4] to-transparent shadow-[0_20px_40px_rgba(0,73,230,0.06)]">
+<nav class="flex justify-between items-center w-full px-8 py-4 max-w-[1440px] mx-auto">
+<div class="text-2xl font-black italic tracking-tighter text-[#0052FF] dark:text-[#0049e6]">
+                THE KINETIC GALLERY
+            </div>
+<div class="hidden md:flex items-center space-x-8 font-['Plus_Jakarta_Sans'] font-bold tracking-tight">
+<a class="text-[#595c5e] hover:text-[#2c2f32] hover:opacity-80 transition-opacity duration-300" href="#">Home</a>
+<a class="text-[#595c5e] hover:text-[#2c2f32] hover:opacity-80 transition-opacity duration-300" href="#">Catalog</a>
+<a class="text-[#0052FF] border-b-2 border-[#0052FF] pb-1 active:scale-95 duration-200 transition-transform" href="#">Contact</a>
+</div>
+<div class="flex items-center space-x-6 text-[#0052FF]">
+<button class="hover:opacity-80 transition-opacity duration-300 active:scale-95 duration-200 transition-transform">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+</button>
+<button class="hover:opacity-80 transition-opacity duration-300 active:scale-95 duration-200 transition-transform">
+<span class="material-symbols-outlined" data-icon="shopping_cart">shopping_cart</span>
+</button>
+<button class="hover:opacity-80 transition-opacity duration-300 active:scale-95 duration-200 transition-transform">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+</button>
+</div>
+</nav>
+</header>
+<main class="max-w-[1440px] mx-auto px-8 pt-12 pb-24">
+<!-- Hero Section: Editorial Style -->
+<section class="relative mb-32">
+<div class="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+<div class="md:col-span-7 z-10">
+<h1 class="text-6xl md:text-8xl font-black text-primary leading-[0.9] tracking-tighter mb-8">
+                        LET'S <br/> <span class="text-on-surface">CONNECT</span>
+</h1>
+<p class="text-xl text-on-surface-variant max-w-md mb-12 font-medium leading-relaxed">
+                        Whether you have a question about our collections or just want to share some kinetic energy, we're here to listen.
+                    </p>
+<!-- Quick Contact Pills -->
+<div class="flex flex-wrap gap-4">
+<div class="bg-secondary-container px-6 py-3 rounded-full flex items-center space-x-3 editorial-shadow">
+<span class="material-symbols-outlined text-on-secondary-container" data-icon="call">call</span>
+<span class="text-on-secondary-container font-bold">+1 (555) 012-3456</span>
+</div>
+<div class="bg-tertiary-container px-6 py-3 rounded-full flex items-center space-x-3 editorial-shadow">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="mail">mail</span>
+<span class="text-on-tertiary-container font-bold">hello@kineticgallery.com</span>
+</div>
+</div>
+</div>
+<div class="md:col-span-5 relative mt-12 md:mt-0">
+<div class="bg-primary aspect-[4/5] rounded-[32px] overflow-hidden rotate-3 editorial-shadow">
+<img alt="Editorial Fashion" class="w-full h-full object-cover mix-blend-multiply opacity-80" data-alt="Editorial portrait of a fashion-forward individual in bright blue clothing against a clean minimal background, high fashion aesthetic" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwgGISK_EOIY2FOOr7afEJWSfS1md8aQbLg0XzcmGIFnX-C6f_KuBLyVkPw97e8LbhG4jo4I1OwYrR5vC2ksQfFpcw9HjCyACRM_nlcwINMLRhdsvf0XaYtZzqTJ6Cm9rw9ukSoezk1Sx0ch2Q9Ng403h9S0BjLhaMls3X_FDs7Lz9eWG0sOBIg4OSxLiTBjL8R9QFSTqVlfF0S9wWc_ygXitO-6cD_e8txb-23YRx2bq-wDsTFbNChmQIUHdmzWx_6irXxRzjJOVZ"/>
+</div>
+<!-- Overlapping Glass Card -->
+<div class="absolute -bottom-8 -left-12 glass-effect p-8 rounded-[24px] editorial-shadow max-w-[280px] hidden md:block">
+<p class="text-primary font-black italic tracking-tighter text-xl mb-2">VIBRANT ENERGY</p>
+<p class="text-sm text-on-surface-variant leading-relaxed">Join our community of creators and movement enthusiasts across the globe.</p>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Content: Bento Grid Layout -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+<!-- Contact Form Section -->
+<div class="md:col-span-2 bg-surface-container-lowest p-12 rounded-[32px] editorial-shadow">
+<div class="mb-12">
+<h2 class="text-4xl font-black tracking-tight text-on-surface mb-2">Send a Message</h2>
+<p class="text-on-surface-variant">We usually respond within 24 hours.</p>
+</div>
+<form class="space-y-8">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+<div class="space-y-2">
+<label class="text-sm font-bold text-on-surface-variant uppercase tracking-widest ml-1">Full Name</label>
+<input class="w-full bg-surface-container-low border-none focus:ring-2 focus:ring-primary-container rounded-xl p-4 text-on-surface placeholder:text-outline-variant" placeholder="Alex Rivera" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-bold text-on-surface-variant uppercase tracking-widest ml-1">Email Address</label>
+<input class="w-full bg-surface-container-low border-none focus:ring-2 focus:ring-primary-container rounded-xl p-4 text-on-surface placeholder:text-outline-variant" placeholder="alex@kinetic.com" type="email"/>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-sm font-bold text-on-surface-variant uppercase tracking-widest ml-1">Message</label>
+<textarea class="w-full bg-surface-container-low border-none focus:ring-2 focus:ring-primary-container rounded-xl p-4 text-on-surface placeholder:text-outline-variant" placeholder="Tell us what's on your mind..." rows="5"></textarea>
+</div>
+<button class="bg-gradient-to-r from-primary to-primary-dim text-on-primary px-12 py-4 rounded-xl font-bold text-lg hover:opacity-90 active:scale-95 transition-all editorial-shadow flex items-center justify-center space-x-3">
+<span>Send Message</span>
+<span class="material-symbols-outlined" data-icon="send">send</span>
+</button>
+</form>
+</div>
+<!-- Sidebar Info: Social & Location -->
+<div class="space-y-8">
+<!-- Social Links Card -->
+<div class="bg-surface-container-low p-8 rounded-[32px] space-y-6">
+<h3 class="text-2xl font-black tracking-tight">Stay Social</h3>
+<div class="grid grid-cols-2 gap-4">
+<a class="flex flex-col items-center justify-center p-6 bg-surface-container-lowest rounded-2xl hover:translate-y-[-4px] transition-transform duration-300" href="#">
+<img alt="IG" class="w-8 h-8 mb-3 opacity-80" data-alt="Instagram logo icon colorful gradient" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCMuXpDe45b9EzielwB98ho9YdLGvMe6MmXirBCdVPx6F29fh9gJb6eH77bKfLzQWrG_DGJj4VAlbc0-F3mmOTNrCfg4s8WDrlK747ejUX4h2rSggY1dshQjqMMZa4RLvNDUq1hLRSc-jyj4R7zVkDSAjVeTkYnIUF0-VeCDYYpvrFER04OkT0PhW8rPk5DBZYoT2-HyTo9rTlqLrjoLZ4fhJ3CCwiQ0N6Y_J-bcG9nfEASn5RoqXHu-KE-raQB2bnOlfAwoYm4ym9p"/>
+<span class="font-bold text-xs uppercase tracking-widest">Instagram</span>
+</a>
+<a class="flex flex-col items-center justify-center p-6 bg-surface-container-lowest rounded-2xl hover:translate-y-[-4px] transition-transform duration-300" href="#">
+<img alt="TK" class="w-8 h-8 mb-3 opacity-80" data-alt="TikTok logo icon black and neon" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBGNsJt42aElbSHRqZqV5Lmd-f9lzWbgdXc0HHQQXBnEHU7aNie89ljwo3rD1cR4ZWB3HqcyZ3snvuL3lcLHa9yKBDY5-R7hEjfD4seNX2ViFuu7feHDC_jx4QXikxTrEXwFWKglZ6zN3-gKFbnYOkXvPm6YIr_ztunkuAz3vY0l7Fc8m1_UBpL7Ab2sv7LoxoA_LNteW5fPrmwso16TkfkoYyj9SD5dHncEEkoikyd2ccmY-M2Gao2GzdDJe9I4wr9iFVqSJYmijwN"/>
+<span class="font-bold text-xs uppercase tracking-widest">TikTok</span>
+</a>
+<a class="flex flex-col items-center justify-center p-6 bg-surface-container-lowest rounded-2xl hover:translate-y-[-4px] transition-transform duration-300" href="#">
+<img alt="WA" class="w-8 h-8 mb-3 opacity-80" data-alt="WhatsApp logo icon green" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCIb2SGCr3X_Q-SYly7LwqMNVbULtC3PXilhyupMt7pNq-gOnD-OFjxbAmxw3A0TFbJ-7WYLIX5u79-SMytVIePRGueV4LRUwziipPgeGW60MFgNdid-93OGaYNG8pRBWgZqMozCbsrGVjp9bIvRb3w0eUb_61ADt98BnJZHwcKFqw_y7pUZczynYAMYjIlPvHtxxLMH8YLbdPq2Woeakat0BdczJgB1WzDq0eL0mTuDxMkQaM15W5bHhlYM5oN3SLQjrgZzVAfLq2_"/>
+<span class="font-bold text-xs uppercase tracking-widest">WhatsApp</span>
+</a>
+<a class="flex flex-col items-center justify-center p-6 bg-surface-container-lowest rounded-2xl hover:translate-y-[-4px] transition-transform duration-300" href="#">
+<img alt="FB" class="w-8 h-8 mb-3 opacity-80" data-alt="Facebook logo icon blue" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBQkbZr7MJYcVr5q0LQadhmf6loIEOCqgtczlcRYEQAg7-TSVH4chUH12rVIKvqZ_1fO0wRJrNmwqEUhMG236WSIdlEN_K539xrig40kJpAxUvPiWZhTEDAR7fOiMvQpLSB-Ii7Y_mFre5Rv4DTv3Fd4LYClvS-CBeQroxRsxRG6A9LxUdE8LzX_RBZICx7zg3LQuKg6xujua6AiQMmxwAPgI5HT4gF7ggs06ahc5xgeQAMbAL08gPW5giFT-v6cTnb-HyGlraLOpLF"/>
+<span class="font-bold text-xs uppercase tracking-widest">Facebook</span>
+</a>
+</div>
+</div>
+<!-- Store Info Card -->
+<div class="bg-primary text-on-primary p-8 rounded-[32px] editorial-shadow relative overflow-hidden group">
+<div class="absolute top-0 right-0 p-8 opacity-20">
+<span class="material-symbols-outlined text-8xl" data-icon="store">store</span>
+</div>
+<h3 class="text-2xl font-black mb-4 relative z-10">Visit Our Flagship</h3>
+<p class="mb-6 opacity-90 relative z-10 leading-relaxed">
+                        888 Kinetic Blvd,<br/>
+                        Innovation District,<br/>
+                        New York, NY 10013
+                    </p>
+<div class="flex items-center space-x-2 text-sm font-bold bg-white/20 w-fit px-4 py-2 rounded-full backdrop-blur-md">
+<span class="material-symbols-outlined text-xs" data-icon="schedule">schedule</span>
+<span>Mon - Sat: 10AM - 8PM</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Map Section: Asymmetric -->
+<section class="mt-24">
+<div class="rounded-[40px] overflow-hidden h-[500px] relative editorial-shadow">
+<div class="absolute inset-0 bg-surface-container-high flex items-center justify-center">
+<!-- Modern Map Placeholder -->
+<div class="w-full h-full bg-slate-200 grayscale contrast-125" data-alt="Minimalist artistic street map of Manhattan New York in grayscale and blue tones" data-location="New York" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDqvIgp7IgBm-96Q1yzjDfrg18t47BSdzlvrJlsT6p1vmP8dFzToFuQfo5x7Z5UEEppSClWuze-hhqyDMe128QbHYiztYak_oep87jAv62zzV7UzDFTbUS7xHEtJ4uE4m8f3tchWjqtEt6BY-S3kXrt3OOfmvtZ96O4h3riAUN8d8TaqWkfvWnMRbxorbepm3eE-x2tSJMkb4mHZnQZ5pejTg92-mQCd7vgTrB8TiQVr8Hpo3IurzsTe52pVyzRnUETL1tC__q0LKRi'); background-size: cover; background-position: center;"></div>
+<div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 flex flex-col items-center">
+<div class="bg-primary w-12 h-12 rounded-full flex items-center justify-center editorial-shadow animate-bounce">
+<span class="material-symbols-outlined text-white" data-icon="location_on" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+<div class="mt-4 bg-white px-6 py-2 rounded-full shadow-xl">
+<span class="font-black text-sm tracking-tight text-primary">KINETIC HUB</span>
+</div>
+</div>
+</div>
+<!-- Interactive Overlay -->
+<div class="absolute top-8 right-8 bg-surface-container-lowest p-6 rounded-3xl max-w-xs editorial-shadow hidden md:block">
+<h4 class="font-bold mb-2">Getting Here</h4>
+<p class="text-sm text-on-surface-variant mb-4">Located right next to the Innovation Metro Station. Valet parking available on kinetic blvd.</p>
+<button class="text-primary font-bold flex items-center space-x-2 hover:opacity-70 transition-opacity">
+<span>Open in Maps</span>
+<span class="material-symbols-outlined text-sm" data-icon="open_in_new">open_in_new</span>
+</button>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-[#eef1f4] dark:bg-slate-800 w-full rounded-t-[32px] mt-20 tonal-shift-bg">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 px-12 py-16 w-full max-w-[1440px] mx-auto">
+<div class="col-span-1 md:col-span-1">
+<span class="text-xl font-black text-[#2c2f32] dark:text-white mb-4 block">THE KINETIC GALLERY</span>
+<p class="text-[#595c5e] text-sm leading-relaxed max-w-[200px]">
+                    Curating high-end editorial motion for the modern aesthetic.
+                </p>
+</div>
+<div class="space-y-4">
+<h4 class="font-bold text-primary dark:text-[#0049e6]">Support</h4>
+<ul class="space-y-2 text-sm">
+<li><a class="text-[#595c5e] hover:text-[#0052FF] transition-colors duration-200 hover:translate-x-1 inline-block transition-transform" href="#">Help</a></li>
+<li><a class="text-[#595c5e] hover:text-[#0052FF] transition-colors duration-200 hover:translate-x-1 inline-block transition-transform" href="#">Changes</a></li>
+<li><a class="text-[#595c5e] hover:text-[#0052FF] transition-colors duration-200 hover:translate-x-1 inline-block transition-transform" href="#">Shipping</a></li>
+<li><a class="text-[#0052FF] font-semibold" href="#">Contact</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="font-bold text-primary dark:text-[#0049e6]">Connected</h4>
+<div class="flex flex-wrap gap-4 text-[#595c5e]">
+<span class="material-symbols-outlined hover:text-[#0052FF] cursor-pointer" data-icon="chat">chat</span>
+<span class="material-symbols-outlined hover:text-[#0052FF] cursor-pointer" data-icon="photo_camera">photo_camera</span>
+<span class="material-symbols-outlined hover:text-[#0052FF] cursor-pointer" data-icon="videocam">videocam</span>
+<span class="material-symbols-outlined hover:text-[#0052FF] cursor-pointer" data-icon="public">public</span>
+</div>
+</div>
+<div class="space-y-4">
+<h4 class="font-bold text-primary dark:text-[#0049e6]">Secure Pay</h4>
+<div class="flex gap-2">
+<div class="w-10 h-6 bg-white/50 rounded flex items-center justify-center text-[10px] font-bold text-outline">VISA</div>
+<div class="w-10 h-6 bg-white/50 rounded flex items-center justify-center text-[10px] font-bold text-outline">MC</div>
+<div class="w-10 h-6 bg-white/50 rounded flex items-center justify-center text-[10px] font-bold text-outline">AMEX</div>
+</div>
+</div>
+</div>
+<div class="border-t border-outline-variant/10 px-12 py-8 w-full max-w-[1440px] mx-auto flex justify-between items-center text-xs text-on-surface-variant">
+<span>© 2024 THE KINETIC GALLERY. All rights reserved.</span>
+<div class="flex space-x-6">
+<a class="hover:text-primary transition-colors" href="#">Privacy Policy</a>
+<a class="hover:text-primary transition-colors" href="#">Terms of Service</a>
+</div>
+</div>
+</footer>
+</body></html>

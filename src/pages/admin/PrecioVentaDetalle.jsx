@@ -1,0 +1,95 @@
+import React, { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
+import { pricingService } from '../../services/pricingService';
+import { PricingControlPanel } from '../../components/pricing/PricingControlPanel';
+import { PricingTable } from '../../components/pricing/PricingTable';
+import { supabase } from '../../lib/supabase';
+
+export function PrecioVentaDetalle() {
+    const { tandaNombre } = useParams();
+    const [loading, setLoading] = useState(true);
+    const [data, setData] = useState(null);
+    const [isOldEntrada, setIsOldEntrada] = useState(false);
+    const [tandaParametros, setTandaParametros] = useState({});
+    const [users, setUsers] = useState([]);
+    const [settings, setSettings] = useState({
+        cotizacion_dolar: '',
+        indice_ganancia_tipo: 'personalizado',
+        indice_ganancia_valor: 1.5
+    });
+
+    useEffect(() => {
+        if (tandaNombre) {
+            loadData();
+        }
+    }, [tandaNombre]);
+
+    const loadData = async () => {
+        try {
+            setLoading(true);
+            const decodedName = decodeURIComponent(tandaNombre);
+            const [result, usersRes] = await Promise.all([
+                pricingService.getTandaDetails(decodedName),
+                supabase.from('app_users').select('username, color')
+            ]);
+            setData(result);
+            setIsOldEntrada(result.isOldEntrada || false);
+            setTandaParametros(result.tandaParametros || {});
+            if (result.settings) {
+                setSettings(result.settings);
+            }
+            setUsers(usersRes.data || []);
+        } catch (error) {
+            console.error(error);
+            alert('Error cargando detalles');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleSettingsChange = (newSettings) => {
+        setSettings(newSettings);
+    };
+
+    const handleSaveSettings = async () => {
+        try {
+            setLoading(true);
+            await pricingService.saveTandaSettings(decodeURIComponent(tandaNombre), settings);
+            alert('Configuración guardada correctamente');
+        } catch (error) {
+            alert('Error al guardar');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading && !data) return (
+        <div className="flex justify-center items-center h-screen bg-background">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+    );
+
+    return (
+        <div className="min-h-screen bg-background">
+            <PricingControlPanel
+                tanda={{ tanda_nombre: decodeURIComponent(tandaNombre), products: data?.products || [] }}
+                settings={settings}
+                onSettingsChange={handleSettingsChange}
+                onSave={handleSaveSettings}
+                loading={loading}
+            />
+
+            <div className="container mx-auto px-4">
+                {data?.products && (
+                    <PricingTable
+                        products={data.products}
+                        settings={settings}
+                        users={users}
+                        isOldEntrada={isOldEntrada}
+                        tandaParametros={tandaParametros}
+                    />
+                )}
+            </div>
+        </div>
+    );
+}

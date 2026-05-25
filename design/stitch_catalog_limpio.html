@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+
+<html lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Catalog | THE KINETIC GALLERY</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-primary-fixed-variant": "#0038b6",
+                    "surface": "#f9f9f9",
+                    "inverse-surface": "#2f3131",
+                    "inverse-on-surface": "#f1f1f1",
+                    "on-tertiary-fixed-variant": "#891e00",
+                    "primary-fixed": "#dde1ff",
+                    "on-tertiary": "#ffffff",
+                    "primary": "#003ec7",
+                    "on-primary-container": "#dfe3ff",
+                    "surface-container-highest": "#e2e2e2",
+                    "surface-container-low": "#f3f3f3",
+                    "on-error-container": "#93000a",
+                    "surface-container-high": "#e8e8e8",
+                    "surface-tint": "#004ced",
+                    "surface-bright": "#f9f9f9",
+                    "on-primary-fixed": "#001452",
+                    "on-tertiary-fixed": "#3c0800",
+                    "outline-variant": "#c3c5d9",
+                    "primary-container": "#0052ff",
+                    "on-secondary-fixed": "#1b1c1c",
+                    "surface-container": "#eeeeee",
+                    "on-secondary": "#ffffff",
+                    "outline": "#737688",
+                    "primary-fixed-dim": "#b7c4ff",
+                    "secondary-fixed": "#e5e2e1",
+                    "error": "#ba1a1a",
+                    "on-surface-variant": "#434656",
+                    "tertiary-fixed-dim": "#ffb4a1",
+                    "on-secondary-container": "#636262",
+                    "inverse-primary": "#b7c4ff",
+                    "secondary-container": "#e2dfde",
+                    "on-tertiary-container": "#ffddd5",
+                    "on-secondary-fixed-variant": "#474746",
+                    "secondary-fixed-dim": "#c8c6c5",
+                    "tertiary-container": "#bf3003",
+                    "surface-variant": "#e2e2e2",
+                    "tertiary": "#952200",
+                    "secondary": "#5f5e5e",
+                    "tertiary-fixed": "#ffdbd2",
+                    "on-primary": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-error": "#ffffff",
+                    "on-surface": "#1a1c1c",
+                    "error-container": "#ffdad6",
+                    "background": "#f9f9f9",
+                    "surface-dim": "#dadada",
+                    "on-background": "#1a1c1c"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "fontFamily": {
+                    "headline": ["Inter"],
+                    "body": ["Inter"],
+                    "label": ["Inter"]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9f9f9; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+    </style>
+</head>
+<body class="text-on-surface">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl shadow-sm dark:shadow-none">
+<div class="flex justify-between items-center px-6 py-4 max-w-full mx-auto">
+<div class="text-xl font-bold tracking-tighter text-zinc-900 dark:text-zinc-50 uppercase">THE KINETIC GALLERY</div>
+<div class="hidden md:flex space-x-8 items-center">
+<a class="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors" href="#">Home</a>
+<a class="text-blue-700 dark:text-blue-500 border-b-2 border-blue-700 pb-1" href="#">Catalog</a>
+<a class="text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors" href="#">Contact</a>
+</div>
+<div class="flex items-center space-x-5">
+<div class="hidden lg:flex items-center bg-zinc-100/50 dark:bg-zinc-800/50 px-3 py-1.5 rounded-lg border border-outline-variant/20">
+<span class="material-symbols-outlined text-zinc-500 text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm ml-2 w-48 font-sans" placeholder="Search collection..." type="text"/>
+</div>
+<div class="flex space-x-4">
+<button class="hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-all p-2 rounded-full scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">favorite</span>
+</button>
+<button class="hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-all p-2 rounded-full scale-95 active:scale-90 transition-transform relative">
+<span class="material-symbols-outlined">shopping_bag</span>
+<span class="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full"></span>
+</button>
+<button class="hover:bg-zinc-100/50 dark:hover:bg-zinc-800/50 transition-all p-2 rounded-full scale-95 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">person</span>
+</button>
+</div>
+</div>
+</div>
+</nav>
+<main class="pt-24 pb-12">
+<!-- Editorial Header Section -->
+<section class="px-6 md:px-10 mb-12">
+<div class="flex flex-col md:flex-row items-end justify-between gap-6">
+<div>
+<span class="text-[0.65rem] font-bold tracking-[0.2em] uppercase text-primary mb-2 block">Spring / Summer 2024</span>
+<h1 class="text-5xl md:text-7xl font-bold tracking-tighter leading-none mb-4">THE ARCHIVE</h1>
+<p class="max-w-md text-zinc-500 font-sans leading-relaxed">A curated collection of minimalist silhouettes engineered for the modern kinetic lifestyle.</p>
+</div>
+<div class="text-sm font-medium text-zinc-400">
+                    Showing <span class="text-on-surface">1,248</span> Products
+                </div>
+</div>
+</section>
+<div class="flex flex-col lg:flex-row px-6 md:px-10 gap-10">
+<!-- Sidebar Filter -->
+<aside class="w-full lg:w-64 flex-shrink-0">
+<div class="sticky top-28 space-y-8">
+<!-- Categories -->
+<div>
+<h3 class="text-xs font-black tracking-widest uppercase text-zinc-900 mb-6">Categories</h3>
+<div class="space-y-3">
+<label class="flex items-center group cursor-pointer">
+<input class="rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4" type="checkbox"/>
+<span class="ml-3 text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors">Outerwear</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input checked="" class="rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4" type="checkbox"/>
+<span class="ml-3 text-sm text-zinc-900 font-medium">Knitwear</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input class="rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4" type="checkbox"/>
+<span class="ml-3 text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors">Accessories</span>
+</label>
+<label class="flex items-center group cursor-pointer">
+<input class="rounded-sm border-outline-variant text-primary focus:ring-primary w-4 h-4" type="checkbox"/>
+<span class="ml-3 text-sm text-zinc-600 group-hover:text-zinc-900 transition-colors">Footwear</span>
+</label>
+</div>
+</div>
+<!-- Separator -->
+<div class="h-[1px] bg-surface-container-highest w-full"></div>
+<!-- Size Filter -->
+<div>
+<h3 class="text-xs font-black tracking-widest uppercase text-zinc-900 mb-6">Size</h3>
+<div class="grid grid-cols-4 gap-2">
+<button class="aspect-square flex items-center justify-center border border-outline-variant/30 text-xs font-bold hover:bg-zinc-900 hover:text-white transition-all rounded-sm">XS</button>
+<button class="aspect-square flex items-center justify-center border border-zinc-900 bg-zinc-900 text-white text-xs font-bold rounded-sm">S</button>
+<button class="aspect-square flex items-center justify-center border border-outline-variant/30 text-xs font-bold hover:bg-zinc-900 hover:text-white transition-all rounded-sm">M</button>
+<button class="aspect-square flex items-center justify-center border border-outline-variant/30 text-xs font-bold hover:bg-zinc-900 hover:text-white transition-all rounded-sm">L</button>
+<button class="aspect-square flex items-center justify-center border border-outline-variant/30 text-xs font-bold hover:bg-zinc-900 hover:text-white transition-all rounded-sm">XL</button>
+</div>
+</div>
+<!-- Price Range -->
+<div>
+<h3 class="text-xs font-black tracking-widest uppercase text-zinc-900 mb-6">Price Range</h3>
+<div class="px-2">
+<input class="w-full accent-primary h-1 bg-surface-container-highest rounded-lg appearance-none cursor-pointer" type="range"/>
+<div class="flex justify-between mt-4 text-[10px] font-bold text-zinc-400 uppercase">
+<span>$0</span>
+<span>$2,500</span>
+</div>
+</div>
+</div>
+<!-- Availability -->
+<div class="bg-surface-container-low p-4 rounded-lg">
+<label class="flex items-center justify-between cursor-pointer">
+<span class="text-xs font-bold uppercase tracking-wider text-zinc-700">In Stock Only</span>
+<div class="relative inline-flex items-center cursor-pointer">
+<input class="sr-only peer" type="checkbox"/>
+<div class="w-8 h-4 bg-zinc-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-primary"></div>
+</div>
+</label>
+</div>
+</div>
+</aside>
+<!-- Product Grid -->
+<div class="flex-1">
+<!-- Sorting & View Controls -->
+<div class="flex justify-between items-center mb-8 bg-surface-container-lowest p-2 rounded-lg">
+<div class="flex space-x-2">
+<button class="p-2 bg-zinc-100 rounded text-zinc-900">
+<span class="material-symbols-outlined text-lg">grid_view</span>
+</button>
+<button class="p-2 text-zinc-400 hover:text-zinc-600">
+<span class="material-symbols-outlined text-lg">view_list</span>
+</button>
+</div>
+<select class="border-none bg-transparent text-sm font-medium focus:ring-0 text-zinc-600">
+<option>Sort by: Newest</option>
+<option>Price: Low to High</option>
+<option>Price: High to Low</option>
+<option>Trending</option>
+</select>
+</div>
+<!-- 4-Column Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-x-6 gap-y-12">
+<!-- Product Card 1 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="studio editorial shot of a male model wearing a minimalist technical wool coat in slate grey against a neutral background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD2gRQ-LmRF2E3TwgXa7WlthoRp7y0ga5PjeCMo0WCJ_DaEKkTZMCFY8odbCXbxona02_0loXOXb8xBa2wr2wsEu-v_0nna48aQktYrckKK8PogjFbMAqvTZ4gAJlfEqQm1KhDaif4dShcmLCFhdyV1iz4bQvGDZwGABPITiavhp_hPhUH_x20U8OWzn8ub6enJZwr6TrxNYLUkRZdh7ssyMx3QqVa6TUb2V6A_6z4QP2io1juI7nt7jZ-IjY-Bz-4LozCXQjWi96tP"/>
+<div class="absolute top-3 left-3">
+<span class="bg-white/90 backdrop-blur px-2 py-1 text-[10px] font-black uppercase tracking-widest text-zinc-900">New Arrival</span>
+</div>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Structured Tech Overcoat</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Slate Grey / Virgin Wool</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$890.00</span>
+<span class="text-[10px] font-bold text-emerald-600 uppercase">Available</span>
+</div>
+</div>
+</div>
+<!-- Product Card 2 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="high contrast photo of a black leather premium jacket hanging on a minimalist rack soft cinematic lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBhoDxXyoTws0ybRzMx_yFDYgOipsOVpN73GBfhJOet8CQy6bkmZjGF0fGYoPxBY_K8QGcQ42IZTe_lLqTlabr-lGUW-kPoIKejxdFAAdTB7ujlNn0hSs9d46Py6byrgTQ9xJaGMJplck27LTZRbW82r18FG-k8CDzdN40gGZUWsJBgFPp7K017jWdMDTPsbhwJJwUFjDs64bFe2UBhcsyM18gKzZt4CrZ6bOKm2yaXYcxQ2rOkTp-FORpXlQ5NgIBUHzvQlXROZAGm"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Moto Leather Fragment</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Obsidian / Calf Skin</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$1,240.00</span>
+<span class="text-[10px] font-bold text-zinc-400 uppercase">Low Stock</span>
+</div>
+</div>
+</div>
+<!-- Product Card 3 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="close up of a high quality cream white cashmere sweater with intricate knitting detail and soft texture" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDuLGLUzhZMH7y7TS6MMId6AkBrDhJWTAyUu9yGAKg30oMFE2frl1qArZzZ_5eQ4_Xs5vp3seyAS2wnUkRAjQp1r5bMLjYuK_riOnv5urFqbVbeWM8EOea3WefwaAZNnoqSAUxgZ-7ajRKq7E21JQ-aKOT66LsqMT74jhopeqODowrtSLn1CUZgwlL2yJU3DjHTGKfJVMbYdzgIZ_dIbj4xvhEeE4xL0fK25Gq9ycTYfrSl5Mpy4sNhNxfD4c5sVXKfvDfCZTXoqHpR"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Heavyweight Cashmere Crew</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Off-White / 12-Ply</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$450.00</span>
+<span class="text-[10px] font-bold text-emerald-600 uppercase">Available</span>
+</div>
+</div>
+</div>
+<!-- Product Card 4 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="detailed shot of dark indigo denim trousers folded neatly showing the quality of the stitching and fabric grain" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBPD_urS2jJYeNtXQ4PyXDvNYugRwmGlIGxCuNFjlutijBP6ZB88tD9CO2kKPUzt9H37taUern0CzdNRxDOBwTtFGOTLNoiiuRP0fnC8oEafkbtrIbVihYYI_-9JnoR-euu_fXmBg2FbvMgaesADYhorKjP-9QCARDcj1ZMyW8NufOtKZVEOjz9DjRuU0cK72dMnK2Yf3uRJFtH_y1TGYgta263Rfc3GSrI-1pz7E_Rw-PyvAWUIPtqjIWty8kPruh_TDPVvv7HCem1"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Japanese Raw Denim</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Deep Indigo / Selvedge</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$220.00</span>
+<span class="text-[10px] font-bold text-emerald-600 uppercase">Available</span>
+</div>
+</div>
+</div>
+<!-- Product Card 5 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="modern minimalist white sneakers with clean lines and premium leather finish on a concrete pedestal" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD1nQmOmXZ-ZP9PXhCcD1Xn-BRsfK5TP3ZR8FfraahwB4wNUjfD71Tqy2NsRgQ2NPMMD2l2KD5Sew-m7kooGiGxmKeauc34WVMy6bvy8TNVGi2QK89OajiSIBUGr42xUMNeEZQa4OpURpm4t-3qbFX7FmXA_S5WaT9Yd6QDxJXWa4OQO5AV24kk8Odf6igkPRe9cQAdVTqwkWFrYqqRHETBGy4PhG2kU54NuQm8ys_RsqhOImuSIPnVzQ-8irdq6LeKZg585OFownSH"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Linear Leather Sneaker</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Triple White / Nappa</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$340.00</span>
+<span class="text-[10px] font-bold text-red-600 uppercase">Sold Out</span>
+</div>
+</div>
+</div>
+<!-- Product Card 6 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="fashion model wearing an oversized camel colored trench coat walking through a modern urban architectural setting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBeBfRWl9BYURmZqkaQ8tEpiyaBIyQUAHFKoVMAXPCetPERSD2cVEFFYymGjDzNOpN_D8_VoLpZxd1eMYkqFvTEBXmlsB0gRRBEGoZ0uyklC1gshj6Z331RQ6qK4Ip-TavSJjPysFvw_Ate9YJ3yxfr0pHERYhk2gp4ImktDl_kCavwTTsePmixNyJKgWkyWOGo78pobEJ8p6y8d7M2F4WLieqN7KGiDWIbcVZsSBPD1jHDpAG9E9b5_NsD1Si1HpUAZ029stwGBO2_"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Modular Belted Trench</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Sand / Gabardine</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$760.00</span>
+<span class="text-[10px] font-bold text-emerald-600 uppercase">Available</span>
+</div>
+</div>
+</div>
+<!-- Product Card 7 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="luxurious oversized silk scarf with abstract pattern displayed artistically on a marble table" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDcr0p1uZ00vOlAHrJT10A9DzODB3lig_H1enNqPLF95sbqhC2OgAVZfkxw5FS_Nk2XbdLkVGoN26A64RBdOKvF84QeTVi_A3AnBBSf-hdPA6LVCrl7EukyK_ENJmeq98uZeEpqLe4CguU3mH2Fr-rfJsMqFORIgToOiooVhFWBQOI4II9yz0v4oIujVWH6c_idAFW0eswCGtq4sYl5wr-KeJURQyYZFtLCjKcxpvtKNx_YGkcvWDULWUrYkAY7qfXg9lARb4rYJ54K"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">Geometric Silk Scarf</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Multi / Mulberry Silk</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$180.00</span>
+<span class="text-[10px] font-bold text-emerald-600 uppercase">Available</span>
+</div>
+</div>
+</div>
+<!-- Product Card 8 -->
+<div class="group">
+<div class="relative aspect-[3/4] bg-surface-container-lowest overflow-hidden mb-4">
+<img class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out" data-alt="studio product shot of high-waisted tailored black trousers for women elegant silhouette" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD6GqzemfIwRjQUn4_L73E07ynvesO7qRu16yCTv_yMw2eSTdoZmaBSekfJXdkBpxmeF2ZI7oxRDm8FEf40BlxA0A6I-z5bVkc4_WqscwYPJKgppmYLRcngDD55Pl57rBD07qu82icNSxFUr_DiaQWiB7LDG4JRNjGXOXFbXu9w0SgF7ElKK882FMtPjLCu28nX6zU3CRsHRbWOpR0ttoKBnyoAmqhxTVYs3cOQq3ffsxtBbvRfoQa7PBXANb-b02vb9WoiMxuo8lAk"/>
+<button class="absolute bottom-4 right-4 bg-white text-zinc-900 p-3 rounded-full opacity-0 translate-y-2 group-hover:opacity-100 group-hover:translate-y-0 transition-all duration-300 shadow-xl flex items-center justify-center">
+<span class="material-symbols-outlined text-xl">add_shopping_cart</span>
+</button>
+</div>
+<div class="space-y-1">
+<h3 class="text-sm font-semibold tracking-tight text-zinc-900">High-Rise Tailored Pant</h3>
+<p class="text-xs text-zinc-500 uppercase tracking-wider">Midnight / Wool Blend</p>
+<div class="flex items-center justify-between pt-2">
+<span class="text-sm font-bold">$310.00</span>
+<span class="text-[10px] font-bold text-emerald-600 uppercase">Available</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Pagination -->
+<div class="mt-20 flex justify-center items-center space-x-6">
+<button class="group flex items-center text-xs font-black tracking-widest uppercase text-zinc-400 hover:text-zinc-900 transition-colors">
+<span class="material-symbols-outlined mr-2">arrow_back</span> Previous
+                    </button>
+<div class="flex items-center space-x-4">
+<span class="text-xs font-black text-zinc-900">01</span>
+<span class="text-xs font-black text-zinc-300">02</span>
+<span class="text-xs font-black text-zinc-300">03</span>
+<span class="text-xs font-black text-zinc-300">...</span>
+<span class="text-xs font-black text-zinc-300">12</span>
+</div>
+<button class="group flex items-center text-xs font-black tracking-widest uppercase text-zinc-900 transition-colors">
+                        Next <span class="material-symbols-outlined ml-2">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+</main>
+<!-- Footer -->
+<footer class="bg-zinc-100 dark:bg-zinc-950 w-full mt-20">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-8 px-10 py-16 max-w-7xl mx-auto">
+<div class="col-span-1 md:col-span-1">
+<div class="text-lg font-black tracking-widest text-zinc-900 dark:text-zinc-50 uppercase mb-6">THE KINETIC GALLERY</div>
+<p class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 leading-relaxed mb-6">Redefining the commercial landscape through kinetic design and editorial precision.</p>
+<div class="flex space-x-4">
+<a class="text-zinc-400 hover:text-blue-600 transition-colors" href="#"><span class="material-symbols-outlined">public</span></a>
+<a class="text-zinc-400 hover:text-blue-600 transition-colors" href="#"><span class="material-symbols-outlined">camera</span></a>
+<a class="text-zinc-400 hover:text-blue-600 transition-colors" href="#"><span class="material-symbols-outlined">alternate_email</span></a>
+</div>
+</div>
+<div class="space-y-4">
+<h4 class="text-zinc-900 dark:text-zinc-50 font-medium text-sm uppercase tracking-widest">Customer Help</h4>
+<ul class="space-y-2">
+<li><a class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-blue-600 underline" href="#">Shipping</a></li>
+<li><a class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-blue-600 underline" href="#">Payment Methods</a></li>
+<li><a class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-blue-600 underline" href="#">Contact</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="text-zinc-900 dark:text-zinc-50 font-medium text-sm uppercase tracking-widest">The Brand</h4>
+<ul class="space-y-2">
+<li><a class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-blue-600 underline" href="#">Changes</a></li>
+<li><a class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-blue-600 underline" href="#">Socials</a></li>
+<li><a class="font-sans text-sm tracking-wide text-zinc-500 dark:text-zinc-400 hover:text-blue-600 underline" href="#">Archive</a></li>
+</ul>
+</div>
+<div class="space-y-4">
+<h4 class="text-zinc-900 dark:text-zinc-50 font-medium text-sm uppercase tracking-widest">Newsletter</h4>
+<div class="flex">
+<input class="bg-white border-none text-xs p-3 w-full focus:ring-1 focus:ring-primary rounded-l-sm" placeholder="Email address" type="email"/>
+<button class="bg-zinc-900 text-white px-4 py-2 text-xs font-bold uppercase rounded-r-sm">Join</button>
+</div>
+<div class="flex gap-2 pt-2 grayscale opacity-50">
+<span class="material-symbols-outlined text-xl">payments</span>
+<span class="material-symbols-outlined text-xl">credit_card</span>
+<span class="material-symbols-outlined text-xl">account_balance_wallet</span>
+</div>
+</div>
+</div>
+<div class="border-t border-zinc-200 py-8 px-10 text-center">
+<p class="font-sans text-[10px] tracking-widest text-zinc-400 uppercase">© 2024 THE KINETIC GALLERY. ALL RIGHTS RESERVED.</p>
+</div>
+</footer>
+</body></html>

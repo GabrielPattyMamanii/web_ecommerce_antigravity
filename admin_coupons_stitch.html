@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "secondary-container": "#d73b00",
+                        "surface": "#131313",
+                        "tertiary-fixed-dim": "#73dc8e",
+                        "on-tertiary": "#003918",
+                        "on-tertiary-fixed": "#00210b",
+                        "surface-variant": "#353534",
+                        "on-secondary-container": "#fffbff",
+                        "inverse-primary": "#bc004f",
+                        "outline": "#aa888d",
+                        "on-tertiary-container": "#dcffdd",
+                        "surface-container-lowest": "#0e0e0e",
+                        "on-secondary-fixed": "#3b0900",
+                        "on-error": "#690005",
+                        "primary-container": "#d81b60",
+                        "surface-container-highest": "#353534",
+                        "on-primary": "#660028",
+                        "on-primary-fixed": "#3f0016",
+                        "primary-fixed": "#ffd9de",
+                        "tertiary-container": "#00823f",
+                        "surface-dim": "#131313",
+                        "primary": "#ffb2bf",
+                        "error-container": "#93000a",
+                        "tertiary-fixed": "#8ff9a8",
+                        "secondary-fixed": "#ffdbd1",
+                        "outline-variant": "#5a4044",
+                        "secondary": "#ffb5a0",
+                        "surface-container": "#201f1f",
+                        "error": "#ffb4ab",
+                        "primary-fixed-dim": "#ffb2bf",
+                        "on-surface-variant": "#e3bdc3",
+                        "on-primary-fixed-variant": "#90003b",
+                        "inverse-on-surface": "#313030",
+                        "tertiary": "#73dc8e",
+                        "background": "#131313",
+                        "on-primary-container": "#fff2f3",
+                        "secondary-fixed-dim": "#ffb5a0",
+                        "on-tertiary-fixed-variant": "#005226",
+                        "on-background": "#e5e2e1",
+                        "surface-container-low": "#1c1b1b",
+                        "surface-tint": "#ffb2bf",
+                        "surface-bright": "#3a3939",
+                        "on-secondary": "#5f1500",
+                        "on-surface": "#e5e2e1",
+                        "on-error-container": "#ffdad6",
+                        "surface-container-high": "#2a2a2a",
+                        "inverse-surface": "#e5e2e1",
+                        "on-secondary-fixed-variant": "#862200"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "fontFamily": {
+                        "headline": ["Inter"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(58, 57, 57, 0.6);
+            backdrop-filter: blur(16px);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body overflow-hidden">
+<!-- SideNavBar -->
+<aside class="bg-[#131313] h-screen w-64 fixed left-0 top-0 flex flex-col h-full py-6 px-4 z-50">
+<div class="mb-10 px-2">
+<span class="text-xl font-bold text-white tracking-tighter">Command Center</span>
+<p class="text-[10px] text-on-surface-variant uppercase tracking-widest mt-1">Editorial Dark Admin</p>
+</div>
+<nav class="flex-1 space-y-1">
+<!-- Dashboard -->
+<a class="flex items-center gap-3 px-4 py-3 text-[#e3bdc3] hover:bg-[#2a2a2a] transition-all duration-200 rounded-lg group" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span class="font-inter tracking-tight headline-sm semi-bold">Dashboard</span>
+</a>
+<!-- Products -->
+<a class="flex items-center gap-3 px-4 py-3 text-[#e3bdc3] hover:bg-[#2a2a2a] transition-all duration-200 rounded-lg group" href="#">
+<span class="material-symbols-outlined">inventory_2</span>
+<span class="font-inter tracking-tight headline-sm semi-bold">Products</span>
+</a>
+<!-- Categories -->
+<a class="flex items-center gap-3 px-4 py-3 text-[#e3bdc3] hover:bg-[#2a2a2a] transition-all duration-200 rounded-lg group" href="#">
+<span class="material-symbols-outlined">category</span>
+<span class="font-inter tracking-tight headline-sm semi-bold">Categories</span>
+</a>
+<!-- Cupones (ACTIVE) -->
+<a class="flex items-center gap-3 px-4 py-3 text-[#d81b60] bg-[#2a2a2a] rounded-lg font-bold transition-all duration-200" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">confirmation_number</span>
+<span class="font-inter tracking-tight headline-sm semi-bold">Cupones</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-outline-variant/10">
+<button class="w-full mb-6 py-3 px-4 bg-gradient-to-br from-[#ffb2bf] to-[#d81b60] text-on-primary-container font-bold rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-primary-container/20">
+<span class="material-symbols-outlined">add_circle</span>
+                Crear Nuevo Cupón
+            </button>
+<div class="space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 text-[#e3bdc3] hover:bg-[#2a2a2a] transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="text-sm">Settings</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 text-[#e3bdc3] hover:bg-[#2a2a2a] transition-all duration-200 rounded-lg" href="#">
+<span class="material-symbols-outlined">help</span>
+<span class="text-sm">Support</span>
+</a>
+</div>
+</div>
+</aside>
+<!-- TopNavBar -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] h-16 flex justify-between items-center px-8 z-40 bg-[#131313]/60 backdrop-blur-xl">
+<div class="flex items-center gap-4 bg-surface-container-lowest px-4 py-1.5 rounded-full border border-outline-variant/10 w-96">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">search</span>
+<input class="bg-transparent border-none focus:ring-0 text-sm text-on-surface w-full" placeholder="Buscar cupones..." type="text"/>
+</div>
+<div class="flex items-center gap-6">
+<div class="flex items-center gap-4">
+<button class="relative text-on-surface-variant hover:text-white transition-colors">
+<span class="material-symbols-outlined">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-primary-container rounded-full"></span>
+</button>
+<button class="text-on-surface-variant hover:text-white transition-colors">
+<span class="material-symbols-outlined">apps</span>
+</button>
+</div>
+<div class="h-8 w-px bg-outline-variant/20"></div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<p class="text-xs font-bold text-on-surface">Alex Rivera</p>
+<p class="text-[10px] text-on-surface-variant">Admin Principal</p>
+</div>
+<img alt="Admin profile photo" class="w-10 h-10 rounded-full object-cover border border-outline-variant/30" data-alt="Professional portrait of a male administrator in dark attire with subtle studio lighting and minimalist background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCZPT2QB3Bqd10RlwgYlDdh76cIZWDTet9KPgWPFrwvnrctmhBA5jddsKs81rT0-mhJT6l8TbjVhJeWZIA5ms-WdSk-DeYk-89FxVjXd3hgSdwjA8xspBy0xMBS-6WV-vG2FpHwG-1SuOrIrRmnXO7FmxRc6bXgsgQ_ao8IhT-PnEbY3ephfg2aZJcS4EnaMeqBvl-z-kEHvJcETdrBZQv4oGXC8c5EPKtBAvUu7BQFaAfy7vl9kGEWST07V5assBZDZCqSd7IY2OIj"/>
+</div>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="ml-64 pt-16 h-screen overflow-y-auto bg-surface">
+<div class="p-8 max-w-7xl mx-auto">
+<!-- Dashboard Header Section -->
+<div class="flex justify-between items-end mb-10">
+<div>
+<h1 class="text-3xl font-extrabold tracking-tight text-on-surface mb-2">Gestión de Cupones</h1>
+<p class="text-on-surface-variant max-w-md">Administra tus campañas promocionales y códigos de descuento con precisión editorial.</p>
+</div>
+<div class="flex gap-3">
+<button class="bg-surface-container-high text-on-surface px-6 py-2.5 rounded-lg font-semibold hover:bg-surface-bright transition-all flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">filter_list</span>
+                        Filtrar
+                    </button>
+<button class="bg-gradient-to-br from-[#ffb2bf] to-[#d81b60] text-on-primary-container px-6 py-2.5 rounded-lg font-bold hover:brightness-110 transition-all active:scale-95 flex items-center gap-2">
+<span class="material-symbols-outlined">add</span>
+                        Crear Nuevo Cupón
+                    </button>
+</div>
+</div>
+<!-- Coupons Grid (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+<!-- Coupon Card 1 -->
+<div class="bg-surface-container-low p-6 rounded-xl hover:bg-surface-container-high transition-all group relative overflow-hidden">
+<div class="absolute top-0 right-0 p-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1 block">Viernes Negro</span>
+<h3 class="text-xl font-bold text-on-surface">BLACKFRIDAY2024</h3>
+</div>
+<div class="bg-primary-container/20 text-primary-container px-3 py-1 rounded-full text-xs font-bold">
+                            40% OFF
+                        </div>
+</div>
+<div class="space-y-4 mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary text-sm">check_circle</span>
+<span class="text-sm text-on-surface-variant">Estado: <span class="text-tertiary font-bold">Publicado</span></span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">schedule</span>
+<span class="text-sm text-on-surface-variant">Vence en: <span class="text-on-surface font-mono">14:22:05</span></span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2 bg-surface-container-highest text-on-surface text-xs font-bold rounded-lg hover:bg-surface-bright transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span>
+                            Reiniciar Contador
+                        </button>
+<div class="w-12 h-10 bg-tertiary-container/20 rounded-lg flex items-center justify-center">
+<div class="w-6 h-3 bg-tertiary rounded-full relative">
+<div class="absolute right-0.5 top-0.5 w-2 h-2 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Coupon Card 2 -->
+<div class="bg-surface-container-low p-6 rounded-xl hover:bg-surface-container-high transition-all group relative overflow-hidden">
+<div class="absolute top-0 right-0 p-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1 block">Bienvenida</span>
+<h3 class="text-xl font-bold text-on-surface">WELCOME15</h3>
+</div>
+<div class="bg-primary-container/20 text-primary-container px-3 py-1 rounded-full text-xs font-bold">
+                            15% OFF
+                        </div>
+</div>
+<div class="space-y-4 mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-outline-variant text-sm">pending</span>
+<span class="text-sm text-on-surface-variant">Estado: <span class="text-outline-variant font-bold">Borrador</span></span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-on-surface-variant text-sm">timer_off</span>
+<span class="text-sm text-on-surface-variant italic">Sin contador activo</span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2 bg-surface-container-highest/50 text-on-surface-variant text-xs font-bold rounded-lg cursor-not-allowed flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span>
+                            Reiniciar Contador
+                        </button>
+<div class="w-12 h-10 bg-surface-container-highest rounded-lg flex items-center justify-center">
+<div class="w-6 h-3 bg-outline-variant rounded-full relative">
+<div class="absolute left-0.5 top-0.5 w-2 h-2 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Coupon Card 3 -->
+<div class="bg-surface-container-low p-6 rounded-xl hover:bg-surface-container-high transition-all group relative overflow-hidden border border-primary-container/10">
+<div class="absolute top-0 right-0 p-3">
+<button class="text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined">edit</span>
+</button>
+</div>
+<div class="flex justify-between items-start mb-6">
+<div>
+<span class="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold mb-1 block">Flash Sale</span>
+<h3 class="text-xl font-bold text-on-surface">FLASH50</h3>
+</div>
+<div class="bg-primary-container/20 text-primary-container px-3 py-1 rounded-full text-xs font-bold">
+                            50% OFF
+                        </div>
+</div>
+<div class="space-y-4 mb-8">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary text-sm">check_circle</span>
+<span class="text-sm text-on-surface-variant">Estado: <span class="text-tertiary font-bold">Publicado</span></span>
+</div>
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary-container text-sm">warning</span>
+<span class="text-sm text-on-surface-variant">Vence en: <span class="text-secondary-container font-bold font-mono">00:04:12</span></span>
+</div>
+</div>
+<div class="flex gap-2">
+<button class="flex-1 py-2 bg-secondary-container text-white text-xs font-bold rounded-lg hover:brightness-110 transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm">history</span>
+                            Reiniciar Contador
+                        </button>
+<div class="w-12 h-10 bg-tertiary-container/20 rounded-lg flex items-center justify-center">
+<div class="w-6 h-3 bg-tertiary rounded-full relative">
+<div class="absolute right-0.5 top-0.5 w-2 h-2 bg-white rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Creation/Edit Overlay (Modal UI) -->
+<section class="mt-12 bg-surface-container-low rounded-2xl overflow-hidden shadow-2xl relative border border-outline-variant/10">
+<div class="bg-surface-container-high px-8 py-5 flex items-center justify-between">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-primary-container">edit_square</span>
+<h2 class="text-lg font-bold">Configuración de Nuevo Cupón</h2>
+</div>
+<div class="flex items-center gap-4">
+<span class="text-xs text-on-surface-variant">* Campos obligatorios</span>
+<button class="p-1 hover:bg-surface-bright rounded-full text-on-surface-variant">
+<span class="material-symbols-outlined">close</span>
+</button>
+</div>
+</div>
+<div class="p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+<!-- Main Form Fields -->
+<div class="lg:col-span-7 space-y-6">
+<div class="grid grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">NOMBRE DEL CUPON*</label>
+<input class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary-container/40" placeholder="Ej: Especial Verano" type="text"/>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">CUPON*</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-none rounded-lg p-3 pr-12 text-sm font-mono focus:ring-1 focus:ring-primary-container/40" placeholder="SUMMER24" type="text"/>
+<span class="absolute right-3 top-1/2 -translate-y-1/2 material-symbols-outlined text-on-surface-variant text-sm">key</span>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-2 gap-6">
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">PORCENTAJE DE DESCUENTO*</label>
+<div class="relative">
+<input class="w-full bg-surface-container-lowest border-none rounded-lg p-3 pr-12 text-sm focus:ring-1 focus:ring-primary-container/40" placeholder="25" type="number"/>
+<span class="absolute right-4 top-1/2 -translate-y-1/2 text-on-surface-variant font-bold text-sm">%</span>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">ESTADO INICIAL</label>
+<div class="flex items-center gap-4 h-11 bg-surface-container-lowest px-4 rounded-lg">
+<span class="text-xs text-on-surface-variant">Borrador</span>
+<div class="w-12 h-6 bg-surface-container-highest rounded-full relative cursor-pointer group">
+<div class="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-all group-hover:bg-primary-container"></div>
+</div>
+<span class="text-xs text-on-surface-variant">Publicado</span>
+</div>
+</div>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant">DESCRIPCIÓN</label>
+<textarea class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm focus:ring-1 focus:ring-primary-container/40" placeholder="Propósito interno de este cupón..." rows="2"></textarea>
+</div>
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-wider text-on-surface-variant flex items-center justify-between">
+                                MENSAJE DEL CUPÓN
+                                <span class="text-[10px] font-normal lowercase text-tertiary bg-tertiary-container/10 px-2 py-0.5 rounded">Soporta HTML/CSS</span>
+</label>
+<textarea class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-sm font-mono focus:ring-1 focus:ring-primary-container/40" placeholder="¡Felicidades! Has aplicado un descuento de &lt;span class='text-primary'&gt;25%&lt;/span&gt;..." rows="4"></textarea>
+</div>
+</div>
+<!-- Sidebar configuration -->
+<div class="lg:col-span-5 space-y-6">
+<div class="bg-surface-container-highest/30 p-6 rounded-xl border border-outline-variant/10">
+<div class="flex items-center justify-between mb-6">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary">timer</span>
+<h3 class="font-bold text-sm">Contador de Tiempo</h3>
+</div>
+<input class="w-5 h-5 rounded bg-surface-container-lowest border-outline-variant text-primary-container focus:ring-offset-surface" type="checkbox"/>
+</div>
+<div class="space-y-4 opacity-100">
+<div class="space-y-2">
+<label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">DURACIÓN (Horas/Minutos)</label>
+<div class="flex gap-2">
+<input class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-center text-sm focus:ring-1 focus:ring-primary-container/40" type="number" value="24"/>
+<span class="text-on-surface-variant py-3">:</span>
+<input class="w-full bg-surface-container-lowest border-none rounded-lg p-3 text-center text-sm focus:ring-1 focus:ring-primary-container/40" type="number" value="00"/>
+</div>
+</div>
+<div class="p-4 bg-secondary-container/10 rounded-lg border border-secondary-container/20">
+<div class="flex items-start gap-3">
+<span class="material-symbols-outlined text-secondary-container text-sm">info</span>
+<p class="text-[11px] text-on-surface-variant leading-relaxed">
+                                            Al habilitar el contador, el cupón se desactivará automáticamente cuando llegue a cero. Puedes usar el botón de reinicio para extender la validez.
+                                        </p>
+</div>
+</div>
+</div>
+</div>
+<!-- Preview Area -->
+<div class="relative group">
+<label class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant mb-2 block">Vista Previa Editorial</label>
+<div class="bg-[#2a2a2a] p-6 rounded-xl border border-dashed border-outline-variant/40 flex flex-col items-center justify-center text-center">
+<div class="w-16 h-16 bg-surface-container-low rounded-full flex items-center justify-center mb-4">
+<span class="material-symbols-outlined text-3xl text-primary-container">qr_code_2</span>
+</div>
+<p class="text-on-surface-variant text-xs italic">La vista previa en vivo se generará al completar los campos obligatorios.</p>
+</div>
+</div>
+</div>
+</div>
+<div class="bg-surface-container-high/50 px-8 py-6 flex justify-end gap-4 border-t border-outline-variant/10">
+<button class="px-8 py-2.5 rounded-lg text-sm font-bold text-on-surface hover:bg-surface-bright transition-colors">
+                        Cancelar
+                    </button>
+<button class="bg-gradient-to-br from-[#ffb2bf] to-[#d81b60] text-on-primary-container px-10 py-2.5 rounded-lg font-bold hover:brightness-110 shadow-lg shadow-primary-container/20 transition-all active:scale-95">
+                        Guardar Cupón
+                    </button>
+</div>
+</section>
+</div>
+</main>
+<!-- Visual Polish: Fixed ambient lights -->
+<div class="fixed top-[-10%] right-[-10%] w-[40%] h-[40%] bg-primary-container/5 blur-[120px] rounded-full pointer-events-none -z-10"></div>
+<div class="fixed bottom-[-10%] left-[20%] w-[30%] h-[30%] bg-secondary-container/5 blur-[100px] rounded-full pointer-events-none -z-10"></div>
+</body></html>

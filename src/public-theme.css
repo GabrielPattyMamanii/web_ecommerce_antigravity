@@ -1,0 +1,113 @@
+/* ============================================================
+   Public Layout Design System — Warm Kinetic
+   Palette:
+     Primary   #ff5d2e  – Coral (CTAs, links, price tags)
+     Secondary #ff9432  – Orange (hover, badges, secondary actions)
+     Tertiary  #ffcc6d  – Golden (accents, selected chips, highlights)
+     Surface   #fffbb7  – Soft Yellow (card backgrounds, sidebar)
+     Background #ffffec – Cream (page background)
+   Font: Nunito (rounded, modern, friendly)
+   ============================================================ */
+
+/* ── Nunito from Google Fonts ── */
+@import url('https://fonts.googleapis.com/css2?family=Nunito:ital,wght@0,200..1000;1,200..1000&display=swap');
+
+/* ── Override Tailwind public design tokens ── */
+:root {
+    /* Palette tokens used by Tailwind classes */
+    --public-primary:          #ff5d2e;
+    --public-primary-dim:      #e04b1f;
+    --public-secondary:        #ff9432;
+    --public-tertiary:         #ffcc6d;
+    --public-surface:          #ffffec;
+    --public-surface-card:     #fffbb7;
+    --public-on-primary:       #ffffff;
+    --public-on-surface:       #1a1207;
+    --public-on-surface-var:   #5c4a30;
+    --public-outline-variant:  rgba(255, 93, 46, 0.15);
+
+    /* Nunito as the site font */
+    --font-nunito: 'Nunito', sans-serif;
+}
+
+/* ── Apply to all public pages (anything NOT in /admin) ── */
+body:not(.admin-body),
+.public-layout {
+    font-family: var(--font-nunito), sans-serif;
+    background-color: #ffffec;
+    color: #1a1207;
+    font-optical-sizing: auto;
+}
+
+/* ── Headings ── */
+body:not(.admin-body) h1,
+body:not(.admin-body) h2,
+body:not(.admin-body) h3,
+body:not(.admin-body) h4,
+body:not(.admin-body) h5,
+body:not(.admin-body) h6,
+.public-layout h1, .public-layout h2, .public-layout h3,
+.public-layout h4, .public-layout h5, .public-layout h6 {
+    font-family: var(--font-nunito), sans-serif;
+    font-weight: 800;
+}
+
+/* ── Override Tailwind semantic tokens for public pages ── */
+/* Primary — Coral */
+body:not(.admin-body) .bg-primary,
+body:not(.admin-body) .from-primary { background-color: #ff5d2e !important; }
+body:not(.admin-body) .text-primary  { color: #ff5d2e !important; }
+body:not(.admin-body) .border-primary { border-color: #ff5d2e !important; }
+body:not(.admin-body) .ring-primary   { --tw-ring-color: #ff5d2e !important; }
+body:not(.admin-body) .to-primary-dim { background-color: #e04b1f !important; }
+body:not(.admin-body) .bg-gradient-to-r.from-primary.to-primary-dim {
+    background-image: linear-gradient(to right, #ff5d2e, #e04b1f) !important;
+}
+
+/* Secondary — Orange */
+body:not(.admin-body) .bg-secondary-container { background-color: #fff2e6 !important; }
+body:not(.admin-body) .text-on-secondary-container { color: #7a3800 !important; }
+
+/* Tertiary — Golden Yellow */
+body:not(.admin-body) .bg-tertiary { background-color: #ffcc6d !important; }
+body:not(.admin-body) .text-tertiary { color: #d68000 !important; }
+body:not(.admin-body) .bg-tertiary-container { background-color: #ffe9b0 !important; }
+body:not(.admin-body) .text-on-tertiary-container { color: #7a4f00 !important; }
+
+/* Surface — Cream & Soft Yellow */
+body:not(.admin-body) .bg-surface,
+body:not(.admin-body) .bg-\[#f5f7fa\],
+body:not(.admin-body) .bg-\[#f9f9f9\] { background-color: #ffffec !important; }
+body:not(.admin-body) .bg-surface-container-low { background-color: #fffde0 !important; }
+body:not(.admin-body) .bg-surface-container { background-color: #fffbb7 !important; }
+body:not(.admin-body) .bg-surface-container-high { background-color: #fff4a0 !important; }
+body:not(.admin-body) .bg-surface-container-lowest { background-color: #ffffff !important; }
+body:not(.admin-body) .bg-surface-container-highest { background-color: #f5e980 !important; }
+
+/* Outline */
+body:not(.admin-body) .border-outline-variant\/20,
+body:not(.admin-body) .border-outline-variant { border-color: rgba(255, 93, 46, 0.15) !important; }
+
+/* On-primary text */
+body:not(.admin-body) .text-on-primary { color: #ffffff !important; }
+
+/* Hover on primary */
+body:not(.admin-body) .hover\:bg-primary-dim:hover { background-color: #e04b1f !important; }
+
+/* Accent ring for selector */
+body:not(.admin-body) .accent-primary { accent-color: #ff5d2e !important; }
+
+/* On-surface text */
+body:not(.admin-body) .text-on-surface { color: #1a1207 !important; }
+body:not(.admin-body) .text-on-surface-variant { color: #5c4a30 !important; }
+
+/* Navbar glass */
+body:not(.admin-body) .glass-nav,
+body:not(.admin-body) nav.fixed {
+    background: rgba(255, 255, 236, 0.82) !important;
+    backdrop-filter: blur(20px) !important;
+    -webkit-backdrop-filter: blur(20px) !important;
+}
+
+/* Input focus ring */
+body:not(.admin-body) .focus\:ring-primary:focus { --tw-ring-color: #ff5d2e !important; }
