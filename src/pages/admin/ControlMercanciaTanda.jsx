@@ -124,14 +124,15 @@ export function ControlMercanciaTanda() {
         try { localStorage.setItem(localKey, JSON.stringify([...updated])); } catch { }
     };
 
-    const getQRUrl = (prodId) => {
-        // Use env var for production URL if set, otherwise use current origin
+    const getQRUrl = (prod) => {
         const base = import.meta.env.VITE_APP_URL || window.location.origin;
-        return `${base}/scan/${prodId}`;
+        // ?c= permite al escáner encontrar el producto por código si el ID queda desactualizado
+        const codigoParam = prod.codigo ? `?c=${encodeURIComponent(prod.codigo)}` : '';
+        return `${base}/scan/${prod.id}${codigoParam}`;
     };
 
     const handleOpenQR = (prod) => {
-        const url = getQRUrl(prod.id);
+        const url = getQRUrl(prod);
         setQrModal({ id: prod.id, titulo: prod.producto_titulo, marca: prod.marca, url });
     };
 

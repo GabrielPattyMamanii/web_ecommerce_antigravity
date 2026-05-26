@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun, Calculator, Archive, ShoppingCart, Users, ClipboardList, Ticket, HandCoins, ScanLine, History } from 'lucide-react';
+import { LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun, Calculator, Archive, ShoppingCart, Users, ClipboardList, Ticket, HandCoins, ScanLine, History, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -172,6 +172,7 @@ export function AdminLayout() {
                         { to: '/admin/posibles-compras', icon: ShoppingCart, label: 'Posibles Compras' },
                         { to: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta' },
                         { to: '/admin/ventas/historial', icon: History, label: 'Historial Ventas' },
+                        { to: '/admin/cuentas-bancarias', icon: Building2, label: 'Cuentas Bancarias' },
                         { to: '/admin/settings', icon: Settings, label: 'Settings' },
                     ].map((item, index) => {
                         if (item.action) {
