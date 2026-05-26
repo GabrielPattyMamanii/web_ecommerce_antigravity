@@ -99,7 +99,7 @@ export function ControlMercanciaTanda() {
         filteredProducts.reduce((acc, prod) => {
             const key = prod.marca_id
                 ? prod.marca_id
-                : `${prod.marca}_${prod.codigo_boleta || 'sin_boleta'}_${prod.propietario || 'sin_prop'}`;
+                : `${prod.marca}_${prod.codigo_boleta || 'sin_boleta'}`;
 
             if (!acc[key]) {
                 acc[key] = {
@@ -109,6 +109,8 @@ export function ControlMercanciaTanda() {
                     propietario: prod.propietario || '',
                     items: []
                 };
+            } else if (!acc[key].propietario && prod.propietario) {
+                acc[key].propietario = prod.propietario;
             }
             acc[key].items.push(prod);
             return acc;
@@ -262,13 +264,34 @@ export function ControlMercanciaTanda() {
                     {/* Brand Groups */}
                     <div className="space-y-6">
                         {brandGroups.map((brandGroup, idx) => {
+                            // Compute per-product owner totals (same logic as DetalleTanda)
+                            const ownerTotals = {};
+                            let hasExplicitOwner = false;
+                            brandGroup.items.forEach(prod => {
+                                const ownerName = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                                const docenas = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                                const amount = docenas * (Number(prod.precio_docena) || 0);
+                                const bucket = ownerName || '—';
+                                if (ownerName) hasExplicitOwner = true;
+                                if (!ownerTotals[bucket]) ownerTotals[bucket] = 0;
+                                ownerTotals[bucket] += amount;
+                            });
+                            if (!hasExplicitOwner) Object.keys(ownerTotals).forEach(k => delete ownerTotals[k]);
+                            const isMultiOwner = Object.keys(ownerTotals).length > 1;
+
                             const owner = users.find(u => u.username === brandGroup.propietario);
-                            const ownerColor = owner ? owner.color : null;
+                            const singleOwnerKey = !isMultiOwner && Object.keys(ownerTotals).length === 1 && Object.keys(ownerTotals)[0] !== '—'
+                                ? Object.keys(ownerTotals)[0] : null;
+                            const ownerColor = owner?.color || (singleOwnerKey ? users.find(u => u.username === singleOwnerKey)?.color : null);
+
                             return (
                                 <ControlBrandSection
                                     key={idx}
                                     brandGroup={brandGroup}
                                     ownerColor={ownerColor}
+                                    ownerTotals={ownerTotals}
+                                    isMultiOwner={isMultiOwner}
+                                    users={users}
                                     generatedQRs={generatedQRs}
                                     onGenerate={handleGenerateQR}
                                     onOpen={handleOpenQR}
@@ -353,8 +376,25 @@ export function ControlMercanciaTanda() {
 }
 
 // --- Brand Section ---
-function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate, onOpen }) {
+function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, onGenerate, onOpen }) {
     const [isExpanded, setIsExpanded] = useState(false);
+
+    const getColor = (name) => users.find(u => u.username === name)?.color || '#9ca3af';
+
+    const borderStyle = (() => {
+        if (!isMultiOwner) {
+            return ownerColor ? { borderLeft: `4px solid ${ownerColor}` } : {};
+        }
+        const total = Object.values(ownerTotals).reduce((s, v) => s + v, 0);
+        let pct = 0;
+        const stops = Object.entries(ownerTotals).flatMap(([name, amt]) => {
+            const color = getColor(name);
+            const start = pct;
+            pct += (amt / total) * 100;
+            return [`${color} ${start.toFixed(1)}%`, `${color} ${pct.toFixed(1)}%`];
+        });
+        return { borderLeft: '4px solid transparent', borderImage: `linear-gradient(to bottom, ${stops.join(', ')}) 1` };
+    })();
 
     const totalDocenasCopy = brandGroup.items.reduce((sum, p) =>
         sum + (p.cant_docenas_copy ?? p.cantidad_docenas ?? 0), 0
@@ -367,7 +407,7 @@ function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate,
     return (
         <div
             className="bg-card rounded-xl border border-border shadow-sm overflow-hidden"
-            style={ownerColor ? { borderLeft: `4px solid ${ownerColor}` } : {}}
+            style={borderStyle}
         >
             {/* Header */}
             <div
@@ -384,8 +424,23 @@ function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate,
                         )}
                     </h3>
 
-                    {/* Owner Badge */}
-                    {brandGroup.propietario && (
+                    {/* Owner Badge(s) */}
+                    {isMultiOwner ? (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                            {Object.entries(ownerTotals).map(([name, amt]) => {
+                                const color = getColor(name);
+                                const total = Object.values(ownerTotals).reduce((s, v) => s + v, 0);
+                                const pct = total > 0 ? ((amt / total) * 100).toFixed(0) : 0;
+                                return (
+                                    <div key={name} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border text-xs font-bold" style={{ borderColor: color }}>
+                                        <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
+                                        <span className="text-foreground">{name}</span>
+                                        <span className="text-muted-foreground text-[10px]">({pct}%)</span>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : brandGroup.propietario ? (
                         <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background border border-border shadow-sm">
                             <div
                                 className="w-2.5 h-2.5 rounded-full"
@@ -395,7 +450,7 @@ function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate,
                                 {brandGroup.propietario}
                             </span>
                         </div>
-                    )}
+                    ) : null}
 
                     {/* Doc. Control badge */}
                     <div className="text-sm font-medium px-3 py-1 rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
@@ -437,6 +492,7 @@ function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate,
                             <tr>
                                 <th className="px-6 py-3">Producto</th>
                                 <th className="px-6 py-3">Código</th>
+                                {isMultiOwner && <th className="px-6 py-3">Propietario</th>}
                                 <th className="px-6 py-3 text-center">Doc. Control</th>
                                 <th className="px-6 py-3 text-right">Precio Doc.</th>
                                 <th className="px-6 py-3 text-right">Total</th>
@@ -448,10 +504,28 @@ function ControlBrandSection({ brandGroup, ownerColor, generatedQRs, onGenerate,
                                 const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
                                 const total = docenasCopy * (Number(prod.precio_docena) || 0);
                                 const isGenerated = generatedQRs.has(prod.id);
+                                const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                                const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
                                 return (
-                                    <tr key={prod.id} className="hover:bg-muted/10 transition-colors">
+                                    <tr
+                                        key={prod.id}
+                                        className="hover:bg-muted/10 transition-colors"
+                                        style={isMultiOwner && prodOwnerColor ? { borderLeft: `3px solid ${prodOwnerColor}` } : {}}
+                                    >
                                         <td className="px-6 py-4 font-medium text-foreground">{prod.producto_titulo}</td>
                                         <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
+                                        {isMultiOwner && (
+                                            <td className="px-6 py-4">
+                                                {prodOwner ? (
+                                                    <span className="flex items-center gap-1.5 text-xs font-semibold">
+                                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: prodOwnerColor || '#9ca3af' }} />
+                                                        {prodOwner}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-xs text-muted-foreground italic">—</span>
+                                                )}
+                                            </td>
+                                        )}
                                         <td className="px-6 py-4 text-center">
                                             <span className="font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">
                                                 {docenasCopy}

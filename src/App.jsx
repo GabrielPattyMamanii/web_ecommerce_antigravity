@@ -50,6 +50,8 @@ import { CatalogProductForm } from './pages/admin/CatalogProductForm';
 import { CouponList } from './pages/admin/CouponList';
 import { SenasList } from './pages/admin/SenasList';
 import { Senas } from './pages/public/Senas';
+import { VentasScanner } from './pages/admin/VentasScanner';
+import { VentasHistorial } from './pages/admin/VentasHistorial';
 import { ScrollToTop } from './components/layout/ScrollToTop';
 import { Toaster } from 'react-hot-toast';
 
@@ -160,6 +162,10 @@ function App() {
         <Route path="mi-mercaderia" element={<Navigate to="usuarios" replace />} />
 
         <Route path="settings" element={<Settings />} />
+
+        {/* Ventas diarias */}
+        <Route path="ventas" element={<VentasScanner />} />
+        <Route path="ventas/historial" element={<VentasHistorial />} />
       </Route>
 
       {/* User Dashboard Routes - For App Users (Light Auth) */}

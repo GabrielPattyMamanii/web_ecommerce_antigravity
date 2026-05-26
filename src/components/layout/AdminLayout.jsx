@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun, Calculator, Archive, ShoppingCart, Users, ClipboardList, Ticket, HandCoins } from 'lucide-react';
+import { LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun, Calculator, Archive, ShoppingCart, Users, ClipboardList, Ticket, HandCoins, ScanLine, History } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
 import { useDarkMode } from '../../hooks/useDarkMode';
@@ -64,6 +64,8 @@ export function AdminLayout() {
         if (pathname.includes('/precio-venta-sugerido')) return 'Precio Venta Sugerido';
         if (pathname.includes('/posibles-compras')) return 'Posibles Compras';
         if (pathname.includes('/settings')) return 'Settings';
+        if (pathname.includes('/ventas/historial')) return 'Historial de Ventas';
+        if (pathname.includes('/ventas')) return 'Registrar Venta';
         return 'Admin';
     };
 
@@ -168,6 +170,8 @@ export function AdminLayout() {
                         /*{ to: '/admin/calculo-costos', icon: CircleDollarSign, label: 'Cálculo de Costos' }*/,
                         { to: '/admin/calculo-precios', icon: Calculator, label: 'Cálculo de Precios' },
                         { to: '/admin/posibles-compras', icon: ShoppingCart, label: 'Posibles Compras' },
+                        { to: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta' },
+                        { to: '/admin/ventas/historial', icon: History, label: 'Historial Ventas' },
                         { to: '/admin/settings', icon: Settings, label: 'Settings' },
                     ].map((item, index) => {
                         if (item.action) {
