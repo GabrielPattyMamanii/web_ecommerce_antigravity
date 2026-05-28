@@ -17,6 +17,7 @@ export function PrecioVentaListado() {
     const [searchResults, setSearchResults] = useState(null);
     const [priceResults, setPriceResults] = useState(null);
     const [searchLoading, setSearchLoading] = useState(false);
+    const [users, setUsers] = useState([]);
 
     // ── Global price settings (replaces per-tanda settings for search) ──
     const [useDolarBlue, setUseDolarBlue] = useState(true);
@@ -86,13 +87,19 @@ export function PrecioVentaListado() {
         fetchTandas();
     }, []);
 
+    const getUserColor = (username) => users.find(u => u.username === username)?.color || '#9ca3af';
+
     const fetchTandas = async () => {
         try {
             setLoading(true);
-            const data = await pricingService.getTandasSummary();
+            const [data, usersRes] = await Promise.all([
+                pricingService.getTandasSummary(),
+                supabase.from('app_users').select('username, color')
+            ]);
             const sorted = data.sort((a, b) => new Date(b.tanda_fecha) - new Date(a.tanda_fecha));
             setTandas(sorted);
             setFilteredTandas(sorted);
+            setUsers(usersRes.data || []);
         } catch (err) {
             console.error(err);
             setError('Error al cargar las tandas.');
@@ -413,10 +420,13 @@ export function PrecioVentaListado() {
                                 Precios encontrados — {priceResults.length} producto{priceResults.length !== 1 ? 's' : ''}
                             </p>
                             <div className="space-y-3">
-                                {priceResults.map((prod, idx) => (
+                                {priceResults.map((prod, idx) => {
+                                    const prodOwner = prod.propietario || prod.propietario_producto || '';
+                                    return (
                                     <div
                                         key={idx}
                                         className="relative bg-white rounded-[24px] overflow-hidden shadow-[0_8px_30px_rgb(0,0,0,0.06)] border border-gray-100 hover:shadow-[0_8px_30px_rgb(0,0,0,0.12)] transition-all duration-300 transform active:scale-[0.98] cursor-pointer group"
+                                        style={prodOwner ? { borderLeft: `4px solid ${getUserColor(prodOwner)}` } : {}}
                                         onClick={() => navigate(`/admin/precio-venta-sugerido/${encodeURIComponent(prod.tanda_nombre)}?q=${encodeURIComponent(prod.codigo || prod.producto_titulo || '')}`)}
                                     >
                                         {/* Subtle top gradient line */}
@@ -436,9 +446,17 @@ export function PrecioVentaListado() {
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="font-black text-gray-900 uppercase text-[17px] tracking-tight leading-none mt-2">
-                                                        {prod.marca || '—'}
-                                                    </p>
+                                                    <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                                        <p className="font-black text-gray-900 uppercase text-[17px] tracking-tight leading-none">
+                                                            {prod.marca || '—'}
+                                                        </p>
+                                                        {prodOwner && (
+                                                            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-gray-200 bg-white shadow-sm">
+                                                                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getUserColor(prodOwner) }} />
+                                                                <span className="text-[10px] font-bold text-gray-500 uppercase">{prodOwner}</span>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -475,7 +493,8 @@ export function PrecioVentaListado() {
                                             </div>
                                         </div>
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     )}
@@ -680,10 +699,13 @@ export function PrecioVentaListado() {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {priceResults.map((prod, idx) => (
+                        {priceResults.map((prod, idx) => {
+                            const prodOwner = prod.propietario || prod.propietario_producto || '';
+                            return (
                             <div
                                 key={idx}
                                 className="group relative bg-card rounded-2xl border border-border shadow-sm hover:shadow-xl hover:border-indigo-500/30 transition-all duration-300 overflow-hidden cursor-pointer"
+                                style={prodOwner ? { borderLeft: `4px solid ${getUserColor(prodOwner)}` } : {}}
                                 onClick={() => navigate(`/admin/precio-venta-sugerido/${encodeURIComponent(prod.tanda_nombre)}?q=${encodeURIComponent(prod.codigo || prod.producto_titulo || '')}`)}
                             >
                                 <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
@@ -701,9 +723,17 @@ export function PrecioVentaListado() {
                                                 </span>
                                             )}
                                         </div>
-                                        <p className="font-extrabold text-foreground uppercase text-[16px] tracking-tight">
-                                            {prod.marca || '—'}
-                                        </p>
+                                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                                            <p className="font-extrabold text-foreground uppercase text-[16px] tracking-tight">
+                                                {prod.marca || '—'}
+                                            </p>
+                                            {prodOwner && (
+                                                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background border border-border shadow-sm">
+                                                    <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getUserColor(prodOwner) }} />
+                                                    <span className="text-[10px] font-bold text-muted-foreground uppercase">{prodOwner}</span>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                     <div className="bg-background border border-border rounded-full p-2 group-hover:bg-indigo-500 group-hover:text-white group-hover:border-indigo-500 transition-all duration-300 text-muted-foreground shadow-sm">
                                         <ChevronRight className="w-4 h-4" />
@@ -742,7 +772,8 @@ export function PrecioVentaListado() {
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 </div>
             )}

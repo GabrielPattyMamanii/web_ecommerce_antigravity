@@ -35,7 +35,10 @@ export function AdminLayout() {
         }
     }, [location.pathname, navigate]);
 
-    const isActive = (path) => location.pathname.startsWith(path);
+    const isActive = (path, exact = false) => {
+        if (exact) return location.pathname === path;
+        return location.pathname.startsWith(path);
+    };
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
@@ -170,7 +173,7 @@ export function AdminLayout() {
                         /*{ to: '/admin/calculo-costos', icon: CircleDollarSign, label: 'Cálculo de Costos' }*/,
                         { to: '/admin/calculo-precios', icon: Calculator, label: 'Cálculo de Precios' },
                         { to: '/admin/posibles-compras', icon: ShoppingCart, label: 'Posibles Compras' },
-                        { to: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta' },
+                        { to: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta', exact: true },
                         { to: '/admin/ventas/historial', icon: History, label: 'Historial Ventas' },
                         { to: '/admin/cuentas-bancarias', icon: Building2, label: 'Cuentas Bancarias' },
                         { to: '/admin/settings', icon: Settings, label: 'Settings' },
@@ -194,7 +197,7 @@ export function AdminLayout() {
                             <Link
                                 key={item.to}
                                 to={item.to}
-                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive(item.to)
+                                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${isActive(item.to, item.exact)
                                     ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/30 font-semibold'
                                     : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                                     }`}

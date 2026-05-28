@@ -36,6 +36,8 @@ export function VentasScanner() {
     const [currentPrice, setCurrentPrice] = useState('');
     const [currentQty, setCurrentQty] = useState('1');
     const [currentDolarBlue, setCurrentDolarBlue] = useState(null);
+    const [dolarFailed, setDolarFailed] = useState(false);
+    const [manualDolar, setManualDolar] = useState('');
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
 
@@ -77,6 +79,8 @@ export function VentasScanner() {
         setCurrentPrice('');
         setCurrentQty('1');
         setCurrentDolarBlue(null);
+        setDolarFailed(false);
+        setManualDolar('');
         setPrecioInfo(null);
         resetPago();
         setLoadingPrice(true);
@@ -109,7 +113,8 @@ export function VentasScanner() {
             setCurrentDolarBlue(dolarBlue);
             setPrecioInfo({ dolar: dolarBlue, indice });
         } catch {
-            toast.error('No se pudo obtener el dólar blue — ingresá el precio manualmente');
+            setDolarFailed(true);
+            toast.error('No se pudo obtener el dólar blue — ingresá el precio y el dólar manualmente');
         } finally {
             setLoadingPrice(false);
             setTimeout(() => priceInputRef.current?.focus(), 50);
@@ -279,6 +284,13 @@ export function VentasScanner() {
 
         const propietario = getPropietario(selectedEntrada) || 'Sin propietario';
 
+        const dolarGuardar = currentDolarBlue ?? (manualDolar ? parseFloat(manualDolar) : 0);
+
+        if (dolarFailed && !manualDolar) {
+            toast.error('Ingresá el valor del dólar blue');
+            return;
+        }
+
         setCart(prev => [...prev, {
             producto_titulo: selectedEntrada.producto_titulo || selectedEntrada.codigo,
             codigo: selectedEntrada.codigo,
@@ -286,7 +298,7 @@ export function VentasScanner() {
             cantidad_docenas: qty,
             precio_docena_ars: price,
             total_ars: total,
-            dolar_blue: currentDolarBlue ?? 0,
+            dolar_blue: dolarGuardar,
             metodo_pago: metodoPago,
             monto_efectivo: mEfectivo,
             monto_transferencia: mTransferencia,
@@ -298,6 +310,8 @@ export function VentasScanner() {
         setCurrentPrice('');
         setCurrentQty('1');
         setCurrentDolarBlue(null);
+        setDolarFailed(false);
+        setManualDolar('');
         setPrecioInfo(null);
         resetPago();
         toast.success('Agregado al carrito');
@@ -308,7 +322,8 @@ export function VentasScanner() {
 
         setSaving(true);
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const _now = new Date();
+            const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
             const records = cart.map(({ dolar_blue, ...item }) => ({
                 ...item,
                 fecha: today,
@@ -475,10 +490,10 @@ export function VentasScanner() {
                                         Dólar: ${Number(precioInfo.dolar).toLocaleString('es-AR')} · Índice: {precioInfo.indice}
                                     </div>
                                 )}
-                                {!loadingPrice && !precioInfo && (
+                                {!loadingPrice && dolarFailed && (
                                     <div className="flex items-center gap-1.5 mt-3 text-xs text-yellow-600">
                                         <Info className="w-3 h-3 flex-shrink-0" />
-                                        Ingresá el precio manualmente
+                                        API del dólar no disponible — ingresá precio y dólar manualmente
                                     </div>
                                 )}
                             </div>
@@ -529,6 +544,22 @@ export function VentasScanner() {
                                 />
                             </div>
                         </div>
+
+                        {/* Dólar manual (solo si la API falló) */}
+                        {dolarFailed && (
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                    Cotización dólar blue (ARS)
+                                </label>
+                                <input
+                                    type="number"
+                                    value={manualDolar}
+                                    onChange={e => setManualDolar(e.target.value)}
+                                    placeholder="Ej: 1250"
+                                    className="w-full px-3 py-2.5 border border-yellow-400 rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                />
+                            </div>
+                        )}
 
                         {/* Método de pago */}
                         <div>

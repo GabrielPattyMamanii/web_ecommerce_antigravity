@@ -21,13 +21,14 @@ export function AdminMobileMenu({ isOpen, onLogout, onCloseMenu }) {
         { path: '/admin/usuarios', icon: Users, label: 'Usuarios' },
         { path: '/admin/calculo-precios', icon: Calculator, label: 'Cálculo de Precios' },
         { path: '/admin/posibles-compras', icon: ShoppingCart, label: 'Posibles Compras' },
-        { path: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta' },
+        { path: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta', exact: true },
         { path: '/admin/ventas/historial', icon: History, label: 'Historial Ventas' },
         { path: '/admin/settings', icon: Settings, label: 'Settings' },
     ];
 
-    const isActive = (path) => {
+    const isActive = (path, exact = false) => {
         if (location.pathname === '/admin' && path === '/admin/dashboard') return true;
+        if (exact) return location.pathname === path;
         return location.pathname.startsWith(path);
     };
 
@@ -59,7 +60,7 @@ export function AdminMobileMenu({ isOpen, onLogout, onCloseMenu }) {
             <nav className="flex-1 overflow-y-auto py-4">
                 <ul className="space-y-1 px-3">
                     {menuItems.map((item) => {
-                        const active = isActive(item.path);
+                        const active = isActive(item.path, item.exact);
                         return (
                             <li key={item.path}>
                                 <Link
