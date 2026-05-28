@@ -221,15 +221,28 @@ export function VentasScanner() {
                     e.preventDefault();
                     let code = raw;
                     let codigoFallback = null;
-                    try {
-                        if (raw.startsWith('http')) {
+                    if (raw.startsWith('http')) {
+                        try {
+                            // URL bien formada (funciona en desarrollo o si el scanner no garbliza)
                             const url = new URL(raw);
                             const segments = url.pathname.split('/').filter(Boolean);
                             code = segments[segments.length - 1] || raw;
                             // ?c= es el código del producto, usado si el ID quedó desactualizado
                             codigoFallback = url.searchParams.get('c') || null;
+                        } catch {
+                            // URL garbled por layout de teclado español (: → Ñ, / → -, - → ', ? → _, = → ¡)
+                            // Restaurar los guiones del UUID (los ' reemplazan los - del UUID)
+                            const normalized = raw.replace(/'/g, '-');
+                            // Extraer UUID del patrón -scan-{uuid}
+                            const uuidMatch = normalized.match(
+                                /-scan-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
+                            );
+                            // Extraer código de producto del patrón _c{cualquier_char}{codigo}
+                            const codeMatch = normalized.match(/_c.(.+)$/);
+                            if (uuidMatch) code = uuidMatch[1];
+                            if (codeMatch) codigoFallback = codeMatch[1];
                         }
-                    } catch { /* no es URL */ }
+                    }
                     processCode(code, codigoFallback);
                 }
                 // Si buffer vacío, dejar que Enter actúe normal en el input
