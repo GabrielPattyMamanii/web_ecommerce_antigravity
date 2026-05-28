@@ -36,8 +36,11 @@ export function VentasScanner() {
     const [currentPrice, setCurrentPrice] = useState('');
     const [currentQty, setCurrentQty] = useState('1');
     const [currentDolarBlue, setCurrentDolarBlue] = useState(null);
+    const [currentIndice, setCurrentIndice] = useState('');
+    const [indicePreset, setIndicePreset] = useState('');
     const [dolarFailed, setDolarFailed] = useState(false);
     const [manualDolar, setManualDolar] = useState('');
+    const [savedPrice, setSavedPrice] = useState(null);
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
 
@@ -79,20 +82,26 @@ export function VentasScanner() {
         setCurrentPrice('');
         setCurrentQty('1');
         setCurrentDolarBlue(null);
+        setCurrentIndice('');
+        setIndicePreset('');
         setDolarFailed(false);
         setManualDolar('');
         setPrecioInfo(null);
+        setSavedPrice(null);
         resetPago();
         setLoadingPrice(true);
 
         try {
-            const [dolarRes, settingsRes] = await Promise.all([
+            const [dolarRes, settingsRes, precioCustomRes] = await Promise.all([
                 fetch('https://dolarapi.com/v1/dolares/blue'),
                 supabase
                     .from('tanda_settings')
                     .select('indice_ganancia_valor')
                     .eq('tanda_nombre', entrada.tanda_nombre)
                     .maybeSingle(),
+                entrada.codigo
+                    ? supabase.from('precios_custom').select('precio_ars').eq('codigo', entrada.codigo).maybeSingle()
+                    : Promise.resolve({ data: null }),
             ]);
 
             if (!dolarRes.ok) throw new Error('API dólar no disponible');
@@ -107,13 +116,21 @@ export function VentasScanner() {
                 { cotizacion_dolar: dolarBlue, indice_ganancia_valor: indice }
             );
 
-            if (prices.precioVentaArg != null) {
+            const precioCustom = precioCustomRes.data?.precio_ars ?? null;
+            if (precioCustom != null) {
+                setCurrentPrice(precioCustom.toFixed(0));
+                setSavedPrice(precioCustom);
+            } else if (prices.precioVentaArg != null) {
                 setCurrentPrice(prices.precioVentaArg.toFixed(0));
             }
             setCurrentDolarBlue(dolarBlue);
+            setCurrentIndice(indice.toString());
+            setIndicePreset(['1.4', '1.5', '1.6'].includes(indice.toFixed(1)) ? indice.toFixed(1) : 'custom');
             setPrecioInfo({ dolar: dolarBlue, indice });
         } catch {
             setDolarFailed(true);
+            setCurrentIndice('1.5');
+            setIndicePreset('1.5');
             toast.error('No se pudo obtener el dólar blue — ingresá el precio y el dólar manualmente');
         } finally {
             setLoadingPrice(false);
@@ -249,6 +266,29 @@ export function VentasScanner() {
         return () => document.removeEventListener('keydown', onKeyDown);
     }, [processCode]);
 
+    const recalcWithIndice = (entrada, dolar, indiceVal) => {
+        const idx = parseFloat(indiceVal);
+        if (!idx || !dolar || !entrada) return;
+        const prices = calcPrice(
+            { ...entrada, _source: 'entradas' },
+            { cotizacion_dolar: dolar, indice_ganancia_valor: idx }
+        );
+        if (prices.precioVentaArg != null) {
+            setCurrentPrice(prices.precioVentaArg.toFixed(0));
+        }
+    };
+
+    const handleIndiceChange = (val) => {
+        setCurrentIndice(val);
+        const dolar = currentDolarBlue ?? (manualDolar ? parseFloat(manualDolar) : null);
+        recalcWithIndice(selectedEntrada, dolar, val);
+    };
+
+    const handleManualDolarChange = (val) => {
+        setManualDolar(val);
+        recalcWithIndice(selectedEntrada, parseFloat(val), currentIndice);
+    };
+
     const addToCart = () => {
         if (!selectedEntrada) return;
         const qty = parseFloat(currentQty);
@@ -306,13 +346,26 @@ export function VentasScanner() {
             cuenta_nombre: selectedCuenta?.nombre || null,
         }]);
 
+        if (selectedEntrada.codigo) {
+            const codigoGuardar = selectedEntrada.codigo;
+            supabase.from('precios_custom').upsert(
+                { codigo: codigoGuardar, precio_ars: price, updated_at: new Date().toISOString() },
+                { onConflict: 'codigo' }
+            ).then(({ error }) => {
+                if (error) toast.error(`No se pudo guardar el precio: ${error.message}`);
+            });
+        }
+
         setSelectedEntrada(null);
         setCurrentPrice('');
         setCurrentQty('1');
         setCurrentDolarBlue(null);
+        setCurrentIndice('');
+        setIndicePreset('');
         setDolarFailed(false);
         setManualDolar('');
         setPrecioInfo(null);
+        setSavedPrice(null);
         resetPago();
         toast.success('Agregado al carrito');
     };
@@ -484,10 +537,16 @@ export function VentasScanner() {
                                         Calculando precio sugerido...
                                     </div>
                                 )}
+                                {!loadingPrice && savedPrice != null && (
+                                    <div className="flex items-center gap-1.5 mt-3 text-xs font-semibold" style={{ color: ownerColor }}>
+                                        <CheckCircle className="w-3 h-3 flex-shrink-0" />
+                                        Precio guardado: ${Number(savedPrice).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    </div>
+                                )}
                                 {!loadingPrice && precioInfo && (
                                     <div className="flex items-center gap-1.5 mt-3 text-xs text-muted-foreground">
                                         <Info className="w-3 h-3 flex-shrink-0" />
-                                        Dólar: ${Number(precioInfo.dolar).toLocaleString('es-AR')} · Índice: {precioInfo.indice}
+                                        Dólar: ${Number(precioInfo.dolar).toLocaleString('es-AR')} · Índice: {currentIndice || precioInfo.indice}
                                     </div>
                                 )}
                                 {!loadingPrice && dolarFailed && (
@@ -545,6 +604,54 @@ export function VentasScanner() {
                             </div>
                         </div>
 
+                        {/* Índice de ganancia */}
+                        {!loadingPrice && indicePreset !== '' && (
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-2 uppercase tracking-wide">
+                                    Índice de ganancia
+                                </label>
+                                <div className="grid grid-cols-4 gap-2">
+                                    {['1.4', '1.5', '1.6'].map(val => (
+                                        <button
+                                            key={val}
+                                            type="button"
+                                            onClick={() => { setIndicePreset(val); handleIndiceChange(val); }}
+                                            className="py-3 rounded-xl border-2 text-sm font-bold transition-all"
+                                            style={indicePreset === val
+                                                ? { borderColor: ownerColor, backgroundColor: ownerColor + '15', color: ownerColor }
+                                                : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
+                                            }
+                                        >
+                                            {val}
+                                        </button>
+                                    ))}
+                                    <button
+                                        type="button"
+                                        onClick={() => setIndicePreset('custom')}
+                                        className="py-3 rounded-xl border-2 text-sm font-bold transition-all"
+                                        style={indicePreset === 'custom'
+                                            ? { borderColor: ownerColor, backgroundColor: ownerColor + '15', color: ownerColor }
+                                            : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
+                                        }
+                                    >
+                                        Otro
+                                    </button>
+                                </div>
+                                {indicePreset === 'custom' && (
+                                    <input
+                                        type="number"
+                                        value={currentIndice}
+                                        onChange={e => handleIndiceChange(e.target.value)}
+                                        step="0.05"
+                                        min="0.1"
+                                        placeholder="Ej: 1.7"
+                                        autoFocus
+                                        className="mt-2 w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                    />
+                                )}
+                            </div>
+                        )}
+
                         {/* Dólar manual (solo si la API falló) */}
                         {dolarFailed && (
                             <div>
@@ -554,7 +661,7 @@ export function VentasScanner() {
                                 <input
                                     type="number"
                                     value={manualDolar}
-                                    onChange={e => setManualDolar(e.target.value)}
+                                    onChange={e => handleManualDolarChange(e.target.value)}
                                     placeholder="Ej: 1250"
                                     className="w-full px-3 py-2.5 border border-yellow-400 rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
                                 />

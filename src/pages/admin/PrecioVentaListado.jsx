@@ -3,10 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { pricingService } from '../../services/pricingService';
 import { TandaCard } from '../../components/pricing/TandaCard';
 import { supabase } from '../../lib/supabase';
-import { PackageX, Package, ShoppingBag, Archive, Search, ChevronRight, Tag, DollarSign, TrendingUp, Wifi, WifiOff, RefreshCw } from 'lucide-react';
+import { PackageX, Package, ShoppingBag, Archive, Search, ChevronRight, Tag, DollarSign, TrendingUp, Wifi, WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
 import BuscadorMercancia from '../../components/mercancia/BuscadorMercancia';
 import { useMobile } from '../../hooks/useMobile';
 import { formatARS, formatUSD } from '../../utils/pricingUtils';
+
+const DOLAR_STORAGE_KEY = 'antigravity_dolar_api';
+
+function loadDolarConfig() {
+    try { return JSON.parse(localStorage.getItem(DOLAR_STORAGE_KEY) || '{}'); }
+    catch { return {}; }
+}
+function saveDolarConfig(config) {
+    try { localStorage.setItem(DOLAR_STORAGE_KEY, JSON.stringify(config)); }
+    catch { /* ignore */ }
+}
 
 export function PrecioVentaListado() {
     const [tandas, setTandas] = useState([]);
@@ -19,10 +30,13 @@ export function PrecioVentaListado() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [users, setUsers] = useState([]);
 
-    // ── Global price settings (replaces per-tanda settings for search) ──
-    const [useDolarBlue, setUseDolarBlue] = useState(true);
+    // ── Global price settings — persisted in localStorage ──
+    const _saved = loadDolarConfig();
+    const [useDolarBlue, setUseDolarBlue] = useState(_saved.useApi !== false);
     const [dolarBlueValue, setDolarBlueValue] = useState(null);
-    const [manualDolar, setManualDolar] = useState('');
+    const [manualDolar, setManualDolar] = useState(
+        _saved.useApi === false ? (_saved.manualValue || '') : ''
+    );
     const [fetchingDolar, setFetchingDolar] = useState(false);
     const [fetchError, setFetchError] = useState(null);
     const [indiceValor, setIndiceValor] = useState(1.5);
@@ -54,8 +68,29 @@ export function PrecioVentaListado() {
         }
     }, []);
 
-    // Auto-fetch on mount
-    useEffect(() => { fetchDolarBlue(); }, [fetchDolarBlue]);
+    const handleToggleDolar = (next) => {
+        setUseDolarBlue(next);
+        if (next) {
+            saveDolarConfig({ useApi: true, manualValue: '' });
+            fetchDolarBlue();
+        } else {
+            // Pre-fill manual with last known API value
+            const prefill = dolarBlueValue ? String(dolarBlueValue) : manualDolar;
+            setManualDolar(prefill);
+            saveDolarConfig({ useApi: false, manualValue: prefill });
+        }
+    };
+
+    const handleManualDolarChange = (val) => {
+        setManualDolar(val);
+        saveDolarConfig({ useApi: false, manualValue: val });
+    };
+
+    // Auto-fetch on mount only if API mode is active
+    useEffect(() => {
+        if (loadDolarConfig().useApi !== false) fetchDolarBlue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Re-calculate prices when dolar/indice change — reuse stored _precioVentaAlCosto
     // so the proportional formula (which requires group data) doesn't need to re-run
@@ -295,26 +330,45 @@ export function PrecioVentaListado() {
                         <div className="h-px flex-1 bg-gray-200" />
                     </div>
 
+                    {/* Warning banner — mobile */}
+                    {!useDolarBlue && (
+                        <div className="bg-amber-400 rounded-2xl p-4 flex flex-col gap-2">
+                            <div className="flex items-start gap-2">
+                                <AlertTriangle className="h-5 w-5 text-amber-900 shrink-0 mt-0.5" />
+                                <div>
+                                    <p className="font-black text-amber-950 text-[13px] uppercase tracking-wide leading-tight">
+                                        API de Dólar DESACTIVADA
+                                    </p>
+                                    <p className="text-[12px] text-amber-900 font-medium mt-0.5">
+                                        Usás un valor manual{manualDolar ? ` ($${parseFloat(manualDolar).toLocaleString('es-AR')})` : ''}. Puede estar desactualizado.
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => handleToggleDolar(true)}
+                                className="w-full flex items-center justify-center gap-2 bg-amber-950 text-amber-100 py-2 rounded-xl font-bold text-[13px]"
+                            >
+                                <Wifi className="h-4 w-4" /> Reactivar API
+                            </button>
+                        </div>
+                    )}
+
                     {/* Cotización Dólar */}
-                    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+                    <div className={`rounded-2xl p-4 border shadow-sm ${!useDolarBlue ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-100'}`}>
                         <div className="flex items-center justify-between mb-2">
                             <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest flex items-center gap-1">
                                 <DollarSign className="h-3 w-3" /> Cotización Dólar
                             </label>
                             <div className="flex items-center gap-2">
-                                <span className={`text-[11px] font-bold flex items-center gap-1 ${useDolarBlue ? 'text-blue-500' : 'text-gray-400'}`}>
+                                <span className={`text-[11px] font-bold flex items-center gap-1 ${useDolarBlue ? 'text-blue-500' : 'text-amber-600'}`}>
                                     {useDolarBlue ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                                     {useDolarBlue ? 'Blue API' : 'Manual'}
                                 </span>
                                 <button
                                     type="button"
-                                    onClick={() => {
-                                        const next = !useDolarBlue;
-                                        setUseDolarBlue(next);
-                                        if (next) fetchDolarBlue();
-                                        else setDolarBlueValue(null);
-                                    }}
-                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${useDolarBlue ? 'bg-blue-500' : 'bg-gray-300'}`}
+                                    onClick={() => handleToggleDolar(!useDolarBlue)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${useDolarBlue ? 'bg-blue-500' : 'bg-amber-400'}`}
                                 >
                                     <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${useDolarBlue ? 'translate-x-4' : 'translate-x-0'}`} />
                                 </button>
@@ -332,15 +386,20 @@ export function PrecioVentaListado() {
                                 {fetchError && <p className="text-[11px] text-red-400">{fetchError}</p>}
                             </div>
                         ) : (
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-gray-400 font-bold">$</span>
-                                <input
-                                    type="number"
-                                    value={manualDolar}
-                                    onChange={e => setManualDolar(e.target.value)}
-                                    placeholder="Ej: 1390"
-                                    className="w-full bg-gray-100 border-none rounded-xl py-2.5 pl-7 pr-3 text-[15px] font-bold focus:ring-2 focus:ring-indigo-500"
-                                />
+                            <div>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-gray-400 font-bold">$</span>
+                                    <input
+                                        type="number"
+                                        value={manualDolar}
+                                        onChange={e => handleManualDolarChange(e.target.value)}
+                                        placeholder="Ej: 1390"
+                                        className="w-full bg-white border border-amber-300 rounded-xl py-2.5 pl-7 pr-3 text-[15px] font-bold focus:ring-2 focus:ring-amber-400"
+                                    />
+                                </div>
+                                <p className="text-[11px] text-amber-600 font-medium mt-1 flex items-center gap-1">
+                                    <AlertTriangle className="h-3 w-3" /> Valor manual — puede estar desactualizado
+                                </p>
                             </div>
                         )}
                     </div>
@@ -575,6 +634,33 @@ export function PrecioVentaListado() {
                 </p>
             </div>
 
+            {/* ── Warning banner (desktop) ── */}
+            {!useDolarBlue && (
+                <div className="mb-6 max-w-3xl mx-auto bg-amber-400 text-amber-950 rounded-xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                    <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-6 w-6 shrink-0 mt-0.5" />
+                        <div>
+                            <p className="font-black text-base uppercase tracking-wide leading-tight">
+                                API de Dólar DESACTIVADA
+                            </p>
+                            <p className="text-sm font-medium mt-0.5">
+                                Estás usando un valor manual de dólar
+                                {manualDolar ? ` ($${parseFloat(manualDolar).toLocaleString('es-AR')})` : ''}.
+                                Es posible que esté desactualizado.
+                            </p>
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => handleToggleDolar(true)}
+                        className="shrink-0 flex items-center gap-2 bg-amber-950 text-amber-100 px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-900 transition-colors"
+                    >
+                        <Wifi className="h-4 w-4" />
+                        Reactivar API
+                    </button>
+                </div>
+            )}
+
             {/* ── Settings Panel (desktop) ── */}
             <div className="mb-4 flex items-center gap-3 max-w-3xl mx-auto">
                 <div className="h-px flex-1 bg-border" />
@@ -584,25 +670,20 @@ export function PrecioVentaListado() {
             <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
 
                 {/* Cotización Dólar */}
-                <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
+                <div className={`p-4 rounded-xl border shadow-sm ${!useDolarBlue ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' : 'bg-card border-border'}`}>
                     <div className="flex items-center justify-between mb-2">
                         <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
                             <DollarSign className="h-3 w-3" /> Cotización Dólar
                         </label>
                         <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold flex items-center gap-1 ${useDolarBlue ? 'text-blue-500' : 'text-muted-foreground'}`}>
+                            <span className={`text-xs font-bold flex items-center gap-1 ${useDolarBlue ? 'text-blue-500' : 'text-amber-600'}`}>
                                 {useDolarBlue ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
                                 {useDolarBlue ? 'Blue API' : 'Manual'}
                             </span>
                             <button
                                 type="button"
-                                onClick={() => {
-                                    const next = !useDolarBlue;
-                                    setUseDolarBlue(next);
-                                    if (next) fetchDolarBlue();
-                                    else setDolarBlueValue(null);
-                                }}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${useDolarBlue ? 'bg-blue-500' : 'bg-muted-foreground/30'}`}
+                                onClick={() => handleToggleDolar(!useDolarBlue)}
+                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${useDolarBlue ? 'bg-blue-500' : 'bg-amber-400'}`}
                             >
                                 <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${useDolarBlue ? 'translate-x-4' : 'translate-x-0'}`} />
                             </button>
@@ -616,18 +697,23 @@ export function PrecioVentaListado() {
                     {useDolarBlue ? (
                         <div className="relative">
                             <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                            <input readOnly value={dolarBlueValue ?? (fetchingDolar ? '' : '')} placeholder={fetchingDolar ? 'Obteniendo...' : '—'}
+                            <input readOnly value={dolarBlueValue ?? ''} placeholder={fetchingDolar ? 'Obteniendo...' : '—'}
                                 className="w-full pl-7 py-2 rounded-md border border-input bg-muted/30 text-sm font-bold font-mono text-primary opacity-75 cursor-not-allowed"
                             />
                             {dolarBlueValue && <p className="text-xs text-blue-500 mt-1 font-medium">✓ Dólar Blue: ${dolarBlueValue.toLocaleString('es-AR')} (venta)</p>}
                             {fetchError && <p className="text-xs text-destructive mt-1">{fetchError}</p>}
                         </div>
                     ) : (
-                        <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                            <input type="number" value={manualDolar} onChange={e => setManualDolar(e.target.value)}
-                                placeholder="Ej: 1390" className="w-full pl-7 py-2 rounded-md border border-input bg-background text-sm font-bold font-mono"
-                            />
+                        <div>
+                            <div className="relative">
+                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
+                                <input type="number" value={manualDolar} onChange={e => handleManualDolarChange(e.target.value)}
+                                    placeholder="Ej: 1390" className="w-full pl-7 py-2 rounded-md border border-amber-300 bg-background text-sm font-bold font-mono focus:ring-amber-400"
+                                />
+                            </div>
+                            <p className="text-xs text-amber-600 mt-1 font-medium flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3" /> Valor manual — puede estar desactualizado
+                            </p>
                         </div>
                     )}
                 </div>

@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
+import { calcPrice, formatARS } from '../../utils/pricingUtils';
 
 export function ProductScan() {
     const { productId } = useParams();
 
     const [product, setProduct] = useState(null);
+    const [precioARS, setPrecioARS] = useState(null);
+    const [precioUSD, setPrecioUSD] = useState(null);
+    const [dolarVenta, setDolarVenta] = useState(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
 
@@ -15,21 +19,53 @@ export function ProductScan() {
     const [errorMsg, setErrorMsg] = useState('');
 
     useEffect(() => {
-        fetchProduct();
+        fetchAll();
     }, [productId]);
 
-    const fetchProduct = async () => {
+    const fetchAll = async () => {
         setLoading(true);
         try {
+            // 1. Producto + campos de costo
             const { data, error } = await supabase
                 .from('entradas')
-                .select('id, producto_titulo, marca, cant_docenas_copy, cantidad_docenas, codigo')
+                .select('id, producto_titulo, marca, cant_docenas_copy, cantidad_docenas, codigo, precio_docena, gastos, bultos, tanda_nombre')
                 .eq('id', productId)
                 .maybeSingle();
 
             if (error) throw error;
             if (!data) { setNotFound(true); return; }
             setProduct(data);
+
+            // 2. Índice de ganancia de la tanda
+            const { data: tandaSettings } = await supabase
+                .from('tanda_settings')
+                .select('indice_ganancia_valor')
+                .eq('tanda_nombre', data.tanda_nombre)
+                .maybeSingle();
+
+            const indice = tandaSettings?.indice_ganancia_valor ?? 1.5;
+
+            // 3. Dólar blue en vivo
+            let dolar = null;
+            try {
+                const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+                if (res.ok) {
+                    const json = await res.json();
+                    dolar = json?.venta ?? null;
+                }
+            } catch { /* sin conexión a la API */ }
+
+            setDolarVenta(dolar);
+
+            // 4. Calcular precio
+            const { precioDeVenta, precioVentaArg } = calcPrice(data, {
+                indice_ganancia_valor: indice,
+                cotizacion_dolar: dolar ?? 0,
+            });
+
+            setPrecioUSD(precioDeVenta);
+            setPrecioARS(precioVentaArg);
+
         } catch (err) {
             console.error(err);
             setNotFound(true);
@@ -60,7 +96,6 @@ export function ProductScan() {
         try {
             const newCant = cantActual - val;
 
-            // Uses SECURITY DEFINER RPC — only cant_docenas_copy is updated
             const { error } = await supabase.rpc('restar_cant_docenas_copy', {
                 entrada_id: String(productId),
                 cantidad: val
@@ -104,6 +139,8 @@ export function ProductScan() {
         );
     }
 
+    const hasPrecio = precioARS != null;
+
     return (
         <div className="min-h-screen bg-[#0f172a] flex flex-col items-center justify-start px-5 py-10 font-sans">
 
@@ -125,8 +162,32 @@ export function ProductScan() {
                     )}
                 </div>
 
-                {/* Cantidad restante */}
+                {/* Precio de venta sugerido */}
                 <div className="px-6 -mt-5">
+                    <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-6 py-4 shadow-inner">
+                        <p className="text-emerald-400 text-xs uppercase tracking-wide font-semibold mb-2">Precio de Venta Sugerido</p>
+                        {hasPrecio ? (
+                            <div className="flex items-end justify-between gap-2">
+                                <div>
+                                    <p className="text-3xl font-black text-emerald-300 leading-none">
+                                        {formatARS(precioARS)}
+                                    </p>
+                                    <p className="text-emerald-700 text-xs mt-1 font-mono">
+                                        USD {Number(precioUSD).toFixed(2)} · Blue ${Number(dolarVenta).toLocaleString('es-AR')}
+                                    </p>
+                                </div>
+                                <span className="text-2xl shrink-0">🏷️</span>
+                            </div>
+                        ) : (
+                            <p className="text-slate-500 text-sm">
+                                {dolarVenta == null ? 'Sin cotización del dólar' : 'Sin precio configurado'}
+                            </p>
+                        )}
+                    </div>
+                </div>
+
+                {/* Cantidad restante */}
+                <div className="px-6 mt-4">
                     <div className="bg-[#0f172a] rounded-2xl border border-slate-700 px-6 py-5 flex items-center justify-between shadow-inner">
                         <div>
                             <p className="text-slate-400 text-xs uppercase tracking-wide font-semibold mb-1">Cantidad Restante</p>
@@ -160,7 +221,6 @@ export function ProductScan() {
                         />
                     </div>
 
-                    {/* Preview de resultado */}
                     {inputValue && !isNaN(parseFloat(inputValue)) && parseFloat(inputValue) > 0 && (
                         <div className="flex items-center justify-between bg-slate-800/50 rounded-xl px-4 py-3 border border-slate-700">
                             <span className="text-slate-400 text-sm">Resultará en:</span>
@@ -170,21 +230,18 @@ export function ProductScan() {
                         </div>
                     )}
 
-                    {/* Error */}
                     {errorMsg && (
                         <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-sm rounded-xl px-4 py-3">
                             {errorMsg}
                         </div>
                     )}
 
-                    {/* Success */}
                     {successMsg && (
                         <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-sm rounded-xl px-4 py-3 font-medium">
                             {successMsg}
                         </div>
                     )}
 
-                    {/* Save Button */}
                     <button
                         onClick={handleSave}
                         disabled={saving || !inputValue}
@@ -204,7 +261,6 @@ export function ProductScan() {
                 </div>
             </div>
 
-            {/* Footer note */}
             <p className="mt-8 text-slate-600 text-xs text-center max-w-xs">
                 Los cambios se reflejan en tiempo real en el panel de Control de Mercancía.
             </p>

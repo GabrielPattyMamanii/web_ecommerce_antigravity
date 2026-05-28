@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Save } from 'lucide-react';
+import { Save, Trash2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -9,8 +9,10 @@ import toast from 'react-hot-toast';
 
 export function Settings() {
     const { register, handleSubmit, setValue } = useForm();
-    const [loading, setLoading]   = useState(false);
-    const [configId, setConfigId] = useState(null);
+    const [loading, setLoading]         = useState(false);
+    const [configId, setConfigId]       = useState(null);
+    const [preciosCount, setPreciosCount] = useState(null);
+    const [clearingPrecios, setClearingPrecios] = useState(false);
 
     const fetchConfig = async () => {
         const { data, error } = await supabase.from('site_config').select('*').single();
@@ -29,7 +31,27 @@ export function Settings() {
         }
     };
 
-    useEffect(() => { fetchConfig(); }, []);
+    const fetchPreciosCount = async () => {
+        const { count } = await supabase
+            .from('precios_custom')
+            .select('*', { count: 'exact', head: true });
+        setPreciosCount(count ?? 0);
+    };
+
+    useEffect(() => { fetchConfig(); fetchPreciosCount(); }, []);
+
+    const clearPrecios = async () => {
+        if (!window.confirm('¿Seguro que querés borrar todos los precios guardados? Esta acción no se puede deshacer.')) return;
+        setClearingPrecios(true);
+        const { error } = await supabase.from('precios_custom').delete().neq('codigo', '');
+        if (error) {
+            toast.error('Error al limpiar: ' + error.message);
+        } else {
+            toast.success('Precios guardados eliminados correctamente');
+            setPreciosCount(0);
+        }
+        setClearingPrecios(false);
+    };
 
     const onSubmit = async (data) => {
         setLoading(true);
@@ -85,6 +107,36 @@ export function Settings() {
                             <Save className="mr-2 h-4 w-4" /> Guardar Cambios
                         </Button>
                     </form>
+                </CardContent>
+            </Card>
+            <Card className="max-w-2xl">
+                <CardHeader>
+                    <CardTitle>Precios Guardados del Scanner</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Cuando un cajero modifica el precio de un producto en el scanner, se guarda automáticamente
+                        para agilizar futuras ventas. Podés limpiar esa memoria en cualquier momento.
+                    </p>
+                    <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+                        <span className="text-sm font-medium text-foreground">
+                            Precios guardados actualmente:&nbsp;
+                            <span className="font-bold">
+                                {preciosCount === null ? '...' : preciosCount}
+                            </span>
+                        </span>
+                        <button
+                            onClick={clearPrecios}
+                            disabled={clearingPrecios || preciosCount === 0}
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-semibold transition-opacity hover:opacity-90 disabled:opacity-40"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            {clearingPrecios ? 'Limpiando...' : 'Limpiar todo'}
+                        </button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        Los registros también se eliminan automáticamente a los 7 días.
+                    </p>
                 </CardContent>
             </Card>
         </div>
