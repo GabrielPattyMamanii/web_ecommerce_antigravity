@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { calcPrice, formatARS } from '../../utils/pricingUtils';
+import { useAuth } from '../../hooks/useAuth';
 
 export function ProductScan() {
     const { productId } = useParams();
+    const [searchParams] = useSearchParams();
+    const codigoFallback = searchParams.get('c');
+    const { session, loading: authLoading } = useAuth();
 
     const [product, setProduct] = useState(null);
     const [precioARS, setPrecioARS] = useState(null);
@@ -25,14 +29,31 @@ export function ProductScan() {
     const fetchAll = async () => {
         setLoading(true);
         try {
-            // 1. Producto + campos de costo
-            const { data, error } = await supabase
+            // 1. Producto + campos de costo — buscar por UUID primero
+            const FIELDS = 'id, producto_titulo, marca, cant_docenas_copy, cantidad_docenas, codigo, precio_docena, gastos, bultos, tanda_nombre';
+            let { data, error } = await supabase
                 .from('entradas')
-                .select('id, producto_titulo, marca, cant_docenas_copy, cantidad_docenas, codigo, precio_docena, gastos, bultos, tanda_nombre')
+                .select(FIELDS)
                 .eq('id', productId)
                 .maybeSingle();
 
             if (error) throw error;
+
+            // Fallback: si el UUID ya no existe (producto re-creado tras edición)
+            // usar el código del parámetro ?c= para encontrar la versión actual
+            if (!data && codigoFallback) {
+                const fallback = await supabase
+                    .from('entradas')
+                    .select(FIELDS)
+                    .eq('codigo', codigoFallback)
+                    .order('tanda_fecha', { ascending: false })
+                    .limit(1)
+                    .maybeSingle();
+
+                if (fallback.error) throw fallback.error;
+                data = fallback.data;
+            }
+
             if (!data) { setNotFound(true); return; }
             setProduct(data);
 
@@ -115,6 +136,18 @@ export function ProductScan() {
     };
 
     // ───── Render states ─────
+
+    if (authLoading) {
+        return (
+            <div className="min-h-screen bg-[#0f172a] flex items-center justify-center">
+                <div className="w-10 h-10 border-4 border-indigo-400 border-t-transparent rounded-full animate-spin" />
+            </div>
+        );
+    }
+
+    if (!session) {
+        return <Navigate to="/admin/login" replace />;
+    }
 
     if (loading) {
         return (

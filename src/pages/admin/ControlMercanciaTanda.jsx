@@ -118,8 +118,11 @@ export function ControlMercanciaTanda() {
     );
 
     // --- QR Handlers ---
+    // Usamos prod.codigo como clave estable (el UUID cambia si el producto se re-crea al editar)
+    const getStableKey = (prod) => prod.codigo ? `c:${prod.codigo}` : prod.id;
+
     const handleGenerateQR = (prod) => {
-        const updated = new Set([...generatedQRs, prod.id]);
+        const updated = new Set([...generatedQRs, getStableKey(prod)]);
         setGeneratedQRs(updated);
         try { localStorage.setItem(localKey, JSON.stringify([...updated])); } catch { }
     };
@@ -294,6 +297,7 @@ export function ControlMercanciaTanda() {
                                     isMultiOwner={isMultiOwner}
                                     users={users}
                                     generatedQRs={generatedQRs}
+                                    getStableKey={getStableKey}
                                     onGenerate={handleGenerateQR}
                                     onOpen={handleOpenQR}
                                 />
@@ -377,7 +381,7 @@ export function ControlMercanciaTanda() {
 }
 
 // --- Brand Section ---
-function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, onGenerate, onOpen }) {
+function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, getStableKey, onGenerate, onOpen }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const getColor = (name) => users.find(u => u.username === name)?.color || '#9ca3af';
@@ -504,7 +508,7 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                             {brandGroup.items.map((prod) => {
                                 const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
                                 const total = docenasCopy * (Number(prod.precio_docena) || 0);
-                                const isGenerated = generatedQRs.has(prod.id);
+                                const isGenerated = generatedQRs.has(getStableKey(prod));
                                 const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
                                 const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
                                 return (

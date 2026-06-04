@@ -425,6 +425,12 @@ function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, 
                                                 <span className="text-xs text-muted-foreground">
                                                     {venta.cantidad_docenas} doc × {fmtMonto(venta.precio_docena_ars)}
                                                 </span>
+                                                {Number(venta.dolar_blue) > 0 && (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                                        <DollarSign className="w-2.5 h-2.5" />
+                                                        ${Number(venta.dolar_blue).toLocaleString('es-AR')}
+                                                    </span>
+                                                )}
                                             </div>
                                             <div className="mt-1.5">
                                                 <PaymentBadge venta={venta} />
