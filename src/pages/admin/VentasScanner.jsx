@@ -617,53 +617,6 @@ export function VentasScanner() {
                             </div>
                         </div>
 
-                        {/* Índice de ganancia */}
-                        {!loadingPrice && indicePreset !== '' && (
-                            <div>
-                                <label className="text-xs font-semibold text-muted-foreground block mb-2 uppercase tracking-wide">
-                                    Índice de ganancia
-                                </label>
-                                <div className="grid grid-cols-4 gap-2">
-                                    {['1.4', '1.5', '1.6'].map(val => (
-                                        <button
-                                            key={val}
-                                            type="button"
-                                            onClick={() => { setIndicePreset(val); handleIndiceChange(val); }}
-                                            className="py-3 rounded-xl border-2 text-sm font-bold transition-all"
-                                            style={indicePreset === val
-                                                ? { borderColor: ownerColor, backgroundColor: ownerColor + '15', color: ownerColor }
-                                                : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
-                                            }
-                                        >
-                                            {val}
-                                        </button>
-                                    ))}
-                                    <button
-                                        type="button"
-                                        onClick={() => setIndicePreset('custom')}
-                                        className="py-3 rounded-xl border-2 text-sm font-bold transition-all"
-                                        style={indicePreset === 'custom'
-                                            ? { borderColor: ownerColor, backgroundColor: ownerColor + '15', color: ownerColor }
-                                            : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
-                                        }
-                                    >
-                                        Otro
-                                    </button>
-                                </div>
-                                {indicePreset === 'custom' && (
-                                    <input
-                                        type="number"
-                                        value={currentIndice}
-                                        onChange={e => handleIndiceChange(e.target.value)}
-                                        step="0.05"
-                                        min="0.1"
-                                        placeholder="Ej: 1.7"
-                                        autoFocus
-                                        className="mt-2 w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
-                                    />
-                                )}
-                            </div>
-                        )}
 
                         {/* Dólar manual (solo si la API falló) */}
                         {dolarFailed && (
