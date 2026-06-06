@@ -43,6 +43,7 @@ export function VentasScanner() {
     const [savedPrice, setSavedPrice] = useState(null);
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
+    const productCardRef = useRef(null);
 
     // --- Pago ---
     const [metodoPago, setMetodoPago] = useState('efectivo');
@@ -167,6 +168,16 @@ export function VentasScanner() {
             setLoadingPrice(false);
         }
     }, []);
+
+    // Al seleccionar un producto, desplazar la vista hasta la tarjeta (útil en móvil)
+    // sin enfocar ningún input, para que el usuario vea y edite si lo desea.
+    useEffect(() => {
+        if (selectedEntrada) {
+            requestAnimationFrame(() => {
+                productCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        }
+    }, [selectedEntrada]);
 
     const processCode = useCallback(async (code, codigoFallback = null) => {
         setScanStatus('searching');
@@ -892,7 +903,8 @@ export function VentasScanner() {
             {/* Card del producto seleccionado */}
             {selectedEntrada && (
                 <div
-                    className="bg-card rounded-2xl overflow-hidden shadow-md"
+                    ref={productCardRef}
+                    className="bg-card rounded-2xl overflow-hidden shadow-md scroll-mt-4"
                     style={{ borderLeft: `5px solid ${ownerColor}` }}
                 >
                     {/* Cabecera */}
