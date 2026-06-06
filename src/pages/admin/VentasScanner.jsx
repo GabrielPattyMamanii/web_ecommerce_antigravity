@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
     ScanLine, Trash2, CheckCircle, Package,
     ShoppingCart, X, User, Info, Loader2, Tag, Store,
-    Banknote, ArrowLeftRight, Blend, Building2
+    Banknote, ArrowLeftRight, Blend, Building2, Pencil
 } from 'lucide-react';
 
 const METODOS = [
@@ -48,10 +48,22 @@ export function VentasScanner() {
     const [metodoPago, setMetodoPago] = useState('efectivo');
     const [selectedCuenta, setSelectedCuenta] = useState(null);
     const [montoEfectivo, setMontoEfectivo] = useState('');
+    const [montoTransferencia, setMontoTransferencia] = useState('');
+    const [recargoPct, setRecargoPct] = useState('');
 
     // --- Carrito ---
     const [cart, setCart] = useState([]);
     const [saving, setSaving] = useState(false);
+
+    // --- Editar ítem del carrito ---
+    const [editingIndex, setEditingIndex] = useState(null);
+    const [editPrice, setEditPrice] = useState('');
+    const [editQty, setEditQty] = useState('');
+    const [editMetodo, setEditMetodo] = useState('efectivo');
+    const [editCuenta, setEditCuenta] = useState(null);
+    const [editEfectivo, setEditEfectivo] = useState('');
+    const [editTransferencia, setEditTransferencia] = useState('');
+    const [editRecargoPct, setEditRecargoPct] = useState('');
 
     useEffect(() => {
         Promise.all([
@@ -73,6 +85,25 @@ export function VentasScanner() {
         setMetodoPago('efectivo');
         setSelectedCuenta(null);
         setMontoEfectivo('');
+        setMontoTransferencia('');
+        setRecargoPct('');
+    };
+
+    const calcTransferencia = (ef, pct, tot) => {
+        const base = Math.max(0, tot - (parseFloat(ef) || 0));
+        if (base === 0) return '';
+        const con_recargo = base * (1 + (parseFloat(pct) || 0) / 100);
+        return con_recargo.toFixed(0);
+    };
+
+    const handleEfectivoChange = (val) => {
+        setMontoEfectivo(val);
+        setMontoTransferencia(calcTransferencia(val, recargoPct, total));
+    };
+
+    const handleRecargoPctChange = (val) => {
+        setRecargoPct(val);
+        setMontoTransferencia(calcTransferencia(montoEfectivo, val, total));
     };
 
     const selectEntrada = useCallback(async (entrada) => {
@@ -323,17 +354,27 @@ export function VentasScanner() {
         if (metodoPago === 'efectivo') {
             mEfectivo = total;
         } else if (metodoPago === 'transferencia') {
-            mTransferencia = total;
+            const pct = parseFloat(recargoPct) || 0;
+            mTransferencia = parseFloat((total * (1 + pct / 100)).toFixed(2));
         } else {
             // mixto
             const ef = parseFloat(montoEfectivo);
-            if (!ef || ef <= 0 || ef >= total) {
-                toast.error('El monto en efectivo debe ser mayor a 0 y menor al total');
+            const tr = parseFloat(montoTransferencia);
+            if (!ef || ef <= 0) {
+                toast.error('Ingresá el monto en efectivo');
+                return;
+            }
+            if (!tr || tr <= 0) {
+                toast.error('El monto de transferencia debe ser mayor a 0');
                 return;
             }
             mEfectivo = ef;
-            mTransferencia = parseFloat((total - ef).toFixed(2));
+            mTransferencia = parseFloat(tr.toFixed(2));
         }
+
+        const totalRegistrado = metodoPago === 'efectivo'
+            ? total
+            : parseFloat(((mEfectivo || 0) + (mTransferencia || 0)).toFixed(2));
 
         const propietario = getPropietario(selectedEntrada) || 'Sin propietario';
 
@@ -350,7 +391,7 @@ export function VentasScanner() {
             propietario,
             cantidad_docenas: qty,
             precio_docena_ars: price,
-            total_ars: total,
+            total_ars: totalRegistrado,
             dolar_blue: dolarGuardar,
             metodo_pago: metodoPago,
             monto_efectivo: mEfectivo,
@@ -408,6 +449,67 @@ export function VentasScanner() {
         }
     };
 
+    const openEdit = (index) => {
+        const item = cart[index];
+        setEditingIndex(index);
+        setEditPrice(item.precio_docena_ars.toString());
+        setEditQty(item.cantidad_docenas.toString());
+        setEditMetodo(item.metodo_pago);
+        setEditCuenta(cuentas.find(c => c.id === item.cuenta_id) || null);
+        setEditEfectivo(item.monto_efectivo != null ? item.monto_efectivo.toString() : '');
+        setEditTransferencia(item.monto_transferencia != null ? item.monto_transferencia.toString() : '');
+        setEditRecargoPct('');
+    };
+
+    const saveEdit = () => {
+        const qty = parseFloat(editQty);
+        const price = parseFloat(editPrice);
+        if (!qty || qty <= 0) { toast.error('Cantidad inválida'); return; }
+        if (!price || price <= 0) { toast.error('Precio inválido'); return; }
+
+        const baseTotal = parseFloat((price * qty).toFixed(2));
+
+        if (editMetodo !== 'efectivo' && !editCuenta) {
+            toast.error('Seleccioná una cuenta bancaria');
+            return;
+        }
+
+        let mEfectivo = null;
+        let mTransferencia = null;
+
+        if (editMetodo === 'efectivo') {
+            mEfectivo = baseTotal;
+        } else if (editMetodo === 'transferencia') {
+            mTransferencia = parseFloat(editTransferencia) || baseTotal;
+        } else {
+            const ef = parseFloat(editEfectivo);
+            const tr = parseFloat(editTransferencia);
+            if (!ef || ef <= 0) { toast.error('Ingresá el monto en efectivo'); return; }
+            if (!tr || tr <= 0) { toast.error('El monto de transferencia debe ser mayor a 0'); return; }
+            mEfectivo = ef;
+            mTransferencia = parseFloat(tr.toFixed(2));
+        }
+
+        const totalRegistrado = editMetodo === 'efectivo'
+            ? baseTotal
+            : parseFloat(((mEfectivo || 0) + (mTransferencia || 0)).toFixed(2));
+
+        setCart(prev => prev.map((item, i) => i !== editingIndex ? item : {
+            ...item,
+            cantidad_docenas: qty,
+            precio_docena_ars: price,
+            total_ars: totalRegistrado,
+            metodo_pago: editMetodo,
+            monto_efectivo: mEfectivo,
+            monto_transferencia: mTransferencia,
+            cuenta_id: editCuenta?.id || null,
+            cuenta_nombre: editCuenta?.nombre || null,
+        }));
+
+        setEditingIndex(null);
+        toast.success('Ítem actualizado');
+    };
+
     const totalCarrito = cart.reduce((sum, i) => sum + i.total_ars, 0);
 
     const ownerName = selectedEntrada ? getPropietario(selectedEntrada) : null;
@@ -417,9 +519,9 @@ export function VentasScanner() {
         ? parseFloat(currentPrice) * parseFloat(currentQty)
         : 0;
 
-    const montoTransferenciaCalculado = metodoPago === 'mixto' && montoEfectivo
-        ? Math.max(0, total - parseFloat(montoEfectivo || 0))
-        : null;
+    const editItem = editingIndex !== null ? cart[editingIndex] : null;
+    const editColor = editItem ? getUserColor(editItem.propietario) : '#9ca3af';
+    const editTotalCalc = editPrice && editQty ? (parseFloat(editPrice) || 0) * (parseFloat(editQty) || 0) : 0;
 
     return (
         <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
@@ -497,6 +599,271 @@ export function VentasScanner() {
                                     </button>
                                 );
                             })}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: editar ítem del carrito */}
+            {editingIndex !== null && editItem && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm max-h-[90vh] overflow-y-auto">
+                        <div
+                            className="px-5 pt-5 pb-4 border-b border-border flex items-start justify-between gap-3 sticky top-0 bg-card z-10"
+                            style={{ borderLeft: `4px solid ${editColor}` }}
+                        >
+                            <div className="flex-1 min-w-0">
+                                <h3 className="font-bold text-foreground">Editar ítem</h3>
+                                <p className="text-xs text-muted-foreground mt-0.5 truncate">{editItem.producto_titulo}</p>
+                            </div>
+                            <button
+                                onClick={() => setEditingIndex(null)}
+                                className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground flex-shrink-0"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        <div className="px-5 py-4 space-y-4">
+                            {/* Precio y cantidad */}
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                        Precio / docena (ARS)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={editPrice}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setEditPrice(val);
+                                            if (editRecargoPct) {
+                                                const tot = (parseFloat(val) || 0) * (parseFloat(editQty) || 0);
+                                                if (editMetodo === 'transferencia') {
+                                                    setEditTransferencia((tot * (1 + (parseFloat(editRecargoPct) || 0) / 100)).toFixed(0));
+                                                } else if (editMetodo === 'mixto') {
+                                                    setEditTransferencia(calcTransferencia(editEfectivo, editRecargoPct, tot));
+                                                }
+                                            }
+                                        }}
+                                        className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                        Cantidad (doc)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={editQty}
+                                        onChange={e => {
+                                            const val = e.target.value;
+                                            setEditQty(val);
+                                            if (editRecargoPct) {
+                                                const tot = (parseFloat(editPrice) || 0) * (parseFloat(val) || 0);
+                                                if (editMetodo === 'transferencia') {
+                                                    setEditTransferencia((tot * (1 + (parseFloat(editRecargoPct) || 0) / 100)).toFixed(0));
+                                                } else if (editMetodo === 'mixto') {
+                                                    setEditTransferencia(calcTransferencia(editEfectivo, editRecargoPct, tot));
+                                                }
+                                            }
+                                        }}
+                                        min="0.5"
+                                        step="0.5"
+                                        className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* Método de pago */}
+                            <div>
+                                <label className="text-xs font-semibold text-muted-foreground block mb-2 uppercase tracking-wide">
+                                    Método de pago
+                                </label>
+                                <div className="grid grid-cols-3 gap-2">
+                                    {METODOS.map(({ id, label, Icon }) => {
+                                        const active = editMetodo === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                type="button"
+                                                onClick={() => {
+                                                    setEditMetodo(id);
+                                                    setEditCuenta(null);
+                                                    setEditEfectivo('');
+                                                    setEditTransferencia('');
+                                                    setEditRecargoPct('');
+                                                }}
+                                                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-xs font-semibold transition-all"
+                                                style={active
+                                                    ? { borderColor: editColor, backgroundColor: editColor + '15', color: editColor }
+                                                    : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
+                                                }
+                                            >
+                                                <Icon className="w-4 h-4" />
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Cuenta destino */}
+                            {(editMetodo === 'transferencia' || editMetodo === 'mixto') && (
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                        Cuenta destino
+                                    </label>
+                                    {cuentas.length === 0 ? (
+                                        <p className="text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 px-3 py-2 rounded-xl">
+                                            No hay cuentas activas.
+                                        </p>
+                                    ) : (
+                                        <div className="space-y-1.5">
+                                            {cuentas.map(cuenta => {
+                                                const sel = editCuenta?.id === cuenta.id;
+                                                return (
+                                                    <button
+                                                        key={cuenta.id}
+                                                        type="button"
+                                                        onClick={() => setEditCuenta(cuenta)}
+                                                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 text-left transition-all"
+                                                        style={sel
+                                                            ? { borderColor: editColor, backgroundColor: editColor + '15' }
+                                                            : { borderColor: 'var(--border)' }
+                                                        }
+                                                    >
+                                                        <Building2 className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                                                        <div>
+                                                            <p className="text-sm font-semibold text-foreground">{cuenta.nombre}</p>
+                                                            <p className="text-xs text-muted-foreground">{cuenta.titular}</p>
+                                                        </div>
+                                                        {sel && (
+                                                            <div
+                                                                className="ml-auto w-4 h-4 rounded-full flex-shrink-0"
+                                                                style={{ backgroundColor: editColor }}
+                                                            />
+                                                        )}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
+                            {/* Recargo transferencia */}
+                            {editMetodo === 'transferencia' && editTotalCalc > 0 && (
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            Recargo transferencia
+                                        </label>
+                                        <div className="flex items-center gap-1.5">
+                                            <input
+                                                type="number"
+                                                value={editRecargoPct}
+                                                onChange={e => {
+                                                    const val = e.target.value;
+                                                    setEditRecargoPct(val);
+                                                    setEditTransferencia((editTotalCalc * (1 + (parseFloat(val) || 0) / 100)).toFixed(0));
+                                                }}
+                                                placeholder="0"
+                                                min="0"
+                                                className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
+                                            />
+                                            <span className="text-xs text-muted-foreground font-semibold">%</span>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                            Monto transferencia (ARS)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={editTransferencia}
+                                            onChange={e => setEditTransferencia(e.target.value)}
+                                            placeholder={editTotalCalc.toFixed(0)}
+                                            className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Montos mixto */}
+                            {editMetodo === 'mixto' && editTotalCalc > 0 && (
+                                <div className="space-y-3">
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                            Monto en efectivo (ARS)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={editEfectivo}
+                                            onChange={e => {
+                                                const val = e.target.value;
+                                                setEditEfectivo(val);
+                                                setEditTransferencia(calcTransferencia(val, editRecargoPct, editTotalCalc));
+                                            }}
+                                            placeholder="0"
+                                            className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                        />
+                                    </div>
+                                    <div>
+                                        <div className="flex items-center justify-between mb-1.5">
+                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                                Transferencia (ARS)
+                                            </label>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-xs text-muted-foreground">Recargo</span>
+                                                <input
+                                                    type="number"
+                                                    value={editRecargoPct}
+                                                    onChange={e => {
+                                                        const val = e.target.value;
+                                                        setEditRecargoPct(val);
+                                                        setEditTransferencia(calcTransferencia(editEfectivo, val, editTotalCalc));
+                                                    }}
+                                                    placeholder="0"
+                                                    min="0"
+                                                    className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
+                                                />
+                                                <span className="text-xs text-muted-foreground font-semibold">%</span>
+                                            </div>
+                                        </div>
+                                        <input
+                                            type="number"
+                                            value={editTransferencia}
+                                            onChange={e => setEditTransferencia(e.target.value)}
+                                            placeholder="0"
+                                            className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Total */}
+                            {editTotalCalc > 0 && (
+                                <div
+                                    className="rounded-xl px-4 py-3 flex items-center justify-between"
+                                    style={{ backgroundColor: editColor + '12', border: `1px solid ${editColor}30` }}
+                                >
+                                    <span className="text-sm font-medium text-muted-foreground">Total base</span>
+                                    <span className="text-2xl font-bold" style={{ color: editColor }}>
+                                        ${editTotalCalc.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                        <span className="text-sm font-semibold ml-1 opacity-70">ARS</span>
+                                    </span>
+                                </div>
+                            )}
+
+                            <button
+                                onClick={saveEdit}
+                                className="w-full py-3 rounded-xl font-bold text-base transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 text-white"
+                                style={{ backgroundColor: editColor }}
+                            >
+                                <CheckCircle className="w-5 h-5" />
+                                Guardar cambios
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -705,36 +1072,116 @@ export function VentasScanner() {
                             </div>
                         )}
 
-                        {/* Monto efectivo (solo mixto) */}
-                        {metodoPago === 'mixto' && total > 0 && (
+                        {/* Recargo transferencia completa */}
+                        {metodoPago === 'transferencia' && total > 0 && (
                             <div>
-                                <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
-                                    Monto en efectivo (ARS)
-                                </label>
-                                <input
-                                    type="number"
-                                    value={montoEfectivo}
-                                    onChange={e => setMontoEfectivo(e.target.value)}
-                                    placeholder="0"
-                                    min="0"
-                                    max={total - 1}
-                                    className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
-                                />
-                                {montoEfectivo && parseFloat(montoEfectivo) > 0 && parseFloat(montoEfectivo) < total && (
-                                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                                        <div className="bg-muted rounded-lg px-3 py-2 text-center">
-                                            <p className="text-muted-foreground">Efectivo</p>
-                                            <p className="font-bold text-foreground">
-                                                ${parseFloat(montoEfectivo).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                                            </p>
-                                        </div>
-                                        <div className="bg-muted rounded-lg px-3 py-2 text-center">
-                                            <p className="text-muted-foreground">Transferencia</p>
-                                            <p className="font-bold text-foreground">
-                                                ${montoTransferenciaCalculado?.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                                            </p>
+                                <div className="flex items-center justify-between mb-1.5">
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                        Recargo transferencia
+                                    </label>
+                                    <div className="flex items-center gap-1.5">
+                                        <input
+                                            type="number"
+                                            value={recargoPct}
+                                            onChange={e => handleRecargoPctChange(e.target.value)}
+                                            placeholder="0"
+                                            min="0"
+                                            className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
+                                        />
+                                        <span className="text-xs text-muted-foreground font-semibold">%</span>
+                                    </div>
+                                </div>
+                                {parseFloat(recargoPct) > 0 && (
+                                    <div className="flex items-center justify-between text-xs bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-xl">
+                                        <span className="text-amber-700 font-medium">
+                                            ${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })} + {recargoPct}%
+                                        </span>
+                                        <span className="font-bold text-amber-700">
+                                            ${(total * (1 + parseFloat(recargoPct) / 100)).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Montos mixto */}
+                        {metodoPago === 'mixto' && total > 0 && (
+                            <div className="space-y-3">
+                                {/* Efectivo */}
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                        Monto en efectivo (ARS)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={montoEfectivo}
+                                        onChange={e => handleEfectivoChange(e.target.value)}
+                                        placeholder="0"
+                                        min="0"
+                                        className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                    />
+                                </div>
+
+                                {/* Transferencia + recargo */}
+                                <div>
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                            Transferencia (ARS)
+                                        </label>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-xs text-muted-foreground">Recargo</span>
+                                            <input
+                                                type="number"
+                                                value={recargoPct}
+                                                onChange={e => handleRecargoPctChange(e.target.value)}
+                                                placeholder="0"
+                                                min="0"
+                                                className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
+                                            />
+                                            <span className="text-xs text-muted-foreground font-semibold">%</span>
                                         </div>
                                     </div>
+                                    <input
+                                        type="number"
+                                        value={montoTransferencia}
+                                        onChange={e => setMontoTransferencia(e.target.value)}
+                                        placeholder="0"
+                                        min="0"
+                                        className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                    />
+                                </div>
+
+                                {/* Resumen desglose */}
+                                {parseFloat(montoEfectivo) > 0 && parseFloat(montoTransferencia) > 0 && (
+                                    <>
+                                        <div className="grid grid-cols-2 gap-2 text-xs">
+                                            <div className="bg-muted rounded-lg px-3 py-2 text-center">
+                                                <p className="text-muted-foreground">Efectivo</p>
+                                                <p className="font-bold text-foreground">
+                                                    ${parseFloat(montoEfectivo).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                                </p>
+                                            </div>
+                                            <div className="bg-muted rounded-lg px-3 py-2 text-center">
+                                                <p className="text-muted-foreground flex items-center justify-center gap-1">
+                                                    Transferencia
+                                                    {parseFloat(recargoPct) > 0 && (
+                                                        <span className="text-amber-600 font-semibold">+{recargoPct}%</span>
+                                                    )}
+                                                </p>
+                                                <p className="font-bold text-foreground">
+                                                    ${parseFloat(montoTransferencia).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                        {parseFloat(recargoPct) > 0 && (
+                                            <div className="flex items-center justify-between text-xs bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-xl">
+                                                <span className="text-amber-700 font-medium">Total con recargo</span>
+                                                <span className="font-bold text-amber-700">
+                                                    ${(parseFloat(montoEfectivo) + parseFloat(montoTransferencia)).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS
+                                                </span>
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         )}
@@ -828,12 +1275,20 @@ export function VentasScanner() {
                                         <p className="text-sm font-bold text-foreground">
                                             ${item.total_ars.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                                         </p>
-                                        <button
-                                            onClick={() => setCart(prev => prev.filter((_, j) => j !== i))}
-                                            className="mt-0.5 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
-                                        >
-                                            <Trash2 className="w-3.5 h-3.5" />
-                                        </button>
+                                        <div className="flex items-center gap-0.5 mt-0.5 justify-end">
+                                            <button
+                                                onClick={() => openEdit(i)}
+                                                className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                            >
+                                                <Pencil className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => setCart(prev => prev.filter((_, j) => j !== i))}
+                                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </li>
                             );

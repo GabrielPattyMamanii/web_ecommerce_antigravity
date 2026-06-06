@@ -3,7 +3,8 @@ import { supabase } from '../../lib/supabase';
 import toast from 'react-hot-toast';
 import {
     Package, Trash2, RefreshCw, User,
-    Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign
+    Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign, ArrowRight,
+    AlertTriangle, Lock, Eye, EyeOff
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -327,11 +328,131 @@ function DayCard({ fecha, items, isSelected, onClick }) {
     );
 }
 
+/* ─── DeleteDayModal ──────────────────────────────────────────── */
+
+function DeleteDayModal({ fecha, itemCount, onConfirm, onClose }) {
+    const [password, setPassword] = useState('');
+    const [showPwd,  setShowPwd]  = useState(false);
+    const [loading,  setLoading]  = useState(false);
+    const [error,    setError]    = useState(null);
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (!password) return;
+        setLoading(true);
+        setError(null);
+        try {
+            await onConfirm(password);
+        } catch (err) {
+            setError(err.message || 'Error al eliminar');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/75 z-[60] flex items-center justify-center p-4">
+            <div className="bg-card border-2 border-red-500 rounded-2xl shadow-2xl w-full max-w-sm overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+
+                {/* Cabecera roja */}
+                <div className="bg-red-600 px-5 py-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                            <AlertTriangle className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                            <h2 className="font-black text-white text-base tracking-tight uppercase">
+                                Eliminar día completo
+                            </h2>
+                            <p className="text-red-100 text-xs mt-0.5 font-medium">
+                                Esta acción es permanente e irreversible
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Aviso */}
+                <div className="mx-5 mt-4 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800/60 rounded-xl px-4 py-3">
+                    <p className="text-sm font-bold text-red-800 dark:text-red-200 capitalize">
+                        {formatFullDate(fecha)}
+                    </p>
+                    <p className="text-xs text-red-700 dark:text-red-300 mt-1 leading-relaxed">
+                        Se eliminarán permanentemente{' '}
+                        <span className="font-black text-red-800 dark:text-red-200">
+                            {itemCount} venta{itemCount !== 1 ? 's' : ''}
+                        </span>{' '}
+                        de la base de datos. No podrás recuperarlos.
+                    </p>
+                </div>
+
+                {/* Formulario */}
+                <form onSubmit={handleSubmit} className="px-5 py-4 space-y-3">
+                    <div>
+                        <label className="text-xs font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5 mb-1.5">
+                            <Lock className="w-3 h-3" /> Contraseña de administrador
+                        </label>
+                        <div className="relative">
+                            <input
+                                type={showPwd ? 'text' : 'password'}
+                                value={password}
+                                onChange={e => { setPassword(e.target.value); setError(null); }}
+                                placeholder="••••••••"
+                                autoFocus
+                                className={[
+                                    'w-full px-3 py-2.5 border rounded-xl text-sm bg-background text-foreground',
+                                    'focus:outline-none focus:ring-2 pr-10 transition-all',
+                                    error
+                                        ? 'border-red-400 focus:ring-red-400'
+                                        : 'border-input focus:ring-red-500',
+                                ].join(' ')}
+                            />
+                            <button
+                                type="button"
+                                onClick={() => setShowPwd(v => !v)}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                {showPwd ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                            </button>
+                        </div>
+                        {error && (
+                            <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1 font-medium">
+                                <AlertTriangle className="w-3 h-3 flex-shrink-0" /> {error}
+                            </p>
+                        )}
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            disabled={loading}
+                            className="flex-1 px-4 py-2.5 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={!password || loading}
+                            className="flex-1 px-4 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold hover:bg-red-700 active:bg-red-800 transition-colors disabled:opacity-40 flex items-center justify-center gap-2"
+                        >
+                            {loading
+                                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Eliminando…</>
+                                : <><Trash2 className="w-4 h-4" /> Eliminar todo</>
+                            }
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    );
+}
+
 /* ─── DayDetail — panel de detalle (inline + bottom-sheet en mobile) ── */
 
-function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, isMobile }) {
-    const [showItems, setShowItems] = useState(false);
-    const [showUSD, setShowUSD] = useState(false);
+function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, isMobile, onDeleteDay }) {
+    const [showItems,        setShowItems]        = useState(false);
+    const [showUSD,          setShowUSD]          = useState(false);
+    const [showDeleteDay,    setShowDeleteDay]    = useState(false);
     const dolarDia = items.find(v => Number(v.dolar_blue) > 0)?.dolar_blue ?? null;
     const fmtMonto = (n) => showUSD && dolarDia
         ? `u$s ${formatUSD(n / dolarDia)}`
@@ -373,14 +494,37 @@ function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, 
                         {items.length} venta{items.length !== 1 ? 's' : ''} registrada{items.length !== 1 ? 's' : ''}
                     </p>
                 </div>
-                <button
-                    onClick={onClose}
-                    className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"
-                    aria-label="Cerrar"
-                >
-                    <X className="w-5 h-5" />
-                </button>
+                <div className="flex items-center gap-2">
+                    <button
+                        onClick={() => setShowDeleteDay(true)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors"
+                        title="Eliminar todas las ventas de este día"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span className="hidden sm:inline">Eliminar día</span>
+                    </button>
+                    <button
+                        onClick={onClose}
+                        className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"
+                        aria-label="Cerrar"
+                    >
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
             </div>
+
+            {/* Modal eliminar día */}
+            {showDeleteDay && (
+                <DeleteDayModal
+                    fecha={fecha}
+                    itemCount={items.length}
+                    onConfirm={async (password) => {
+                        await onDeleteDay(fecha, password);
+                        setShowDeleteDay(false);
+                    }}
+                    onClose={() => setShowDeleteDay(false)}
+                />
+            )}
 
             {/* Resumen por propietario */}
             <div className={`px-4 py-4 ${isMobile ? 'overflow-y-auto' : ''}`}
@@ -501,23 +645,57 @@ function firstOfMonthStr() {
 }
 
 function AccumulatorModal({ ventas, appUsers, onClose }) {
-    const [desde,   setDesde]   = useState(firstOfMonthStr);
-    const [hasta,   setHasta]   = useState(todayStr);
-    const [showUSD, setShowUSD] = useState(false);
+    const [desde,       setDesde]       = useState(firstOfMonthStr);
+    const [hasta,       setHasta]       = useState(todayStr);
+    const [showUSD,     setShowUSD]     = useState(false);
+    const [modo,        setModo]        = useState('conTransf'); // 'conTransf' | 'soloEfectivo' | 'total'
+    const [cuentasInfo, setCuentasInfo] = useState([]);
+
+    useEffect(() => {
+        supabase.from('cuentas_bancarias').select('nombre, propietario').then(({ data }) => {
+            if (data) setCuentasInfo(data);
+        });
+    }, []);
+
+    const getCuentaProp = (cuentaNombre) =>
+        cuentasInfo.find(c => c.nombre === cuentaNombre)?.propietario || null;
 
     const getUserColor = (name) => appUsers.find(u => u.username === name)?.color || '#9ca3af';
 
-    const filtered = ventas.filter(v => v.fecha >= desde && v.fecha <= hasta);
+    const filtered       = ventas.filter(v => v.fecha >= desde && v.fecha <= hasta);
+    const displayedCount = modo === 'soloEfectivo'
+        ? filtered.filter(v => v.metodo_pago === 'efectivo').length
+        : modo === 'conTransf'
+            ? filtered.filter(v => v.metodo_pago === 'transferencia' || v.metodo_pago === 'mixto').length
+            : filtered.length;
 
     const byOwner = {};
-    for (const v of filtered) {
-        const owner = v.propietario || 'Sin propietario';
+    const addToOwner = (owner, ars, dolarBlue) => {
         if (!byOwner[owner]) byOwner[owner] = { ars: 0, usd: 0, sinDolar: false };
-        byOwner[owner].ars += Number(v.total_ars);
-        if (Number(v.dolar_blue) > 0) {
-            byOwner[owner].usd += Number(v.total_ars) / Number(v.dolar_blue);
-        } else {
+        byOwner[owner].ars += ars;
+        if (Number(dolarBlue) > 0) {
+            byOwner[owner].usd += ars / Number(dolarBlue);
+        } else if (ars > 0) {
             byOwner[owner].sinDolar = true;
+        }
+    };
+
+    for (const v of filtered) {
+        const productOwner = v.propietario || 'Sin propietario';
+        const dolar = v.dolar_blue;
+
+        if (modo === 'soloEfectivo') {
+            if (v.metodo_pago === 'efectivo') addToOwner(productOwner, Number(v.total_ars), dolar);
+        } else if (modo === 'total') {
+            addToOwner(productOwner, Number(v.total_ars), dolar);
+        } else {
+            // conTransf: solo el monto de transferencia, atribuido al dueño del producto
+            if (v.metodo_pago === 'transferencia') {
+                addToOwner(productOwner, Number(v.monto_transferencia || v.total_ars), dolar);
+            } else if (v.metodo_pago === 'mixto') {
+                const tr = Number(v.monto_transferencia || 0);
+                if (tr > 0) addToOwner(productOwner, tr, dolar);
+            }
         }
     }
 
@@ -569,30 +747,59 @@ function AccumulatorModal({ ventas, appUsers, onClose }) {
                     </div>
                 </div>
 
-                {/* Toggle ARS / USD */}
-                <div className="px-5 pt-3 pb-2 flex items-center justify-between flex-shrink-0">
-                    <span className="text-xs text-muted-foreground">
-                        {filtered.length} venta{filtered.length !== 1 ? 's' : ''} en el rango
-                    </span>
-                    <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+                {/* Filtros */}
+                <div className="px-5 pt-3 pb-2 space-y-2 flex-shrink-0">
+                    {/* Modo toggle */}
+                    <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5 w-full">
                         <button
-                            onClick={() => setShowUSD(false)}
-                            className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all ${!showUSD ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                            onClick={() => setModo('conTransf')}
+                            className={`flex-1 text-xs font-semibold px-2 py-1.5 rounded-md transition-all flex items-center justify-center gap-1 ${modo === 'conTransf' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                         >
-                            ARS
+                            <Building2 className="w-3 h-3" /> Con transf.
                         </button>
                         <button
-                            onClick={() => setShowUSD(true)}
-                            className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${showUSD ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                            onClick={() => setModo('soloEfectivo')}
+                            className={`flex-1 text-xs font-semibold px-2 py-1.5 rounded-md transition-all flex items-center justify-center gap-1 ${modo === 'soloEfectivo' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
                         >
-                            <DollarSign className="w-3 h-3" /> USD
+                            <Banknote className="w-3 h-3" /> Solo ef.
                         </button>
+                        <button
+                            onClick={() => setModo('total')}
+                            className={`flex-1 text-xs font-semibold px-2 py-1.5 rounded-md transition-all flex items-center justify-center gap-1 ${modo === 'total' ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                        >
+                            <TrendingUp className="w-3 h-3" /> Total ventas
+                        </button>
+                    </div>
+                    {/* Conteo + ARS/USD */}
+                    <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                            {displayedCount} venta{displayedCount !== 1 ? 's' : ''}
+                            {modo !== 'total' && filtered.length !== displayedCount && (
+                                <span className="ml-1 text-muted-foreground/60">
+                                    ({filtered.length - displayedCount} excluidas)
+                                </span>
+                            )}
+                        </span>
+                        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+                            <button
+                                onClick={() => setShowUSD(false)}
+                                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all ${!showUSD ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                            >
+                                ARS
+                            </button>
+                            <button
+                                onClick={() => setShowUSD(true)}
+                                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${showUSD ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}
+                            >
+                                <DollarSign className="w-3 h-3" /> USD
+                            </button>
+                        </div>
                     </div>
                 </div>
 
                 {/* Cuerpo */}
                 <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2.5">
-                    {filtered.length === 0 && (
+                    {displayedCount === 0 && (
                         <div className="text-center py-10 text-muted-foreground">
                             <Package className="w-10 h-10 mx-auto mb-2 opacity-30" />
                             <p className="text-sm">Sin ventas en ese rango</p>
@@ -643,6 +850,559 @@ function AccumulatorModal({ ventas, appUsers, onClose }) {
     );
 }
 
+/* ─── CuentasModal ────────────────────────────────────────────── */
+
+function CuentasModal({ ventas, onClose }) {
+    const [desde, setDesde] = useState(firstOfMonthStr);
+    const [hasta, setHasta] = useState(todayStr);
+    const [cuentasInfo, setCuentasInfo] = useState([]);
+
+    useEffect(() => {
+        supabase.from('cuentas_bancarias').select('nombre, titular, reiniciado_at, propietario').then(({ data }) => {
+            if (data) setCuentasInfo(data);
+        });
+    }, []);
+
+    const getCuentaInfo        = (nombre) => cuentasInfo.find(c => c.nombre === nombre);
+    const getTitular           = (nombre) => getCuentaInfo(nombre)?.titular || null;
+    const getCuentaPropietario = (nombre) => getCuentaInfo(nombre)?.propietario || null;
+    const getReinicioDate      = (nombre) => {
+        const r = getCuentaInfo(nombre)?.reiniciado_at;
+        return r ? r.substring(0, 10) : null;
+    };
+
+    const conTransf = ventas.filter(v => Number(v.monto_transferencia) > 0);
+
+    const filtered = conTransf.filter(v => v.fecha >= desde && v.fecha <= hasta);
+
+    const byRango = {};
+    for (const v of filtered) {
+        const k = v.cuenta_nombre || 'Sin cuenta';
+        const reinicio = getReinicioDate(k);
+        if (reinicio && v.fecha < reinicio) continue;
+        if (!byRango[k]) byRango[k] = { monto: 0, ops: 0 };
+        byRango[k].monto += Number(v.monto_transferencia);
+        byRango[k].ops   += 1;
+    }
+
+    const byHistorico = {};
+    for (const v of conTransf.filter(v => v.fecha <= hasta)) {
+        const k = v.cuenta_nombre || 'Sin cuenta';
+        const reinicio = getReinicioDate(k);
+        if (reinicio && v.fecha < reinicio) continue;
+        if (!byHistorico[k]) byHistorico[k] = 0;
+        byHistorico[k] += Number(v.monto_transferencia);
+    }
+
+    const cuentas = [...new Set([
+        ...Object.keys(byRango),
+        ...Object.keys(byHistorico),
+    ])].sort((a, b) => (byRango[b]?.monto || 0) - (byRango[a]?.monto || 0));
+
+    const totalRango     = Object.values(byRango).reduce((s, v) => s + v.monto, 0);
+    const totalHistorico = Object.values(byHistorico).reduce((s, v) => s + v, 0);
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-md max-h-[90dvh] flex flex-col">
+
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+                    <div>
+                        <h2 className="font-bold text-foreground text-base flex items-center gap-2">
+                            <Building2 className="w-4 h-4 text-blue-600" />
+                            Transferencias por cuenta
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">Montos enviados a cada cuenta bancaria</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Rango de fechas */}
+                <div className="px-5 py-3 border-b border-border/60 flex flex-wrap items-center gap-3 flex-shrink-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Desde</label>
+                        <input
+                            type="date"
+                            value={desde}
+                            max={hasta}
+                            onChange={e => setDesde(e.target.value)}
+                            className="flex-1 min-w-0 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none"
+                        />
+                    </div>
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Hasta</label>
+                        <input
+                            type="date"
+                            value={hasta}
+                            min={desde}
+                            onChange={e => setHasta(e.target.value)}
+                            className="flex-1 min-w-0 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none"
+                        />
+                    </div>
+                </div>
+
+                {/* Subtítulo */}
+                <div className="px-5 pt-3 pb-1 flex-shrink-0">
+                    <span className="text-xs text-muted-foreground">
+                        {filtered.length} operación{filtered.length !== 1 ? 'es' : ''} con transferencia en el rango
+                    </span>
+                </div>
+
+                {/* Cuerpo */}
+                <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2.5 pt-2">
+                    {cuentas.length === 0 && (
+                        <div className="text-center py-10 text-muted-foreground">
+                            <Building2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm">Sin transferencias en ese rango</p>
+                        </div>
+                    )}
+
+                    {cuentas.map(cuenta => {
+                        const rango       = byRango[cuenta];
+                        const hist        = byHistorico[cuenta] || 0;
+                        const propietario = getCuentaPropietario(cuenta);
+                        const color       = getPropColor(propietario).text;
+                        return (
+                            <div key={cuenta} className="rounded-2xl border overflow-hidden"
+                                style={{ borderColor: color + '50', backgroundColor: color + '08' }}>
+                                {/* Fila principal */}
+                                <div className="px-4 py-3 flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <Building2 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color }} />
+                                        <div className="min-w-0">
+                                            <p className="font-bold text-sm text-foreground truncate">{cuenta}</p>
+                                            {getTitular(cuenta) && (
+                                                <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
+                                                    <User className="w-2.5 h-2.5 flex-shrink-0" />
+                                                    {getTitular(cuenta)}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-right flex-shrink-0">
+                                        <p className="font-bold text-base tabular-nums" style={{ color }}>
+                                            {rango ? `$${formatARS(rango.monto)}` : '—'}
+                                        </p>
+                                        {rango && (
+                                            <p className="text-xs text-muted-foreground">
+                                                {rango.ops} op{rango.ops !== 1 ? 's' : ''}. en rango
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                                {/* Acumulado histórico */}
+                                <div className="px-4 pb-3 pt-2 border-t flex items-center justify-between"
+                                    style={{ borderColor: color + '25' }}>
+                                    <span className="text-xs text-muted-foreground">
+                                        {getReinicioDate(cuenta)
+                                            ? <>Desde reinicio hasta {hasta}</>
+                                            : <>Acumulado hasta {hasta}</>
+                                        }
+                                    </span>
+                                    <span className="text-xs font-semibold text-foreground tabular-nums">
+                                        ${formatARS(hist)}
+                                    </span>
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Total rango */}
+                    {totalRango > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-blue-600/10 border border-blue-600/20 mt-1">
+                            <span className="text-sm font-bold text-foreground flex items-center gap-2">
+                                <Building2 className="w-4 h-4 text-blue-600" />
+                                Total transferido en rango
+                            </span>
+                            <span className="text-xl font-bold text-blue-700 tabular-nums">
+                                ${formatARS(totalRango)}
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Total histórico */}
+                    {totalHistorico > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-muted border border-border">
+                            <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4" />
+                                Total histórico hasta {hasta}
+                            </span>
+                            <span className="text-base font-bold text-foreground tabular-nums">
+                                ${formatARS(totalHistorico)}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+/* ─── CruceModal ──────────────────────────────────────────────── */
+
+const PROP_COLORS = {
+    luis:    { bg: '#dbeafe', text: '#1d4ed8' },
+    gabriel: { bg: '#ede9fe', text: '#7c3aed' },
+    rosa:    { bg: '#fce7f3', text: '#be185d' },
+};
+const getPropColor = (name) => PROP_COLORS[name?.toLowerCase()] || { bg: '#f3f4f6', text: '#6b7280' };
+
+function CruceModal({ ventas, onClose }) {
+    const [desde,       setDesde]       = useState(firstOfMonthStr);
+    const [hasta,       setHasta]       = useState(todayStr);
+    const [cuentasInfo, setCuentasInfo] = useState([]);
+    const [expandedPar, setExpandedPar] = useState(null);
+    const [showUSD,     setShowUSD]     = useState(false);
+    const [vistaBalance, setVistaBalance] = useState(true); // true=balance, false=detalle por par
+
+    useEffect(() => {
+        supabase.from('cuentas_bancarias').select('nombre, propietario').then(({ data }) => {
+            if (data) setCuentasInfo(data);
+        });
+    }, []);
+
+    const getCuentaProp = (cuentaNombre) =>
+        cuentasInfo.find(c => c.nombre === cuentaNombre)?.propietario || null;
+
+    const buildCruces = (items) => {
+        const byPar = {};
+        for (const v of items) {
+            const propCuenta = getCuentaProp(v.cuenta_nombre);
+            if (!propCuenta || !v.propietario || propCuenta.toLowerCase() === v.propietario.toLowerCase()) continue;
+            const key = `${v.propietario}|${propCuenta}`;
+            if (!byPar[key]) byPar[key] = { de: v.propietario, a: propCuenta, monto: 0, montoUsd: 0, sinDolar: false, items: [] };
+            byPar[key].monto += Number(v.monto_transferencia);
+            const dolar = Number(v.dolar_blue);
+            if (dolar > 0) {
+                byPar[key].montoUsd += Number(v.monto_transferencia) / dolar;
+            } else {
+                byPar[key].sinDolar = true;
+            }
+            byPar[key].items.push(v);
+        }
+        return byPar;
+    };
+
+    const crucesRango    = buildCruces(ventas.filter(v => v.fecha >= desde && v.fecha <= hasta && Number(v.monto_transferencia) > 0));
+    const crucesHistoric = buildCruces(ventas.filter(v => v.fecha <= hasta && Number(v.monto_transferencia) > 0));
+
+    const pares = [...new Set([...Object.keys(crucesHistoric), ...Object.keys(crucesRango)])]
+        .sort((a, b) => (crucesHistoric[b]?.monto || 0) - (crucesHistoric[a]?.monto || 0));
+
+    // Balance consolidado: agrupar por deudor (a) → lista de acreedores (de)
+    const buildBalance = (cruces) => {
+        const deudores = {};
+        for (const key of Object.keys(cruces)) {
+            const { de, a, monto, montoUsd, sinDolar } = cruces[key];
+            if (!deudores[a]) deudores[a] = { items: [], totalMonto: 0, totalUsd: 0, sinDolar: false };
+            deudores[a].items.push({ acreedor: de, monto, montoUsd, sinDolar });
+            deudores[a].totalMonto += monto;
+            deudores[a].totalUsd   += montoUsd;
+            if (sinDolar) deudores[a].sinDolar = true;
+        }
+        return deudores;
+    };
+
+    const balanceRango    = buildBalance(crucesRango);
+    const balanceHistoric = buildBalance(crucesHistoric);
+
+    const deudores = Object.keys(balanceHistoric).sort((a, b) =>
+        balanceHistoric[b].totalMonto - balanceHistoric[a].totalMonto
+    );
+
+    const fmtMonto = (ars, usd) => showUSD
+        ? `u$s ${formatUSD(usd)}`
+        : `$${formatARS(ars)}`;
+
+    const totalRangoArs = Object.values(crucesRango).reduce((s, v) => s + v.monto, 0);
+    const totalRangoUsd = Object.values(crucesRango).reduce((s, v) => s + v.montoUsd, 0);
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+            <div className="bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col">
+
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-border flex-shrink-0">
+                    <div>
+                        <h2 className="font-bold text-foreground text-base flex items-center gap-2">
+                            <ArrowRight className="w-4 h-4 text-amber-600" />
+                            Cruce de cuentas
+                        </h2>
+                        <p className="text-xs text-muted-foreground mt-0.5">Mercadería cobrada en cuenta ajena</p>
+                    </div>
+                    <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors">
+                        <X className="w-5 h-5" />
+                    </button>
+                </div>
+
+                {/* Rango + ARS/USD */}
+                <div className="px-5 py-3 border-b border-border/60 space-y-2 flex-shrink-0">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Desde</label>
+                            <input type="date" value={desde} max={hasta}
+                                onChange={e => setDesde(e.target.value)}
+                                className="flex-1 min-w-0 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none" />
+                        </div>
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <label className="text-xs font-semibold text-muted-foreground whitespace-nowrap">Hasta</label>
+                            <input type="date" value={hasta} min={desde}
+                                onChange={e => setHasta(e.target.value)}
+                                className="flex-1 min-w-0 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none" />
+                        </div>
+                    </div>
+                    {/* Tabs vista + toggle moneda */}
+                    <div className="flex items-center justify-between">
+                        <div className="flex gap-1 bg-muted rounded-lg p-0.5">
+                            <button onClick={() => setVistaBalance(true)}
+                                className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all ${vistaBalance ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>
+                                Balance
+                            </button>
+                            <button onClick={() => setVistaBalance(false)}
+                                className={`text-xs font-semibold px-3 py-1.5 rounded-md transition-all ${!vistaBalance ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>
+                                Por par
+                            </button>
+                        </div>
+                        <div className="flex items-center gap-1 bg-muted rounded-lg p-0.5">
+                            <button onClick={() => setShowUSD(false)}
+                                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all ${!showUSD ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>
+                                ARS
+                            </button>
+                            <button onClick={() => setShowUSD(true)}
+                                className={`text-xs font-bold px-2.5 py-1 rounded-md transition-all flex items-center gap-1 ${showUSD ? 'bg-background shadow text-foreground' : 'text-muted-foreground'}`}>
+                                <DollarSign className="w-3 h-3" /> USD
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Body */}
+                <div className="flex-1 overflow-y-auto px-5 pb-5 pt-3 space-y-3">
+
+                    {pares.length === 0 && (
+                        <div className="text-center py-10 text-muted-foreground">
+                            <ArrowRight className="w-10 h-10 mx-auto mb-2 opacity-30" />
+                            <p className="text-sm font-medium">Sin cruces de cuentas</p>
+                            <p className="text-xs mt-1">Asegurate de asignar propietario a cada cuenta bancaria</p>
+                        </div>
+                    )}
+
+                    {/* ── VISTA BALANCE ── */}
+                    {vistaBalance && deudores.length > 0 && (
+                        <>
+                            {/* Balance en rango */}
+                            {Object.keys(balanceRango).length > 0 && (
+                                <div className="space-y-1.5">
+                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">En rango seleccionado</p>
+                                    {Object.keys(balanceRango)
+                                        .sort((a, b) => balanceRango[b].totalMonto - balanceRango[a].totalMonto)
+                                        .map(deudor => {
+                                            const { items, totalMonto, totalUsd, sinDolar } = balanceRango[deudor];
+                                            const colorD = getPropColor(deudor);
+                                            return (
+                                                <div key={deudor} className="rounded-xl border border-amber-200 dark:border-amber-800/40 overflow-hidden">
+                                                    <div className="px-3 py-2.5 flex items-center justify-between bg-amber-50/60 dark:bg-amber-950/10">
+                                                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold capitalize"
+                                                            style={{ backgroundColor: colorD.bg, color: colorD.text }}>
+                                                            {deudor} debe
+                                                        </span>
+                                                        <span className="font-bold text-amber-700 tabular-nums text-sm">
+                                                            {fmtMonto(totalMonto, totalUsd)}
+                                                            {sinDolar && showUSD && <span className="text-yellow-600 ml-1">*</span>}
+                                                        </span>
+                                                    </div>
+                                                    <div className="divide-y divide-border/40">
+                                                        {items.map(({ acreedor, monto, montoUsd, sinDolar: sd }) => {
+                                                            const colorA = getPropColor(acreedor);
+                                                            return (
+                                                                <div key={acreedor} className="px-3 py-2 flex items-center justify-between">
+                                                                    <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                                        <ArrowRight className="w-3 h-3" />
+                                                                        a <span className="font-semibold capitalize" style={{ color: colorA.text }}>{acreedor}</span>
+                                                                    </span>
+                                                                    <span className="text-xs font-semibold tabular-nums text-foreground">
+                                                                        {fmtMonto(monto, montoUsd)}
+                                                                        {sd && showUSD && <span className="text-yellow-600 ml-0.5">*</span>}
+                                                                    </span>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                </div>
+                            )}
+
+                            {/* Balance histórico */}
+                            <div className="space-y-1.5 pt-1">
+                                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                                    Acumulado hasta {hasta}
+                                </p>
+                                {deudores.map(deudor => {
+                                    const { items, totalMonto, totalUsd, sinDolar } = balanceHistoric[deudor];
+                                    const colorD = getPropColor(deudor);
+                                    return (
+                                        <div key={deudor} className="rounded-xl border border-border overflow-hidden">
+                                            <div className="px-3 py-2.5 flex items-center justify-between bg-muted/40">
+                                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold capitalize"
+                                                    style={{ backgroundColor: colorD.bg, color: colorD.text }}>
+                                                    {deudor} debe
+                                                </span>
+                                                <span className="font-bold text-foreground tabular-nums text-base">
+                                                    {fmtMonto(totalMonto, totalUsd)}
+                                                    {sinDolar && showUSD && <span className="text-yellow-600 ml-1">*</span>}
+                                                </span>
+                                            </div>
+                                            <div className="divide-y divide-border/40">
+                                                {items.map(({ acreedor, monto, montoUsd, sinDolar: sd }) => {
+                                                    const colorA = getPropColor(acreedor);
+                                                    return (
+                                                        <div key={acreedor} className="px-3 py-2 flex items-center justify-between">
+                                                            <span className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                                                <ArrowRight className="w-3 h-3" />
+                                                                a <span className="font-semibold capitalize" style={{ color: colorA.text }}>{acreedor}</span>
+                                                            </span>
+                                                            <span className="text-xs font-semibold tabular-nums text-foreground">
+                                                                {fmtMonto(monto, montoUsd)}
+                                                                {sd && showUSD && <span className="text-yellow-600 ml-0.5">*</span>}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {showUSD && Object.values(balanceHistoric).some(d => d.sinDolar) && (
+                                    <p className="text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 px-3 py-2 rounded-xl">
+                                        * Algunas operaciones no tienen cotización del dólar y no se incluyen en el total USD.
+                                    </p>
+                                )}
+                            </div>
+                        </>
+                    )}
+
+                    {/* ── VISTA POR PAR ── */}
+                    {!vistaBalance && pares.map(key => {
+                        const hist = crucesHistoric[key];
+                        const rang = crucesRango[key];
+                        const { de, a } = hist || rang;
+                        const colorDe = getPropColor(de);
+                        const colorA  = getPropColor(a);
+                        const isOpen  = expandedPar === key;
+
+                        return (
+                            <div key={key} className="rounded-2xl border border-amber-200 dark:border-amber-800/40 overflow-hidden">
+                                {/* Cabecera par */}
+                                <div className="px-4 pt-3 pb-2 bg-amber-50/60 dark:bg-amber-950/10">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                                            style={{ backgroundColor: colorDe.bg, color: colorDe.text }}>
+                                            <Package className="w-3 h-3" /> {de}
+                                        </span>
+                                        <ArrowRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                                            style={{ backgroundColor: colorA.bg, color: colorA.text }}>
+                                            <Building2 className="w-3 h-3" /> cuenta de {a}
+                                        </span>
+                                    </div>
+                                    <p className="text-xs text-amber-700 dark:text-amber-400 mt-1.5 font-semibold">
+                                        {a.charAt(0).toUpperCase() + a.slice(1)} debe a {de.charAt(0).toUpperCase() + de.slice(1)}
+                                    </p>
+                                </div>
+
+                                {/* Montos */}
+                                <div className="px-4 py-3 grid grid-cols-2 gap-3 border-b border-amber-100 dark:border-amber-900/30">
+                                    <div>
+                                        <p className="text-xs text-muted-foreground mb-0.5">En rango</p>
+                                        <p className="font-bold text-foreground text-base tabular-nums">
+                                            {rang ? fmtMonto(rang.monto, rang.montoUsd) : '—'}
+                                        </p>
+                                        {rang && <p className="text-xs text-muted-foreground">{rang.items.length} op{rang.items.length !== 1 ? 's' : ''}.</p>}
+                                    </div>
+                                    <div>
+                                        <p className="text-xs text-muted-foreground mb-0.5">Acumulado hasta {hasta}</p>
+                                        <p className="font-bold text-amber-700 text-base tabular-nums">
+                                            {hist ? fmtMonto(hist.monto, hist.montoUsd) : '—'}
+                                        </p>
+                                        {hist && <p className="text-xs text-muted-foreground">{hist.items.length} op{hist.items.length !== 1 ? 's' : ''}. total</p>}
+                                    </div>
+                                </div>
+
+                                {/* Detalle colapsable */}
+                                {rang?.items.length > 0 && (
+                                    <>
+                                        <button
+                                            onClick={() => setExpandedPar(isOpen ? null : key)}
+                                            className="w-full flex items-center justify-between px-4 py-2.5 text-xs font-medium text-muted-foreground hover:bg-muted/50 transition-colors"
+                                        >
+                                            <span>Ver operaciones del rango</span>
+                                            {isOpen ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                                        </button>
+                                        {isOpen && (
+                                            <div className="divide-y divide-border/60 border-t border-border/40">
+                                                {rang.items.map(v => {
+                                                    const dolar = Number(v.dolar_blue);
+                                                    const usd   = dolar > 0 ? Number(v.monto_transferencia) / dolar : null;
+                                                    return (
+                                                        <div key={v.id} className="px-4 py-2.5 flex items-start justify-between gap-3">
+                                                            <div className="min-w-0">
+                                                                <p className="text-xs font-semibold text-foreground truncate">
+                                                                    {v.producto_titulo || v.codigo || '—'}
+                                                                </p>
+                                                                <p className="text-xs text-muted-foreground">
+                                                                    {v.fecha} · {v.cuenta_nombre}
+                                                                </p>
+                                                                {dolar > 0 && (
+                                                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                                        <DollarSign className="w-2.5 h-2.5" />
+                                                                        cotiz. ${Number(dolar).toLocaleString('es-AR')}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-right flex-shrink-0">
+                                                                <p className="text-xs font-bold text-foreground tabular-nums">
+                                                                    ${formatARS(v.monto_transferencia)}
+                                                                </p>
+                                                                {usd != null && (
+                                                                    <p className="text-xs text-muted-foreground tabular-nums">
+                                                                        u$s {formatUSD(usd)}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {/* Total rango */}
+                    {totalRangoArs > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20">
+                            <span className="text-sm font-bold text-foreground flex items-center gap-2">
+                                <ArrowRight className="w-4 h-4 text-amber-600" />
+                                Total cruzado en rango
+                            </span>
+                            <span className="text-xl font-bold text-amber-700 tabular-nums">
+                                {fmtMonto(totalRangoArs, totalRangoUsd)}
+                            </span>
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /* ─── VentasHistorial (componente principal) ──────────────────── */
 
 export function VentasHistorial() {
@@ -654,6 +1414,8 @@ export function VentasHistorial() {
     const [selectedDay,   setSelectedDay]   = useState(null);
     const [isMobile,      setIsMobile]      = useState(window.innerWidth < 768);
     const [showAccumulator, setShowAccumulator] = useState(false);
+    const [showCuentas,     setShowCuentas]     = useState(false);
+    const [showCruce,       setShowCruce]       = useState(false);
 
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -720,6 +1482,24 @@ export function VentasHistorial() {
         }
     };
 
+    const deleteDayVentas = async (fecha, password) => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error('No hay sesión activa');
+
+        const { error: authError } = await supabase.auth.signInWithPassword({
+            email: user.email,
+            password,
+        });
+        if (authError) throw new Error('Contraseña incorrecta');
+
+        const { error } = await supabase.from('ventas').delete().eq('fecha', fecha);
+        if (error) throw new Error('Error al eliminar las ventas');
+
+        setVentas(prev => prev.filter(v => v.fecha !== fecha));
+        setSelectedDay(null);
+        toast.success(`Ventas del ${formatFullDate(fecha)} eliminadas`);
+    };
+
     const handleDayClick = (fecha) => {
         setSelectedDay(prev => prev === fecha ? null : fecha);
     };
@@ -745,6 +1525,22 @@ export function VentasHistorial() {
                 </div>
                 <div className="flex items-center gap-2">
                     <button
+                        onClick={() => setShowCruce(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                        title="Cruce de cuentas"
+                    >
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        Cruce
+                    </button>
+                    <button
+                        onClick={() => setShowCuentas(true)}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                        title="Transferencias por cuenta"
+                    >
+                        <Building2 className="w-3.5 h-3.5" />
+                        Cuentas
+                    </button>
+                    <button
                         onClick={() => setShowAccumulator(true)}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
                         title="Acumulado por propietario"
@@ -761,6 +1557,20 @@ export function VentasHistorial() {
                 </button>
                 </div>
             </div>
+
+            {showCruce && (
+                <CruceModal
+                    ventas={ventas}
+                    onClose={() => setShowCruce(false)}
+                />
+            )}
+
+            {showCuentas && (
+                <CuentasModal
+                    ventas={ventas}
+                    onClose={() => setShowCuentas(false)}
+                />
+            )}
 
             {showAccumulator && (
                 <AccumulatorModal
@@ -855,6 +1665,7 @@ export function VentasHistorial() {
                             onDelete={deleteVenta}
                             deletingId={deletingId}
                             isMobile={isMobile}
+                            onDeleteDay={deleteDayVentas}
                         />
                     )}
                 </>
