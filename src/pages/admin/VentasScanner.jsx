@@ -44,6 +44,8 @@ export function VentasScanner() {
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
     const productCardRef = useRef(null);
+    const confirmBtnRef = useRef(null);
+    const prevCartLenRef = useRef(0);
 
     // --- Pago ---
     const [metodoPago, setMetodoPago] = useState('efectivo');
@@ -171,13 +173,25 @@ export function VentasScanner() {
 
     // Al seleccionar un producto, desplazar la vista hasta la tarjeta (útil en móvil)
     // sin enfocar ningún input, para que el usuario vea y edite si lo desea.
+    // Se desplaza hasta el final para dejar visible el botón "Agregar al carrito".
     useEffect(() => {
-        if (selectedEntrada) {
+        if (selectedEntrada && !loadingPrice) {
             requestAnimationFrame(() => {
-                productCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                productCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
             });
         }
-    }, [selectedEntrada]);
+    }, [selectedEntrada, loadingPrice]);
+
+    // Al agregar un ítem al carrito, desplazar hasta el botón verde "Confirmar venta"
+    // para que quede visible aunque haya muchos pedidos cargados.
+    useEffect(() => {
+        if (cart.length > prevCartLenRef.current) {
+            requestAnimationFrame(() => {
+                confirmBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            });
+        }
+        prevCartLenRef.current = cart.length;
+    }, [cart.length]);
 
     const processCode = useCallback(async (code, codigoFallback = null) => {
         setScanStatus('searching');
@@ -904,7 +918,7 @@ export function VentasScanner() {
             {selectedEntrada && (
                 <div
                     ref={productCardRef}
-                    className="bg-card rounded-2xl overflow-hidden shadow-md scroll-mt-4"
+                    className="bg-card rounded-2xl overflow-hidden shadow-md scroll-mb-4"
                     style={{ borderLeft: `5px solid ${ownerColor}` }}
                 >
                     {/* Cabecera */}
@@ -1329,9 +1343,10 @@ export function VentasScanner() {
 
                     <div className="p-4 border-t border-border space-y-2">
                         <button
+                            ref={confirmBtnRef}
                             onClick={confirmSale}
                             disabled={saving}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 disabled:opacity-60 scroll-mb-4"
                         >
                             <CheckCircle className="w-5 h-5" />
                             {saving ? 'Guardando...' : `Confirmar venta · $${totalCarrito.toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS`}
