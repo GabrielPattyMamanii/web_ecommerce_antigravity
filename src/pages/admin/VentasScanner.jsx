@@ -14,6 +14,53 @@ const METODOS = [
     { id: 'mixto',          label: 'Mixto',          Icon: Blend },
 ];
 
+// Encuentra el ancestro scrolleable (en este layout es el <main overflow-y-auto>).
+const getScrollParent = (el) => {
+    let node = el?.parentElement;
+    while (node) {
+        const oy = getComputedStyle(node).overflowY;
+        if ((oy === 'auto' || oy === 'scroll') && node.scrollHeight > node.clientHeight) return node;
+        node = node.parentElement;
+    }
+    return null;
+};
+
+// Scroll suave pero rápido (~200ms) hacia un elemento, dentro de su contenedor scrolleable.
+const fastScrollTo = (el, block = 'end', duration = 200) => {
+    if (!el) return;
+    const margin = 16;
+    const container = getScrollParent(el);
+    const animate = (from, to, apply) => {
+        const diff = to - from;
+        if (diff === 0) return;
+        let start;
+        const step = (ts) => {
+            if (start === undefined) start = ts;
+            const t = Math.min(1, (ts - start) / duration);
+            apply(from + diff * (1 - Math.pow(1 - t, 3))); // easeOutCubic
+            if (t < 1) requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
+    };
+
+    if (!container) {
+        const rect = el.getBoundingClientRect();
+        const target = block === 'end'
+            ? window.scrollY + rect.bottom - window.innerHeight + margin
+            : window.scrollY + rect.top - margin;
+        animate(window.scrollY, Math.max(0, target), (y) => window.scrollTo(0, y));
+        return;
+    }
+
+    const cRect = container.getBoundingClientRect();
+    const eRect = el.getBoundingClientRect();
+    const target = block === 'end'
+        ? container.scrollTop + (eRect.bottom - cRect.bottom) + margin
+        : container.scrollTop + (eRect.top - cRect.top) - margin;
+    const max = container.scrollHeight - container.clientHeight;
+    animate(container.scrollTop, Math.max(0, Math.min(target, max)), (y) => { container.scrollTop = y; });
+};
+
 export function VentasScanner() {
     // --- Scanner ---
     const scanBufferRef = useRef('');
@@ -44,7 +91,7 @@ export function VentasScanner() {
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
     const productCardRef = useRef(null);
-    const confirmBtnRef = useRef(null);
+    const cartFooterRef = useRef(null);
     const prevCartLenRef = useRef(0);
 
     // --- Pago ---
@@ -176,19 +223,15 @@ export function VentasScanner() {
     // Se desplaza hasta el final para dejar visible el botón "Agregar al carrito".
     useEffect(() => {
         if (selectedEntrada && !loadingPrice) {
-            requestAnimationFrame(() => {
-                productCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            });
+            requestAnimationFrame(() => fastScrollTo(productCardRef.current, 'end'));
         }
     }, [selectedEntrada, loadingPrice]);
 
-    // Al agregar un ítem al carrito, desplazar hasta el botón verde "Confirmar venta"
-    // para que quede visible aunque haya muchos pedidos cargados.
+    // Al agregar un ítem al carrito, desplazar hasta el pie del carrito para que
+    // queden visibles los botones "Confirmar venta" y "Abortar venta".
     useEffect(() => {
         if (cart.length > prevCartLenRef.current) {
-            requestAnimationFrame(() => {
-                confirmBtnRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-            });
+            requestAnimationFrame(() => fastScrollTo(cartFooterRef.current, 'end'));
         }
         prevCartLenRef.current = cart.length;
     }, [cart.length]);
@@ -1341,12 +1384,11 @@ export function VentasScanner() {
                         })}
                     </ul>
 
-                    <div className="p-4 border-t border-border space-y-2">
+                    <div ref={cartFooterRef} className="p-4 border-t border-border space-y-2 scroll-mb-4">
                         <button
-                            ref={confirmBtnRef}
                             onClick={confirmSale}
                             disabled={saving}
-                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 disabled:opacity-60 scroll-mb-4"
+                            className="w-full bg-green-600 hover:bg-green-700 text-white py-3.5 rounded-xl font-bold text-base transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
                         >
                             <CheckCircle className="w-5 h-5" />
                             {saving ? 'Guardando...' : `Confirmar venta · $${totalCarrito.toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS`}
