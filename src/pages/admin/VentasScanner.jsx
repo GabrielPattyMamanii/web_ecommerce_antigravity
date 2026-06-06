@@ -449,6 +449,27 @@ export function VentasScanner() {
         }
     };
 
+    const abortSale = () => {
+        if (cart.length === 0) return;
+        if (!window.confirm('¿Abortar la venta? Se eliminarán todos los productos del carrito.')) return;
+        setCart([]);
+        setSelectedEntrada(null);
+        setFoundEntradas([]);
+        setShowPropietarioModal(false);
+        setCurrentPrice('');
+        setCurrentQty('1');
+        setCurrentDolarBlue(null);
+        setCurrentIndice('');
+        setIndicePreset('');
+        setDolarFailed(false);
+        setManualDolar('');
+        setPrecioInfo(null);
+        setSavedPrice(null);
+        setEditingIndex(null);
+        resetPago();
+        toast.success('Venta abortada — carrito vacío');
+    };
+
     const openEdit = (index) => {
         const item = cart[index];
         setEditingIndex(index);
@@ -1295,7 +1316,7 @@ export function VentasScanner() {
                         })}
                     </ul>
 
-                    <div className="p-4 border-t border-border">
+                    <div className="p-4 border-t border-border space-y-2">
                         <button
                             onClick={confirmSale}
                             disabled={saving}
@@ -1303,6 +1324,14 @@ export function VentasScanner() {
                         >
                             <CheckCircle className="w-5 h-5" />
                             {saving ? 'Guardando...' : `Confirmar venta · $${totalCarrito.toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS`}
+                        </button>
+                        <button
+                            onClick={abortSale}
+                            disabled={saving}
+                            className="w-full bg-transparent border-2 border-destructive/30 hover:bg-destructive/10 text-destructive py-3 rounded-xl font-semibold text-sm transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
+                        >
+                            <Trash2 className="w-4 h-4" />
+                            Abortar venta
                         </button>
                     </div>
                 </div>
