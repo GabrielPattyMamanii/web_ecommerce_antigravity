@@ -165,7 +165,6 @@ export function VentasScanner() {
             toast.error('No se pudo obtener el dólar blue — ingresá el precio y el dólar manualmente');
         } finally {
             setLoadingPrice(false);
-            setTimeout(() => priceInputRef.current?.focus(), 50);
         }
     }, []);
 
