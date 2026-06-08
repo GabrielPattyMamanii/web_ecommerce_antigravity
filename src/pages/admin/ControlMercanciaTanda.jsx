@@ -434,18 +434,50 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
         >
             {/* Header */}
             <div
-                className="bg-muted/30 px-6 py-4 border-b border-border flex justify-between items-center cursor-pointer hover:bg-muted/50 transition-colors"
+                className="bg-muted/30 px-4 py-3 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors"
                 onClick={() => setIsExpanded(!isExpanded)}
             >
-                <div className="flex items-center gap-4 flex-wrap">
-                    <h3 className="text-lg font-bold text-foreground uppercase tracking-wide flex items-center gap-3">
-                        {brandGroup.name}
+                {/* Top row: brand name + chevron */}
+                <div className="flex items-center justify-between gap-2 mb-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <h3 className="text-base md:text-lg font-bold text-foreground uppercase tracking-wide truncate">
+                            {brandGroup.name}
+                        </h3>
                         {!isExpanded && (
-                            <span className="text-xs font-normal text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">
-                                {brandGroup.items.length} productos
+                            <span className="flex-shrink-0 text-xs font-normal text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">
+                                {brandGroup.items.length}
                             </span>
                         )}
-                    </h3>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        {/* Total money (always visible) */}
+                        <div className="text-right">
+                            <p className="text-xs text-muted-foreground leading-none mb-0.5">Total</p>
+                            <p className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-sm">
+                                ${totalMoney.toLocaleString('es-AR')}
+                            </p>
+                        </div>
+                        <div className="text-muted-foreground">
+                            <ChevronLeft className={`w-5 h-5 transition-transform ${isExpanded ? '-rotate-90' : 'rotate-90'}`} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* Bottom row: badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                    {/* Boleta */}
+                    <div className="flex items-center gap-1.5 bg-background border border-border px-2 py-0.5 rounded-md">
+                        <span className="text-[10px] font-semibold text-muted-foreground uppercase">Boleta</span>
+                        <span className={`font-mono text-xs font-medium ${brandGroup.boleta ? 'text-foreground' : 'text-destructive italic'}`}>
+                            {brandGroup.boleta || 'NO INGRESADA'}
+                        </span>
+                    </div>
+
+                    {/* Doc. Control badge */}
+                    <div className="flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        {totalDocenasCopy} doc.
+                    </div>
 
                     {/* Owner Badge(s) */}
                     {isMultiOwner ? (
@@ -464,161 +496,222 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                             })}
                         </div>
                     ) : brandGroup.propietario ? (
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background border border-border shadow-sm">
-                            <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: ownerColor || '#9ca3af' }}
-                            />
-                            <span className="text-xs font-bold text-muted-foreground uppercase">
-                                {brandGroup.propietario}
-                            </span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-background border border-border">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: ownerColor || '#9ca3af' }} />
+                            <span className="text-xs font-bold text-muted-foreground uppercase">{brandGroup.propietario}</span>
                         </div>
                     ) : null}
-
-                    {/* Doc. Control badge */}
-                    <div className="text-sm font-medium px-3 py-1 rounded-md border bg-indigo-50 text-indigo-700 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800">
-                        <span className="flex items-center gap-1.5">
-                            <ClipboardList className="w-4 h-4" />
-                            {totalDocenasCopy} doc. control
-                        </span>
-                    </div>
-                </div>
-
-                <div className="flex items-center gap-4 flex-shrink-0">
-                    {/* Boleta */}
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">Boleta:</span>
-                        <span className={`font-mono text-sm font-medium ${brandGroup.boleta ? 'text-foreground' : 'text-destructive italic'}`}>
-                            {brandGroup.boleta || 'NO INGRESADA'}
-                        </span>
-                    </div>
-
-                    {/* Total money */}
-                    <div className="hidden md:block text-right">
-                        <p className="text-xs text-muted-foreground">Total</p>
-                        <p className="font-bold text-indigo-600 dark:text-indigo-400 font-mono text-sm">
-                            ${totalMoney.toLocaleString('es-AR')}
-                        </p>
-                    </div>
-
-                    <div className="text-muted-foreground">
-                        <ChevronLeft className={`w-5 h-5 transition-transform ${isExpanded ? '-rotate-90' : 'rotate-90'}`} />
-                    </div>
                 </div>
             </div>
 
             {/* Collapsible content */}
             {isExpanded && (
-                <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-muted/20 border-b border-border text-xs uppercase text-muted-foreground">
-                            <tr>
-                                <th className="px-6 py-3">Producto</th>
-                                <th className="px-6 py-3">Código</th>
-                                {isMultiOwner && <th className="px-6 py-3">Propietario</th>}
-                                <th className="px-6 py-3 text-center">Doc. Control</th>
-                                <th className="px-6 py-3 text-center">Vendidas / Disp.</th>
-                                <th className="px-6 py-3 text-right">Precio Doc.</th>
-                                <th className="px-6 py-3 text-right">Total</th>
-                                <th className="px-6 py-3 text-center">QR</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {brandGroup.items.map((prod) => {
-                                const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
-                                const total = docenasCopy * (Number(prod.precio_docena) || 0);
-                                const isGenerated = generatedQRs.has(getStableKey(prod));
-                                const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
-                                const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
-                                return (
-                                    <tr
-                                        key={prod.id}
-                                        className="hover:bg-muted/10 transition-colors"
-                                        style={isMultiOwner && prodOwnerColor ? { borderLeft: `3px solid ${prodOwnerColor}` } : {}}
-                                    >
-                                        <td className="px-6 py-4 font-medium text-foreground">{prod.producto_titulo}</td>
-                                        <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
-                                        {isMultiOwner && (
-                                            <td className="px-6 py-4">
-                                                {prodOwner ? (
-                                                    <span className="flex items-center gap-1.5 text-xs font-semibold">
-                                                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: prodOwnerColor || '#9ca3af' }} />
-                                                        {prodOwner}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-xs text-muted-foreground italic">—</span>
-                                                )}
-                                            </td>
-                                        )}
-                                        <td className="px-6 py-4 text-center">
-                                            <span className="font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">
-                                                {docenasCopy}
-                                            </span>
-                                        </td>
-                                        {(() => {
-                                            const ownerKey = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
-                                            const sold = soldMap[`${prod.codigo}_${ownerKey}`] || 0;
-                                            const available = docenasCopy - sold;
-                                            const isOut = available <= 0 && docenasCopy > 0;
-                                            const isLow = !isOut && docenasCopy > 0 && (available / docenasCopy) <= 0.25;
-                                            const color = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
-                                            return (
-                                                <td className="px-6 py-4 text-center">
-                                                    {sold > 0 || docenasCopy > 0 ? (
-                                                        <div className="flex flex-col items-center gap-1">
-                                                            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
-                                                                {isOut && <AlertTriangle className="w-3 h-3" />}
-                                                                <span>{sold} vend. / {available >= 0 ? available : 0} disp.</span>
-                                                            </div>
-                                                            {docenasCopy > 0 && (
-                                                                <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
-                                                                    <div
-                                                                        className="h-full rounded-full transition-all"
-                                                                        style={{
-                                                                            width: `${Math.min(100, (sold / docenasCopy) * 100)}%`,
-                                                                            backgroundColor: color,
-                                                                        }}
-                                                                    />
-                                                                </div>
-                                                            )}
-                                                        </div>
+                <>
+                    {/* Desktop Table */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-muted/20 border-b border-border text-xs uppercase text-muted-foreground">
+                                <tr>
+                                    <th className="px-6 py-3">Producto</th>
+                                    <th className="px-6 py-3">Código</th>
+                                    {isMultiOwner && <th className="px-6 py-3">Propietario</th>}
+                                    <th className="px-6 py-3 text-center">Doc. Control</th>
+                                    <th className="px-6 py-3 text-center">Vendidas / Disp.</th>
+                                    <th className="px-6 py-3 text-right">Precio Doc.</th>
+                                    <th className="px-6 py-3 text-right">Total</th>
+                                    <th className="px-6 py-3 text-center">QR</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border bg-card">
+                                {brandGroup.items.map((prod) => {
+                                    const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                                    const total = docenasCopy * (Number(prod.precio_docena) || 0);
+                                    const isGenerated = generatedQRs.has(getStableKey(prod));
+                                    const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                                    const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
+                                    return (
+                                        <tr
+                                            key={prod.id}
+                                            className="hover:bg-muted/10 transition-colors"
+                                            style={isMultiOwner && prodOwnerColor ? { borderLeft: `3px solid ${prodOwnerColor}` } : {}}
+                                        >
+                                            <td className="px-6 py-4 font-medium text-foreground">{prod.producto_titulo}</td>
+                                            <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
+                                            {isMultiOwner && (
+                                                <td className="px-6 py-4">
+                                                    {prodOwner ? (
+                                                        <span className="flex items-center gap-1.5 text-xs font-semibold">
+                                                            <span className="w-2 h-2 rounded-full" style={{ backgroundColor: prodOwnerColor || '#9ca3af' }} />
+                                                            {prodOwner}
+                                                        </span>
                                                     ) : (
-                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                        <span className="text-xs text-muted-foreground italic">—</span>
                                                     )}
                                                 </td>
-                                            );
-                                        })()}
-                                        <td className="px-6 py-4 text-right text-muted-foreground">
-                                            ${Number(prod.precio_docena || 0).toLocaleString('es-AR')}
-                                        </td>
-                                        <td className="px-6 py-4 text-right font-bold text-indigo-600 dark:text-indigo-400">
-                                            ${total.toLocaleString('es-AR')}
-                                        </td>
-                                        <td className="px-6 py-4 text-center">
-                                            {!isGenerated ? (
-                                                <button
-                                                    onClick={() => onGenerate(prod)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-indigo-50 hover:text-indigo-700 border border-border hover:border-indigo-300 text-muted-foreground rounded-lg text-xs font-semibold transition-all"
-                                                >
-                                                    <QrCode className="w-3.5 h-3.5" />
-                                                    Generar
-                                                </button>
-                                            ) : (
-                                                <button
-                                                    onClick={() => onOpen(prod)}
-                                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
-                                                >
-                                                    <QrCode className="w-3.5 h-3.5" />
-                                                    Abrir
-                                                </button>
                                             )}
-                                        </td>
-                                    </tr>
-                                );
-                            })}
-                        </tbody>
-                    </table>
-                </div>
+                                            <td className="px-6 py-4 text-center">
+                                                <span className="font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 rounded-md">
+                                                    {docenasCopy}
+                                                </span>
+                                            </td>
+                                            {(() => {
+                                                const ownerKey = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                                                const sold = soldMap[`${prod.codigo}_${ownerKey}`] || 0;
+                                                const available = docenasCopy - sold;
+                                                const isOut = available <= 0 && docenasCopy > 0;
+                                                const isLow = !isOut && docenasCopy > 0 && (available / docenasCopy) <= 0.25;
+                                                const color = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
+                                                return (
+                                                    <td className="px-6 py-4 text-center">
+                                                        {sold > 0 || docenasCopy > 0 ? (
+                                                            <div className="flex flex-col items-center gap-1">
+                                                                <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
+                                                                    {isOut && <AlertTriangle className="w-3 h-3" />}
+                                                                    <span>{sold} vend. / {available >= 0 ? available : 0} disp.</span>
+                                                                </div>
+                                                                {docenasCopy > 0 && (
+                                                                    <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                                                                        <div
+                                                                            className="h-full rounded-full transition-all"
+                                                                            style={{
+                                                                                width: `${Math.min(100, (sold / docenasCopy) * 100)}%`,
+                                                                                backgroundColor: color,
+                                                                            }}
+                                                                        />
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground">—</span>
+                                                        )}
+                                                    </td>
+                                                );
+                                            })()}
+                                            <td className="px-6 py-4 text-right text-muted-foreground">
+                                                ${Number(prod.precio_docena || 0).toLocaleString('es-AR')}
+                                            </td>
+                                            <td className="px-6 py-4 text-right font-bold text-indigo-600 dark:text-indigo-400">
+                                                ${total.toLocaleString('es-AR')}
+                                            </td>
+                                            <td className="px-6 py-4 text-center">
+                                                {!isGenerated ? (
+                                                    <button
+                                                        onClick={() => onGenerate(prod)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted hover:bg-indigo-50 hover:text-indigo-700 border border-border hover:border-indigo-300 text-muted-foreground rounded-lg text-xs font-semibold transition-all"
+                                                    >
+                                                        <QrCode className="w-3.5 h-3.5" />
+                                                        Generar
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => onOpen(prod)}
+                                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
+                                                    >
+                                                        <QrCode className="w-3.5 h-3.5" />
+                                                        Abrir
+                                                    </button>
+                                                )}
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Mobile Cards */}
+                    <div className="md:hidden divide-y divide-border">
+                        {brandGroup.items.map((prod) => {
+                            const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                            const total = docenasCopy * (Number(prod.precio_docena) || 0);
+                            const isGenerated = generatedQRs.has(getStableKey(prod));
+                            const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                            const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
+                            const ownerKey = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                            const sold = soldMap[`${prod.codigo}_${ownerKey}`] || 0;
+                            const available = docenasCopy - sold;
+                            const isOut = available <= 0 && docenasCopy > 0;
+                            const isLow = !isOut && docenasCopy > 0 && (available / docenasCopy) <= 0.25;
+                            const stockColor = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
+
+                            return (
+                                <div
+                                    key={prod.id}
+                                    className="p-4 bg-card"
+                                    style={isMultiOwner && prodOwnerColor ? { borderLeft: `3px solid ${prodOwnerColor}` } : {}}
+                                >
+                                    {/* Top row: title + QR button */}
+                                    <div className="flex items-start justify-between gap-3 mb-3">
+                                        <div className="min-w-0 flex-1">
+                                            <p className="font-semibold text-foreground leading-tight">{prod.producto_titulo}</p>
+                                            <p className="text-xs text-muted-foreground font-mono mt-0.5 truncate">{prod.codigo}</p>
+                                            {isMultiOwner && prodOwner && (
+                                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold mt-1" style={{ color: prodOwnerColor || '#9ca3af' }}>
+                                                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: prodOwnerColor || '#9ca3af' }} />
+                                                    {prodOwner}
+                                                </span>
+                                            )}
+                                        </div>
+                                        {!isGenerated ? (
+                                            <button
+                                                onClick={() => onGenerate(prod)}
+                                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-muted border border-border text-muted-foreground rounded-lg text-xs font-semibold transition-all"
+                                            >
+                                                <QrCode className="w-3.5 h-3.5" />
+                                                Generar QR
+                                            </button>
+                                        ) : (
+                                            <button
+                                                onClick={() => onOpen(prod)}
+                                                className="flex-shrink-0 inline-flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 text-white rounded-lg text-xs font-semibold transition-all shadow-sm"
+                                            >
+                                                <QrCode className="w-3.5 h-3.5" />
+                                                Ver QR
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* Stats grid */}
+                                    <div className="grid grid-cols-3 gap-2 mb-3">
+                                        <div className="bg-muted/30 rounded-lg p-2 text-center">
+                                            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Doc. Control</p>
+                                            <p className="font-bold text-indigo-600 dark:text-indigo-400">{docenasCopy}</p>
+                                        </div>
+                                        <div className="bg-muted/30 rounded-lg p-2 text-center">
+                                            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Precio Doc.</p>
+                                            <p className="font-bold text-foreground text-xs">${Number(prod.precio_docena || 0).toLocaleString('es-AR')}</p>
+                                        </div>
+                                        <div className="bg-muted/30 rounded-lg p-2 text-center">
+                                            <p className="text-[10px] text-muted-foreground uppercase font-semibold mb-0.5">Total</p>
+                                            <p className="font-bold text-indigo-600 dark:text-indigo-400 text-xs">${total.toLocaleString('es-AR')}</p>
+                                        </div>
+                                    </div>
+
+                                    {/* Stock bar */}
+                                    {(sold > 0 || docenasCopy > 0) && (
+                                        <div>
+                                            <div className="flex items-center gap-1.5 text-xs font-semibold mb-1" style={{ color: stockColor }}>
+                                                {isOut && <AlertTriangle className="w-3 h-3 flex-shrink-0" />}
+                                                <span>{sold} vendidas / {available >= 0 ? available : 0} disponibles</span>
+                                            </div>
+                                            {docenasCopy > 0 && (
+                                                <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{
+                                                            width: `${Math.min(100, (sold / docenasCopy) * 100)}%`,
+                                                            backgroundColor: stockColor,
+                                                        }}
+                                                    />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            );
+                        })}
+                    </div>
+                </>
             )}
         </div>
     );

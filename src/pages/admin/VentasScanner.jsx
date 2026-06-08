@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import {
     ScanLine, Trash2, CheckCircle, Package,
     ShoppingCart, X, User, Info, Loader2, Tag, Store,
-    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle
+    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle, Search
 } from 'lucide-react';
 
 const METODOS = [
@@ -100,6 +100,13 @@ export function VentasScanner() {
     const [savedPrice, setSavedPrice] = useState(null);
     // --- Stock disponible ---
     const [stockInfo, setStockInfo] = useState(null); // { total, sold, loading }
+
+    // --- Buscador manual de productos ---
+    const [showSearchModal, setShowSearchModal] = useState(false);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const searchInputRef = useRef(null);
 
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
@@ -404,6 +411,72 @@ export function VentasScanner() {
     const handleManualDolarChange = (val) => {
         setManualDolar(val);
         recalcWithIndice(selectedEntrada, parseFloat(val), currentIndice);
+    };
+
+    // Búsqueda manual de productos (para docenas sin etiqueta)
+    const searchProducts = useCallback(async (query) => {
+        if (!query.trim()) { setSearchResults([]); return; }
+        setSearchLoading(true);
+        try {
+            const FIELDS = 'id, producto_titulo, codigo, propietario, propietario_producto, cantidad_docenas, marca, tanda_nombre, precio_docena, gastos, bultos';
+            const { data, error } = await supabase
+                .from('entradas')
+                .select(FIELDS)
+                .or(`codigo.ilike.%${query}%,producto_titulo.ilike.%${query}%,propietario.ilike.%${query}%,marca.ilike.%${query}%`)
+                .order('tanda_nombre', { ascending: false })
+                .limit(25);
+            if (error) throw error;
+
+            const results = data || [];
+
+            // Traer ventas de esos códigos para mostrar stock disponible
+            const codes = [...new Set(results.filter(r => r.codigo).map(r => r.codigo))];
+            let salesMap = {};
+            if (codes.length > 0) {
+                const { data: vData } = await supabase
+                    .from('ventas')
+                    .select('codigo, propietario, cantidad_docenas')
+                    .in('codigo', codes);
+                for (const v of vData || []) {
+                    const key = `${v.codigo}_${v.propietario}`;
+                    salesMap[key] = (salesMap[key] || 0) + Number(v.cantidad_docenas);
+                }
+            }
+
+            setSearchResults(results.map(r => {
+                const owner = r.propietario_producto?.trim() || r.propietario?.trim() || '';
+                const sold = salesMap[`${r.codigo}_${owner}`] || 0;
+                const available = Number(r.cantidad_docenas) - sold;
+                return { ...r, _sold: sold, _available: available };
+            }));
+        } catch {
+            toast.error('Error al buscar productos');
+        } finally {
+            setSearchLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const timer = setTimeout(() => searchProducts(searchQuery), 320);
+        return () => clearTimeout(timer);
+    }, [searchQuery, searchProducts]);
+
+    const openSearchModal = () => {
+        setShowSearchModal(true);
+        setSearchQuery('');
+        setSearchResults([]);
+        setTimeout(() => searchInputRef.current?.focus(), 80);
+    };
+
+    const closeSearchModal = () => {
+        setShowSearchModal(false);
+        setSearchQuery('');
+        setSearchResults([]);
+    };
+
+    const selectFromSearch = (entrada) => {
+        closeSearchModal();
+        selectEntrada(entrada);
     };
 
     const addToCart = () => {
@@ -729,6 +802,122 @@ export function VentasScanner() {
                     <p className="text-yellow-600 text-sm">Buscando <strong>{lastScanned}</strong>...</p>
                 )}
             </div>
+
+            {/* Botón buscador manual */}
+            <button
+                type="button"
+                onClick={openSearchModal}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border-2 border-dashed text-sm font-semibold transition-all text-muted-foreground hover:text-foreground hover:border-foreground/40 active:scale-[0.98]"
+                style={{ borderColor: 'var(--border)' }}
+            >
+                <Search className="w-4 h-4" />
+                Buscar producto sin etiqueta
+            </button>
+
+            {/* Modal: buscador manual de productos */}
+            {showSearchModal && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-start justify-center p-4 pt-16">
+                    <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md flex flex-col max-h-[75vh]">
+                        {/* Header */}
+                        <div className="p-4 border-b border-border flex items-center gap-3">
+                            <Search className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                            <input
+                                ref={searchInputRef}
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="Código, nombre, propietario o marca..."
+                                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                            />
+                            {searchLoading && <Loader2 className="w-4 h-4 text-muted-foreground animate-spin flex-shrink-0" />}
+                            <button
+                                onClick={closeSearchModal}
+                                className="p-1 rounded-lg hover:bg-muted text-muted-foreground flex-shrink-0"
+                            >
+                                <X className="w-4 h-4" />
+                            </button>
+                        </div>
+
+                        {/* Resultados */}
+                        <div className="overflow-y-auto flex-1">
+                            {!searchQuery.trim() && (
+                                <p className="text-center text-sm text-muted-foreground py-10">
+                                    Escribí para buscar productos
+                                </p>
+                            )}
+                            {searchQuery.trim() && !searchLoading && searchResults.length === 0 && (
+                                <p className="text-center text-sm text-muted-foreground py-10">
+                                    Sin resultados para "{searchQuery}"
+                                </p>
+                            )}
+                            {searchResults.length > 0 && (
+                                <ul className="divide-y divide-border">
+                                    {searchResults.map((entrada, i) => {
+                                        const owner = getPropietario(entrada);
+                                        const color = getUserColor(owner);
+                                        const available = entrada._available;
+                                        const total = Number(entrada.cantidad_docenas) || 0;
+                                        const isOut = available <= 0 && total > 0;
+                                        const isLow = !isOut && total > 0 && (available / total) <= 0.25;
+                                        const stockColor = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
+                                        return (
+                                            <li key={entrada.id ?? i}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => selectFromSearch(entrada)}
+                                                    className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-start gap-3"
+                                                >
+                                                    <div
+                                                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
+                                                        style={{ backgroundColor: color + '20', border: `2px solid ${color}` }}
+                                                    >
+                                                        <User className="w-3.5 h-3.5" style={{ color }} />
+                                                    </div>
+                                                    <div className="flex-1 min-w-0">
+                                                        <p className="text-sm font-semibold text-foreground truncate">
+                                                            {entrada.producto_titulo || entrada.codigo || '—'}
+                                                        </p>
+                                                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                                            {entrada.codigo && (
+                                                                <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                                                    {entrada.codigo}
+                                                                </span>
+                                                            )}
+                                                            {entrada.marca && (
+                                                                <span className="text-xs text-muted-foreground">{entrada.marca}</span>
+                                                            )}
+                                                            <span className="text-xs font-semibold" style={{ color }}>
+                                                                {owner || 'Sin propietario'}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1.5 mt-1">
+                                                            <span
+                                                                className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                                                style={{ backgroundColor: stockColor + '15', color: stockColor }}
+                                                            >
+                                                                {isOut ? <AlertTriangle className="w-2.5 h-2.5" /> : <Package className="w-2.5 h-2.5" />}
+                                                                {isOut
+                                                                    ? 'Sin stock'
+                                                                    : `${available % 1 === 0 ? available : available.toFixed(1)} / ${total} disponibles`
+                                                                }
+                                                            </span>
+                                                            {entrada.tanda_nombre && (
+                                                                <span className="text-xs text-muted-foreground truncate">
+                                                                    {entrada.tanda_nombre}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </button>
+                                            </li>
+                                        );
+                                    })}
+                                </ul>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Modal: seleccionar propietario */}
             {showPropietarioModal && (

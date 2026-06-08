@@ -1,20 +1,13 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Save, Plus, Layers, Calculator, AlertTriangle, AlertCircle, Settings } from 'lucide-react';
+import { ArrowLeft, Save, Plus, Layers, AlertCircle, Settings, ChevronDown, ChevronUp, Filter, Package } from 'lucide-react';
 import { ShippingConfigModal } from './ShippingConfigModal';
 import { Button } from '../ui/Button';
 import { supabase } from '../../lib/supabase';
 import { FormularioMarca } from './FormularioMarca';
 import toast, { Toaster } from 'react-hot-toast';
-import { convertToWebP } from '../../lib/imageUtils'; // Assuming available, otherwise will fallback to alert but user requester toast. Using alert if toast not installed but the user asked for toast.
-// Checking if toast is available in project... I will assume I can use a simple custom toast or just alerts if I can't find it. 
-// But the prompt specifically asked for "Toasts para notificaciones (react-hot-toast o similar)".
-// I'll stick to standard Alerts for now to avoid package missing errors unless I see it usage. 
-// Wait, `ProductList` uses a custom `Toast` component. I should use that if possible or just standard alert/local state toast.
-// Let's use a local Toaster or just nice alerts. The request says "Generate code with ... Toasts".
-// Use window.alert or console for now to be safe, or a simple overlay.
-// Actually, I can use the same logic as ProductList: `showToast` helper.
+import { convertToWebP } from '../../lib/imageUtils';
 
 function ConfirmationModal({ isOpen, onClose, onConfirm, data }) {
     if (!isOpen) return null;
@@ -118,6 +111,10 @@ export function AgregarTanda() {
     const [filterBrand, setFilterBrand] = useState('');
     const [filterOwner, setFilterOwner] = useState('');
     const [filterCode, setFilterCode] = useState('');
+    const [showFilters, setShowFilters] = useState(false);
+
+    // Modal: confirmar eliminación de marca
+    const [deleteMarcaIndex, setDeleteMarcaIndex] = useState(null);
 
     const handleSortBrands = () => {
         const sorted = [...formData.marcas].sort((a, b) => {
@@ -264,7 +261,7 @@ export function AgregarTanda() {
                 setOriginalTandaNombre(first.tanda_nombre);
             }
         } catch (err) {
-            alert("Error al cargar la tanda: " + err.message);
+            toast.error("Error al cargar la tanda: " + err.message);
         } finally {
             setLoading(false);
         }
@@ -300,8 +297,16 @@ export function AgregarTanda() {
     };
 
     const handleDeleteMarca = (index) => {
-        if (!confirm('¿Eliminar esta marca?')) return;
-        setFormData(prev => ({ ...prev, marcas: prev.marcas.filter((_, i) => i !== index) }));
+        setDeleteMarcaIndex(index);
+    };
+
+    const confirmDeleteMarca = () => {
+        if (deleteMarcaIndex !== null) {
+            const nombre = formData.marcas[deleteMarcaIndex]?.nombre || 'la marca';
+            setFormData(prev => ({ ...prev, marcas: prev.marcas.filter((_, i) => i !== deleteMarcaIndex) }));
+            toast.success(`"${nombre}" eliminada`);
+            setDeleteMarcaIndex(null);
+        }
     };
 
     const resumen = useMemo(() => {
@@ -337,7 +342,7 @@ export function AgregarTanda() {
     const handlePreSave = () => {
         const errors = validateForm();
         if (errors.length > 0) {
-            alert(errors.join("\n")); // Or custom toast
+            errors.forEach(e => toast.error(e));
             return;
         }
         setShowConfirmModal(true);
@@ -502,39 +507,84 @@ export function AgregarTanda() {
     return (
         <div className="min-h-screen bg-background">
             <Toaster position="top-center" reverseOrder={false} />
-            <div className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
-                <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                        <button
-                            onClick={() => navigate('/admin/mercancia')}
-                            className="flex items-center gap-2 px-3 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors"
-                        >
-                            ← Volver
-                        </button>
-                        <div>
-                            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                                {isEditing ? '✏️ Editar Tanda' : '✨ Nueva Tanda'}
-                            </h1>
+
+            {/* Modal: confirmar eliminación de marca */}
+            {deleteMarcaIndex !== null && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+                        <div className="flex flex-col items-center text-center">
+                            <div className="w-12 h-12 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center text-red-600 mb-4">
+                                <Package size={22} />
+                            </div>
+                            <h3 className="text-base font-bold text-foreground mb-1">¿Eliminar esta marca?</h3>
+                            <p className="text-sm text-muted-foreground mb-1">
+                                <strong>{formData.marcas[deleteMarcaIndex]?.nombre}</strong>
+                            </p>
+                            <p className="text-xs text-muted-foreground mb-5">
+                                Se eliminarán también sus {formData.marcas[deleteMarcaIndex]?.productos?.length || 0} producto(s). Esta acción no se puede deshacer.
+                            </p>
+                            <div className="flex gap-3 w-full">
+                                <button
+                                    onClick={() => setDeleteMarcaIndex(null)}
+                                    className="flex-1 px-4 py-2 bg-muted hover:bg-muted/80 text-foreground font-medium rounded-xl border border-border transition-colors text-sm"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={confirmDeleteMarca}
+                                    className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-xl transition-colors text-sm"
+                                >
+                                    Eliminar
+                                </button>
+                            </div>
                         </div>
                     </div>
+                </div>
+            )}
 
-                    <div className="flex flex-col items-end">
+            {/* Header sticky */}
+            <div className="bg-card border-b border-border sticky top-0 z-10 shadow-sm">
+                <div className="max-w-7xl mx-auto px-4 md:px-6 py-3.5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
                         <button
-                            className={`flex items-center gap-2 px-6 py-3 rounded-lg font-medium transition-all duration-200 ${(!formData.nombre.trim())
-                                ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                                : 'bg-primary text-primary-foreground hover:bg-primary/90 hover:shadow-lg'
-                                }`}
+                            onClick={() => navigate('/admin/mercancia')}
+                            className="flex items-center gap-1.5 px-2.5 py-2 text-muted-foreground hover:text-foreground hover:bg-muted rounded-lg transition-colors flex-shrink-0"
+                        >
+                            <ArrowLeft size={16} />
+                            <span className="hidden sm:inline text-sm">Volver</span>
+                        </button>
+                        <div className="h-5 w-px bg-border hidden sm:block" />
+                        <h1 className="text-lg font-bold text-foreground truncate">
+                            {isEditing ? 'Editar tanda' : 'Nueva tanda'}
+                            {formData.nombre.trim() && (
+                                <span className="text-muted-foreground font-normal ml-2 text-base">— {formData.nombre}</span>
+                            )}
+                        </h1>
+                    </div>
+
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                        {/* Resumen compacto */}
+                        {resumen.totalProductos > 0 && (
+                            <div className="hidden md:flex items-center gap-3 text-xs text-muted-foreground">
+                                <span className="font-semibold">{resumen.totalProductos} prod.</span>
+                                <span>{resumen.totalDocenas} doc.</span>
+                                <span className="font-bold text-green-600 dark:text-green-400 font-mono">
+                                    ${resumen.valorEstimado.toLocaleString('es-AR')}
+                                </span>
+                            </div>
+                        )}
+                        <button
+                            className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200 ${
+                                !formData.nombre.trim()
+                                    ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                                    : 'bg-primary text-primary-foreground hover:bg-primary/90 shadow-sm hover:shadow-md'
+                            }`}
                             onClick={handlePreSave}
                             disabled={loading || !formData.nombre.trim()}
                         >
-                            <Save size={18} /> {loading ? 'Guardando...' : 'Finalizar y Guardar Tanda'}
+                            <Save size={15} />
+                            {loading ? 'Guardando...' : 'Guardar tanda'}
                         </button>
-                        {(!formData.nombre.trim()) && (
-                            <div className="mt-2 text-xs text-destructive flex items-center gap-1 font-medium bg-destructive/10 px-2 py-1 rounded">
-                                <AlertCircle className="h-3 w-3" />
-                                <span>Completa el nombre</span>
-                            </div>
-                        )}
                     </div>
                 </div>
             </div>
@@ -604,109 +654,103 @@ export function AgregarTanda() {
                 </div>
 
                 {/* 2. MARCAS Y PRODUCTOS */}
-                <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-                    {/* Add Brand Form */}
-                    <div className="flex gap-3 mb-4">
-                        <input
-                            className="flex-1 px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                            placeholder="Nueva Marca..."
-                            value={newMarcaName}
-                            onChange={e => { setNewMarcaName(e.target.value); setMarcaError(''); }}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    marcaBoletaRef.current?.focus();
-                                }
-                            }}
-                            ref={marcaNameRef}
-                        />
-                        <input
-                            className="w-32 px-4 py-2.5 rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all"
-                            placeholder="Nº Boleta"
-                            value={newMarcaBoleta}
-                            onChange={e => setNewMarcaBoleta(e.target.value)}
-                            onKeyDown={e => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault();
-                                    handleAddMarca();
-                                    setTimeout(() => marcaNameRef.current?.focus(), 10);
-                                }
-                            }}
-                            ref={marcaBoletaRef}
-                        />
-                        <button
-                            className="px-4 py-2.5 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center justify-center"
-                            onClick={handleAddMarca}
-                        >
-                            <Plus size={16} />
-                        </button>
-                    </div>
-                    {marcaError && <div className="text-destructive text-xs px-2 mb-4">{marcaError}</div>}
+                <div className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
 
-                    {/* Filter and Sort Controls */}
-                    <div className="flex gap-4 mb-4 bg-muted/20 p-4 rounded-xl border border-border flex-wrap items-end">
-                        <div className="flex-1 min-w-[150px]">
-                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Marca</label>
-                            <select
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                value={filterBrand}
-                                onChange={(e) => setFilterBrand(e.target.value)}
-                            >
-                                <option value="">Todas</option>
-                                {uniqueBrands.map(b => (
-                                    <option key={b} value={b}>{b}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex-1 min-w-[150px]">
-                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Propietario</label>
-                            <select
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                value={filterOwner}
-                                onChange={(e) => setFilterOwner(e.target.value)}
-                            >
-                                <option value="">Todos</option>
-                                {uniqueOwners.map(o => (
-                                    <option key={o} value={o}>{o}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex-1 min-w-[150px]">
-                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">N° Boleta</label>
-                            <select
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                value={filterCode}
-                                onChange={(e) => setFilterCode(e.target.value)}
-                            >
-                                <option value="">Todas</option>
-                                {uniqueCodes.map(c => (
-                                    <option key={c} value={c}>{c}</option>
-                                ))}
-                            </select>
-                        </div>
-
+                    {/* Agregar nueva marca */}
+                    <div className="p-5 border-b border-border">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Agregar marca</p>
                         <div className="flex gap-2">
-                            {(filterBrand || filterOwner || filterCode) && (
-                                <button
-                                    onClick={() => { setFilterBrand(''); setFilterOwner(''); setFilterCode(''); }}
-                                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-md text-sm font-medium transition-colors"
-                                >
-                                    Limpiar
-                                </button>
-                            )}
+                            <input
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all text-sm"
+                                placeholder="Nombre de la marca..."
+                                value={newMarcaName}
+                                onChange={e => { setNewMarcaName(e.target.value); setMarcaError(''); }}
+                                onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); marcaBoletaRef.current?.focus(); } }}
+                                ref={marcaNameRef}
+                            />
+                            <input
+                                className="w-28 px-3 py-2.5 rounded-xl border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-all text-sm font-mono"
+                                placeholder="Nº Boleta"
+                                value={newMarcaBoleta}
+                                onChange={e => setNewMarcaBoleta(e.target.value)}
+                                onKeyDown={e => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddMarca();
+                                        setTimeout(() => marcaNameRef.current?.focus(), 10);
+                                    }
+                                }}
+                                ref={marcaBoletaRef}
+                            />
                             <button
-                                onClick={handleSortBrands}
-                                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-md text-sm font-medium transition-colors shadow-sm whitespace-nowrap flex items-center gap-2"
-                                title="Agrupar por N° Boleta"
+                                className="flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-xl hover:bg-primary/90 transition-colors font-semibold text-sm shadow-sm whitespace-nowrap"
+                                onClick={handleAddMarca}
                             >
-                                <Layers size={16} />
-                                Ordenar
+                                <Plus size={15} /> Agregar
                             </button>
                         </div>
+                        {marcaError && <p className="text-destructive text-xs mt-2">{marcaError}</p>}
                     </div>
 
-                    {/* Marcas List */}
-                    <div className="space-y-4 mt-4">
+                    {/* Controles: filtros + ordenar (colapsables) */}
+                    {formData.marcas.length > 0 && (
+                        <div className="border-b border-border">
+                            <button
+                                onClick={() => setShowFilters(v => !v)}
+                                className="w-full flex items-center justify-between px-5 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+                            >
+                                <span className="flex items-center gap-2 font-medium">
+                                    <Filter size={14} />
+                                    Filtrar y ordenar
+                                    {(filterBrand || filterOwner || filterCode) && (
+                                        <span className="bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded-full font-bold">
+                                            {[filterBrand, filterOwner, filterCode].filter(Boolean).length}
+                                        </span>
+                                    )}
+                                </span>
+                                {showFilters ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                            </button>
+
+                            {showFilters && (
+                                <div className="flex gap-3 px-5 pb-4 bg-muted/10 flex-wrap items-end">
+                                    <div className="flex-1 min-w-[130px]">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Marca</label>
+                                        <select className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none" value={filterBrand} onChange={e => setFilterBrand(e.target.value)}>
+                                            <option value="">Todas</option>
+                                            {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1 min-w-[130px]">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">Propietario</label>
+                                        <select className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none" value={filterOwner} onChange={e => setFilterOwner(e.target.value)}>
+                                            <option value="">Todos</option>
+                                            {uniqueOwners.map(o => <option key={o} value={o}>{o}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex-1 min-w-[130px]">
+                                        <label className="text-[10px] font-bold text-muted-foreground uppercase mb-1 block">N° Boleta</label>
+                                        <select className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm focus:outline-none" value={filterCode} onChange={e => setFilterCode(e.target.value)}>
+                                            <option value="">Todas</option>
+                                            {uniqueCodes.map(c => <option key={c} value={c}>{c}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="flex gap-2 flex-shrink-0">
+                                        {(filterBrand || filterOwner || filterCode) && (
+                                            <button onClick={() => { setFilterBrand(''); setFilterOwner(''); setFilterCode(''); }} className="px-3 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-lg text-xs font-medium transition-colors">
+                                                Limpiar
+                                            </button>
+                                        )}
+                                        <button onClick={handleSortBrands} className="flex items-center gap-1.5 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition-colors shadow-sm">
+                                            <Layers size={13} /> Ordenar por boleta
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Lista de marcas */}
+                    <div className="p-4 space-y-4">
                         {formData.marcas
                             .map((marca, originalIndex) => ({ ...marca, originalIndex })) // Keep track of original index
                             .filter(m => {
@@ -726,40 +770,48 @@ export function AgregarTanda() {
                                     users={users}
                                 />
                             ))}
+                        {formData.marcas.length === 0 && (
+                            <div className="text-center py-12 text-muted-foreground">
+                                <Package size={32} className="mx-auto mb-3 opacity-30" />
+                                <p className="text-sm">Agregá la primera marca para empezar</p>
+                            </div>
+                        )}
                         {formData.marcas.length > 0 && formData.marcas.filter(m => {
                             const matchBrand = filterBrand ? m.nombre === filterBrand : true;
                             const matchOwner = filterOwner ? m.propietario === filterOwner : true;
                             const matchCode = filterCode ? m.codigo_boleta === filterCode : true;
                             return matchBrand && matchOwner && matchCode;
                         }).length === 0 && (
-                                <div className="text-center py-8 text-muted-foreground italic">
-                                    No se encontraron marcas con los filtros seleccionados
-                                </div>
-                            )}
+                            <div className="text-center py-8 text-muted-foreground text-sm italic">
+                                Sin marcas que coincidan con los filtros
+                            </div>
+                        )}
                     </div>
                     <div ref={brandsEndRef} />
                 </div>
 
-
                 {/* 3. SUMMARY */}
-                <div className="bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20 rounded-xl p-6 shadow-sm">
-                    <div className="grid grid-cols-3 gap-4">
-                        <div className="text-center">
-                            <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Prods</div>
-                            <div className="text-2xl font-bold text-foreground">{resumen.totalProductos}</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Doc.</div>
-                            <div className="text-2xl font-bold text-foreground">{resumen.totalDocenas}</div>
-                        </div>
-                        <div className="text-center">
-                            <div className="text-xs font-bold text-muted-foreground uppercase mb-1">Estimado</div>
-                            <div className="text-2xl font-bold text-green-600 dark:text-green-400 font-mono">
-                                ${resumen.valorEstimado.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                {resumen.totalProductos > 0 && (
+                    <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide mb-3">Resumen de la tanda</p>
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="text-center bg-muted/30 rounded-xl p-3">
+                                <div className="text-xs font-semibold text-muted-foreground mb-1">Productos</div>
+                                <div className="text-2xl font-bold text-foreground">{resumen.totalProductos}</div>
+                            </div>
+                            <div className="text-center bg-muted/30 rounded-xl p-3">
+                                <div className="text-xs font-semibold text-muted-foreground mb-1">Docenas</div>
+                                <div className="text-2xl font-bold text-foreground">{resumen.totalDocenas}</div>
+                            </div>
+                            <div className="text-center bg-green-50 dark:bg-green-900/20 rounded-xl p-3">
+                                <div className="text-xs font-semibold text-muted-foreground mb-1">Valor estimado</div>
+                                <div className="text-xl font-bold text-green-600 dark:text-green-400 font-mono">
+                                    ${resumen.valorEstimado.toLocaleString('es-AR')}
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                )}
             </div>
             {/* Confirmation Modal */}
             <ConfirmationModal
