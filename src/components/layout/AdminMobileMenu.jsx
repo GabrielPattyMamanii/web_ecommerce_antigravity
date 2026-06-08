@@ -2,7 +2,7 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard, Heart, Folder, CircleDollarSign,
-    Layers, Tag, Settings, LogOut, Calculator, ShoppingCart, Users, ClipboardList, X, TrendingUp, Ticket, HandCoins, ScanLine, History
+    Layers, Tag, Settings, LogOut, Calculator, ShoppingCart, Users, ClipboardList, X, TrendingUp, Ticket, HandCoins, ScanLine, History, Building2
 } from 'lucide-react';
 
 export function AdminMobileMenu({ isOpen, onLogout, onCloseMenu }) {
@@ -23,6 +23,7 @@ export function AdminMobileMenu({ isOpen, onLogout, onCloseMenu }) {
         { path: '/admin/posibles-compras', icon: ShoppingCart, label: 'Posibles Compras' },
         { path: '/admin/ventas', icon: ScanLine, label: 'Registrar Venta', exact: true },
         { path: '/admin/ventas/historial', icon: History, label: 'Historial Ventas' },
+        { path: '/admin/cuentas-bancarias', icon: Building2, label: 'Cuentas Bancarias' },
         { path: '/admin/settings', icon: Settings, label: 'Settings' },
     ];
 
