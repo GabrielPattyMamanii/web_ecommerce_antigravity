@@ -6,7 +6,7 @@ import toast from 'react-hot-toast';
 import {
     ScanLine, Trash2, CheckCircle, Package,
     ShoppingCart, X, User, Info, Loader2, Tag, Store,
-    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff
+    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle
 } from 'lucide-react';
 
 const METODOS = [
@@ -98,6 +98,9 @@ export function VentasScanner() {
     const [dolarFailed, setDolarFailed] = useState(false);
     const [manualDolar, setManualDolar] = useState('');
     const [savedPrice, setSavedPrice] = useState(null);
+    // --- Stock disponible ---
+    const [stockInfo, setStockInfo] = useState(null); // { total, sold, loading }
+
     const priceInputRef = useRef(null);
     const qtyInputRef = useRef(null);
     const productCardRef = useRef(null);
@@ -222,11 +225,13 @@ export function VentasScanner() {
         setManualDolar('');
         setPrecioInfo(null);
         setSavedPrice(null);
+        setStockInfo({ total: Number(entrada.cantidad_docenas) || 0, sold: 0, loading: true });
         resetPago();
         setLoadingPrice(true);
 
         try {
-            const [dolarRes, settingsRes, precioCustomRes] = await Promise.all([
+            const propietarioKey = entrada.propietario_producto?.trim() || entrada.propietario?.trim() || null;
+            const [dolarRes, settingsRes, precioCustomRes, ventasRes] = await Promise.all([
                 fetch('https://dolarapi.com/v1/dolares/blue'),
                 supabase
                     .from('tanda_settings')
@@ -236,7 +241,15 @@ export function VentasScanner() {
                 entrada.codigo
                     ? supabase.from('precios_custom').select('precio_ars').eq('codigo', entrada.codigo).maybeSingle()
                     : Promise.resolve({ data: null }),
+                entrada.codigo && propietarioKey
+                    ? supabase.from('ventas').select('cantidad_docenas').eq('codigo', entrada.codigo).eq('propietario', propietarioKey)
+                    : Promise.resolve({ data: [] }),
             ]);
+
+            // Stock siempre se calcula, incluso si el dólar falla
+            const totalDocenas = Number(entrada.cantidad_docenas) || 0;
+            const sold = (ventasRes.data || []).reduce((sum, v) => sum + Number(v.cantidad_docenas), 0);
+            setStockInfo({ total: totalDocenas, sold, loading: false });
 
             if (!dolarRes.ok) throw new Error('API dólar no disponible');
             const dolarJson = await dolarRes.json();
@@ -265,6 +278,7 @@ export function VentasScanner() {
             setDolarFailed(true);
             setCurrentIndice('1.5');
             setIndicePreset('1.5');
+            setStockInfo(prev => prev ? { ...prev, loading: false } : null);
             toast.error('No se pudo obtener el dólar blue — ingresá el precio y el dólar manualmente');
         } finally {
             setLoadingPrice(false);
@@ -400,6 +414,30 @@ export function VentasScanner() {
         if (!qty || qty <= 0) { toast.error('Ingresá una cantidad válida'); return; }
         if (!price || price <= 0) { toast.error('Ingresá un precio válido'); return; }
 
+        // Validación de stock: no permitir vender más de lo que tiene el propietario
+        const propietarioCheck = getPropietario(selectedEntrada) || 'Sin propietario';
+        if (stockInfo && !stockInfo.loading) {
+            const inCartQty = cart
+                .filter(item => item.codigo === selectedEntrada.codigo && item.propietario === propietarioCheck)
+                .reduce((sum, item) => sum + item.cantidad_docenas, 0);
+            const available = stockInfo.total - stockInfo.sold - inCartQty;
+            if (qty > available) {
+                if (available <= 0) {
+                    toast.error(
+                        `⚠️ ${propietarioCheck} ya vendió todas sus ${stockInfo.total} docenas del código ${selectedEntrada.codigo || selectedEntrada.producto_titulo}`,
+                        { duration: 5000 }
+                    );
+                } else {
+                    const dispStr = available % 1 === 0 ? available : available.toFixed(1);
+                    toast.error(
+                        `⚠️ Solo quedan ${dispStr} docena${available !== 1 ? 's' : ''} disponibles para ${propietarioCheck} (código ${selectedEntrada.codigo || selectedEntrada.producto_titulo})`,
+                        { duration: 5000 }
+                    );
+                }
+                return;
+            }
+        }
+
         const total = parseFloat((price * qty).toFixed(2));
 
         if (metodoPago !== 'efectivo' && !selectedCuenta) {
@@ -470,6 +508,7 @@ export function VentasScanner() {
         }
 
         setSelectedEntrada(null);
+        setStockInfo(null);
         setCurrentPrice('');
         setCurrentQty('1');
         setCurrentDolarBlue(null);
@@ -514,6 +553,7 @@ export function VentasScanner() {
         if (!window.confirm('¿Abortar la venta? Se eliminarán todos los productos del carrito.')) return;
         setCart([]);
         setSelectedEntrada(null);
+        setStockInfo(null);
         setFoundEntradas([]);
         setShowPropietarioModal(false);
         setCurrentPrice('');
@@ -598,6 +638,21 @@ export function VentasScanner() {
 
     const ownerName = selectedEntrada ? getPropietario(selectedEntrada) : null;
     const ownerColor = ownerName ? getUserColor(ownerName) : '#9ca3af';
+
+    // Docenas en carrito para el producto actualmente seleccionado
+    const cartDocenasForSelected = selectedEntrada && stockInfo
+        ? cart
+            .filter(item => item.codigo === selectedEntrada.codigo && item.propietario === (ownerName || 'Sin propietario'))
+            .reduce((sum, item) => sum + item.cantidad_docenas, 0)
+        : 0;
+    // Disponibles neto = total − ya vendidas − ya en carrito
+    const stockAvailableNet = stockInfo && !stockInfo.loading
+        ? stockInfo.total - stockInfo.sold - cartDocenasForSelected
+        : null;
+    const stockIsOut = stockAvailableNet !== null && stockAvailableNet <= 0;
+    const stockIsLow = !stockIsOut && stockAvailableNet !== null && stockInfo.total > 0
+        && (stockAvailableNet / stockInfo.total) <= 0.25;
+    const stockBadgeColor = stockIsOut ? '#ef4444' : stockIsLow ? '#f59e0b' : '#16a34a';
 
     const total = currentPrice && currentQty
         ? parseFloat(rawNum(currentPrice)) * parseFloat(currentQty)
@@ -1099,6 +1154,35 @@ export function VentasScanner() {
                                     <div className="flex items-center gap-1.5 mt-3 text-xs text-yellow-600">
                                         <Info className="w-3 h-3 flex-shrink-0" />
                                         API del dólar no disponible — ingresá precio y dólar manualmente
+                                    </div>
+                                )}
+
+                                {/* Badge de stock disponible */}
+                                {stockInfo && (
+                                    <div className="mt-2">
+                                        {stockInfo.loading ? (
+                                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                                <Loader2 className="w-3 h-3 animate-spin" />
+                                                Verificando stock...
+                                            </div>
+                                        ) : (
+                                            <span
+                                                className="inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full"
+                                                style={{ backgroundColor: stockBadgeColor + '18', color: stockBadgeColor }}
+                                            >
+                                                {stockIsOut
+                                                    ? <AlertTriangle className="w-3 h-3" />
+                                                    : <Package className="w-3 h-3" />
+                                                }
+                                                {stockIsOut
+                                                    ? `Sin stock — ya vendidas las ${stockInfo.total} docenas`
+                                                    : `${stockAvailableNet % 1 === 0 ? stockAvailableNet : stockAvailableNet.toFixed(1)} de ${stockInfo.total} doc. disponibles`
+                                                }
+                                                {cartDocenasForSelected > 0 && !stockIsOut && (
+                                                    <span className="opacity-70">· {cartDocenasForSelected} en carrito</span>
+                                                )}
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                             </div>

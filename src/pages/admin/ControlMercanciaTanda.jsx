@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import {
     ArrowLeft, Layers, Calendar, Package, ClipboardList, ChevronLeft,
-    QrCode, Download, X
+    QrCode, Download, X, AlertTriangle, TrendingDown
 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
@@ -17,6 +17,8 @@ export function ControlMercanciaTanda() {
     const [loading, setLoading] = useState(true);
     const [tandaInfo, setTandaInfo] = useState({ date: null, count: 0, gastos: 0 });
     const [users, setUsers] = useState([]);
+    // soldMap: { [`${codigo}_${propietario}`]: docenas_vendidas }
+    const [soldMap, setSoldMap] = useState({});
 
     // Filters
     const [filterBrand, setFilterBrand] = useState('');
@@ -66,6 +68,21 @@ export function ControlMercanciaTanda() {
                     count: data.length,
                     gastos: data[0].gastos || 0
                 });
+            }
+
+            // Traer ventas para los códigos de esta tanda
+            const codes = [...new Set((data || []).filter(p => p.codigo).map(p => p.codigo))];
+            if (codes.length > 0) {
+                const { data: ventasData } = await supabase
+                    .from('ventas')
+                    .select('codigo, propietario, cantidad_docenas')
+                    .in('codigo', codes);
+                const map = {};
+                for (const v of ventasData || []) {
+                    const key = `${v.codigo}_${v.propietario}`;
+                    map[key] = (map[key] || 0) + Number(v.cantidad_docenas);
+                }
+                setSoldMap(map);
             }
         } catch (err) {
             console.error('Error fetching control detail:', err);
@@ -300,6 +317,7 @@ export function ControlMercanciaTanda() {
                                     getStableKey={getStableKey}
                                     onGenerate={handleGenerateQR}
                                     onOpen={handleOpenQR}
+                                    soldMap={soldMap}
                                 />
                             );
                         })}
@@ -381,7 +399,7 @@ export function ControlMercanciaTanda() {
 }
 
 // --- Brand Section ---
-function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, getStableKey, onGenerate, onOpen }) {
+function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, getStableKey, onGenerate, onOpen, soldMap = {} }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const getColor = (name) => users.find(u => u.username === name)?.color || '#9ca3af';
@@ -499,6 +517,7 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                 <th className="px-6 py-3">Código</th>
                                 {isMultiOwner && <th className="px-6 py-3">Propietario</th>}
                                 <th className="px-6 py-3 text-center">Doc. Control</th>
+                                <th className="px-6 py-3 text-center">Vendidas / Disp.</th>
                                 <th className="px-6 py-3 text-right">Precio Doc.</th>
                                 <th className="px-6 py-3 text-right">Total</th>
                                 <th className="px-6 py-3 text-center">QR</th>
@@ -536,6 +555,39 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                                 {docenasCopy}
                                             </span>
                                         </td>
+                                        {(() => {
+                                            const ownerKey = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                                            const sold = soldMap[`${prod.codigo}_${ownerKey}`] || 0;
+                                            const available = docenasCopy - sold;
+                                            const isOut = available <= 0 && docenasCopy > 0;
+                                            const isLow = !isOut && docenasCopy > 0 && (available / docenasCopy) <= 0.25;
+                                            const color = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
+                                            return (
+                                                <td className="px-6 py-4 text-center">
+                                                    {sold > 0 || docenasCopy > 0 ? (
+                                                        <div className="flex flex-col items-center gap-1">
+                                                            <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
+                                                                {isOut && <AlertTriangle className="w-3 h-3" />}
+                                                                <span>{sold} vend. / {available >= 0 ? available : 0} disp.</span>
+                                                            </div>
+                                                            {docenasCopy > 0 && (
+                                                                <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden">
+                                                                    <div
+                                                                        className="h-full rounded-full transition-all"
+                                                                        style={{
+                                                                            width: `${Math.min(100, (sold / docenasCopy) * 100)}%`,
+                                                                            backgroundColor: color,
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-muted-foreground">—</span>
+                                                    )}
+                                                </td>
+                                            );
+                                        })()}
                                         <td className="px-6 py-4 text-right text-muted-foreground">
                                             ${Number(prod.precio_docena || 0).toLocaleString('es-AR')}
                                         </td>
