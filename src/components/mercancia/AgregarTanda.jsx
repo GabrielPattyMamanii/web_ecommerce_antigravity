@@ -430,15 +430,61 @@ export function AgregarTanda() {
                 });
             });
 
-            // Save to database
-            // Always delete existing entries for this tanda_nombre before inserting
-            // This prevents duplicate key errors if the user saves again without reloading
-            const tandaNameToDelete = isEditing ? originalTandaNombre : formData.nombre;
-            await supabase.from('entradas').delete().eq('tanda_nombre', tandaNameToDelete);
+            // Guardado por código: actualizamos las filas existentes que coincidan en vez de
+            // borrar-y-reinsertar todo, así se conserva su `id`/`created_at` (y por lo tanto
+            // el código QR ya impreso) cuando se edita un producto sin cambiar su código.
+            const tandaNameOrigen = isEditing ? originalTandaNombre : formData.nombre;
+            const normalizeCode = (c) => (c || '').trim().toLowerCase();
 
-            if (entriesToInsert.length > 0) {
-                const { error } = await supabase.from('entradas').insert(entriesToInsert);
-                if (error) throw error;
+            const { data: existingRows, error: existingError } = await supabase
+                .from('entradas')
+                .select('id, codigo')
+                .eq('tanda_nombre', tandaNameOrigen);
+            if (existingError) throw existingError;
+
+            const existingByCode = new Map();
+            (existingRows || []).forEach(row => {
+                const key = normalizeCode(row.codigo);
+                if (!existingByCode.has(key)) existingByCode.set(key, []);
+                existingByCode.get(key).push(row.id);
+            });
+
+            const matchedIds = new Set();
+            const rowsToUpdate = [];
+            const rowsToInsert = [];
+
+            entriesToInsert.forEach(entry => {
+                const candidates = existingByCode.get(normalizeCode(entry.codigo));
+                const matchId = candidates?.find(id => !matchedIds.has(id));
+                if (matchId) {
+                    matchedIds.add(matchId);
+                    rowsToUpdate.push({ id: matchId, fields: entry });
+                } else {
+                    rowsToInsert.push(entry);
+                }
+            });
+
+            // Solo se borran los productos que ya no están en la tanda (sacados por el usuario)
+            const idsToDelete = (existingRows || [])
+                .map(row => row.id)
+                .filter(id => !matchedIds.has(id));
+
+            if (idsToDelete.length > 0) {
+                const { error: deleteError } = await supabase.from('entradas').delete().in('id', idsToDelete);
+                if (deleteError) throw deleteError;
+            }
+
+            if (rowsToUpdate.length > 0) {
+                const updateResults = await Promise.all(
+                    rowsToUpdate.map(({ id, fields }) => supabase.from('entradas').update(fields).eq('id', id))
+                );
+                const updateError = updateResults.find(r => r.error)?.error;
+                if (updateError) throw updateError;
+            }
+
+            if (rowsToInsert.length > 0) {
+                const { error: insertError } = await supabase.from('entradas').insert(rowsToInsert);
+                if (insertError) throw insertError;
             }
 
             // --- UPSERT TANDA CONFIGURATION (For Shipping Calc) ---
