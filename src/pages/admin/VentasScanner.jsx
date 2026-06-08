@@ -559,6 +559,7 @@ export function VentasScanner() {
         setCart(prev => [...prev, {
             producto_titulo: selectedEntrada.producto_titulo || selectedEntrada.codigo,
             codigo: selectedEntrada.codigo,
+            tanda_nombre: selectedEntrada.tanda_nombre || null,
             propietario,
             cantidad_docenas: qty,
             precio_docena_ars: price,

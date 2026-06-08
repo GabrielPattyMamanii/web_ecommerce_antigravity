@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
     Package, Trash2, RefreshCw, User,
     Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign, ArrowRight,
-    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock
+    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -637,6 +637,11 @@ function PedidoModal({ pedido, color, getUserColor, fmtMonto, onDelete, deleting
                                         {venta.codigo && (
                                             <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
                                                 <Tag className="w-2.5 h-2.5" /> {venta.codigo}
+                                            </span>
+                                        )}
+                                        {venta.tanda_nombre && (
+                                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                <Layers className="w-2.5 h-2.5" /> {venta.tanda_nombre}
                                             </span>
                                         )}
                                     </div>
