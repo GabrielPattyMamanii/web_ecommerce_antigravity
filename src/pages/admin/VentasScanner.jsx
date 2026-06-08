@@ -1729,18 +1729,18 @@ export function VentasScanner() {
                                         <p className="text-sm font-bold text-foreground">
                                             ${item.total_ars.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                                         </p>
-                                        <div className="flex items-center gap-0.5 mt-0.5 justify-end">
+                                        <div className="flex items-center gap-2 mt-1.5 justify-end">
                                             <button
                                                 onClick={() => openEdit(i)}
-                                                className="p-1 rounded hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                                className="flex items-center justify-center w-10 h-10 rounded-xl border border-primary/25 bg-primary/10 text-primary hover:bg-primary/20 active:scale-90 transition-all"
                                             >
-                                                <Pencil className="w-3.5 h-3.5" />
+                                                <Pencil className="w-4.5 h-4.5" />
                                             </button>
                                             <button
                                                 onClick={() => setCart(prev => prev.filter((_, j) => j !== i))}
-                                                className="p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                                className="flex items-center justify-center w-10 h-10 rounded-xl border border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/20 active:scale-90 transition-all"
                                             >
-                                                <Trash2 className="w-3.5 h-3.5" />
+                                                <Trash2 className="w-4.5 h-4.5" />
                                             </button>
                                         </div>
                                     </div>
