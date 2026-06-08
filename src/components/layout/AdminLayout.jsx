@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 import { LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun, Calculator, Archive, ShoppingCart, Users, ClipboardList, Ticket, HandCoins, ScanLine, History, Building2 } from 'lucide-react';
@@ -15,6 +15,8 @@ export function AdminLayout() {
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [isMercanciaLoginOpen, setIsMercanciaLoginOpen] = useState(false);
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+    const [scannerActive, setScannerActive] = useState(false);
+    const mobileScanInputRef = useRef(null);
 
     useEffect(() => {
         const handleResize = () => {
@@ -28,6 +30,14 @@ export function AdminLayout() {
     useEffect(() => {
         setIsMobileMenuOpen(false);
     }, [location.pathname]);
+
+    // En mobile, auto-enfoca el input del scanner al entrar a la página de ventas
+    useEffect(() => {
+        if (isMobile && location.pathname === '/admin/ventas') {
+            const t = setTimeout(() => mobileScanInputRef.current?.focus(), 150);
+            return () => clearTimeout(t);
+        }
+    }, [isMobile, location.pathname]);
 
     // Redirigir a dashboard tanto en mobile como en desktop si está en la raíz de admin
     useEffect(() => {
@@ -44,7 +54,11 @@ export function AdminLayout() {
             if (codigoFallback) params.set('c', codigoFallback);
             navigate(`/admin/ventas?${params.toString()}`);
         }
-    }, [location.pathname, navigate]);
+        // Re-enfoca el input en mobile para que el siguiente scan también funcione
+        if (isMobile) {
+            setTimeout(() => mobileScanInputRef.current?.focus(), 300);
+        }
+    }, [location.pathname, navigate, isMobile]);
 
     useGlobalScanner(handleGlobalScan);
 
@@ -123,11 +137,27 @@ export function AdminLayout() {
                             </span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <button aria-label="Buscar" className="p-2 text-gray-500 hover:text-[#D13180] transition-colors">
-                                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                            {/* Botón scanner mobile — tápalo para activar el lector físico */}
+                            <button
+                                onClick={() => mobileScanInputRef.current?.focus()}
+                                aria-label="Activar scanner"
+                                className={`p-2 rounded-md transition-colors ${scannerActive ? 'text-green-500 bg-green-50' : 'text-gray-500 hover:text-[#D13180]'}`}
+                            >
+                                <ScanLine className="h-5 w-5" />
                             </button>
+                            {/* Input oculto que recibe los eventos del scanner Bluetooth en mobile */}
+                            <input
+                                ref={mobileScanInputRef}
+                                type="text"
+                                inputMode="none"
+                                readOnly
+                                data-scanner
+                                tabIndex={-1}
+                                onFocus={() => setScannerActive(true)}
+                                onBlur={() => setScannerActive(false)}
+                                className="sr-only"
+                                aria-hidden="true"
+                            />
                             <button
                                 onClick={toggleDarkMode}
                                 aria-label={isDark ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
