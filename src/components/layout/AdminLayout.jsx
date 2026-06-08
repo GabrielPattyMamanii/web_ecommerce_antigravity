@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 import { LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut, CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun, Calculator, Archive, ShoppingCart, Users, ClipboardList, Ticket, HandCoins, ScanLine, History, Building2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
@@ -34,6 +35,18 @@ export function AdminLayout() {
             navigate('/admin/dashboard', { replace: true });
         }
     }, [location.pathname, navigate]);
+
+    const handleGlobalScan = useCallback((code, codigoFallback) => {
+        if (location.pathname === '/admin/ventas') {
+            window.dispatchEvent(new CustomEvent('scanner:code', { detail: { code, codigoFallback } }));
+        } else {
+            const params = new URLSearchParams({ scan: code });
+            if (codigoFallback) params.set('c', codigoFallback);
+            navigate(`/admin/ventas?${params.toString()}`);
+        }
+    }, [location.pathname, navigate]);
+
+    useGlobalScanner(handleGlobalScan);
 
     const isActive = (path, exact = false) => {
         if (exact) return location.pathname === path;

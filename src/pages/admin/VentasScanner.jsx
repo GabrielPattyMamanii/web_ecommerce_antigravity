@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { calcPrice } from '../../utils/pricingUtils';
 import toast from 'react-hot-toast';
 import {
     ScanLine, Trash2, CheckCircle, Package,
     ShoppingCart, X, User, Info, Loader2, Tag, Store,
-    Banknote, ArrowLeftRight, Blend, Building2, Pencil
+    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff
 } from 'lucide-react';
 
 const METODOS = [
@@ -13,6 +14,14 @@ const METODOS = [
     { id: 'transferencia',  label: 'Transferencia',  Icon: Building2 },
     { id: 'mixto',          label: 'Mixto',          Icon: Blend },
 ];
+
+const fmtMiles = (str) => {
+    const digits = String(str).replace(/[^\d]/g, '');
+    if (!digits) return '';
+    return parseInt(digits, 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+const rawNum = (str) => String(str ?? '').replace(/\./g, '');
 
 // Encuentra el ancestro scrolleable (en este layout es el <main overflow-y-auto>).
 const getScrollParent = (el) => {
@@ -62,11 +71,12 @@ const fastScrollTo = (el, block = 'end', duration = 200) => {
 };
 
 export function VentasScanner() {
+    const [searchParams, setSearchParams] = useSearchParams();
+
     // --- Scanner ---
-    const scanBufferRef = useRef('');
-    const lastKeyTimeRef = useRef(0);
     const [scanStatus, setScanStatus] = useState('idle');
     const [lastScanned, setLastScanned] = useState('');
+    const didProcessScanParam = useRef(false);
 
     // --- Usuarios y cuentas ---
     const [appUsers, setAppUsers] = useState([]);
@@ -104,6 +114,7 @@ export function VentasScanner() {
     // --- Carrito ---
     const [cart, setCart] = useState([]);
     const [saving, setSaving] = useState(false);
+    const [hideTransferencias, setHideTransferencias] = useState(false);
 
     // --- Editar ítem del carrito ---
     const [editingIndex, setEditingIndex] = useState(null);
@@ -115,13 +126,19 @@ export function VentasScanner() {
     const [editTransferencia, setEditTransferencia] = useState('');
     const [editRecargoPct, setEditRecargoPct] = useState('');
 
+    const [recargoPresets, setRecargoPresets] = useState([]);
+    const [showAddPresetModal, setShowAddPresetModal] = useState(false);
+    const [addPresetInput, setAddPresetInput] = useState('');
+
     useEffect(() => {
         Promise.all([
             supabase.from('app_users').select('username, color'),
             supabase.from('cuentas_bancarias').select('*').eq('activa', true).order('created_at'),
-        ]).then(([{ data: users }, { data: cuentasData }]) => {
+            supabase.from('configuracion').select('valor').eq('clave', 'recargo_presets').maybeSingle(),
+        ]).then(([{ data: users }, { data: cuentasData }, { data: presetsData }]) => {
             if (users) setAppUsers(users);
             if (cuentasData) setCuentas(cuentasData);
+            if (Array.isArray(presetsData?.valor)) setRecargoPresets(presetsData.valor);
         });
     }, []);
 
@@ -139,16 +156,52 @@ export function VentasScanner() {
         setRecargoPct('');
     };
 
+    const savePresets = useCallback(async (next) => {
+        const { error } = await supabase
+            .from('configuracion')
+            .upsert({ clave: 'recargo_presets', valor: next });
+        if (error) toast.error('No se pudo guardar el recargo');
+    }, []);
+
+    const handleAddPreset = useCallback(async () => {
+        const val = parseFloat(addPresetInput);
+        if (!val || val <= 0) { toast.error('Ingresá un porcentaje válido'); return; }
+        if (recargoPresets.includes(val)) { toast.error('Ese porcentaje ya existe'); return; }
+        if (recargoPresets.length >= 3) return;
+        const next = [...recargoPresets, val];
+        await savePresets(next);
+        setRecargoPresets(next);
+        setShowAddPresetModal(false);
+        setAddPresetInput('');
+    }, [addPresetInput, recargoPresets, savePresets]);
+
+    const removeRecargoPreset = useCallback(async (pct) => {
+        const next = recargoPresets.filter(p => p !== pct);
+        await savePresets(next);
+        setRecargoPresets(next);
+    }, [recargoPresets, savePresets]);
+
     const calcTransferencia = (ef, pct, tot) => {
-        const base = Math.max(0, tot - (parseFloat(ef) || 0));
+        const base = Math.max(0, tot - (parseFloat(rawNum(ef)) || 0));
         if (base === 0) return '';
         const con_recargo = base * (1 + (parseFloat(pct) || 0) / 100);
-        return con_recargo.toFixed(0);
+        return fmtMiles(con_recargo.toFixed(0));
     };
 
     const handleEfectivoChange = (val) => {
-        setMontoEfectivo(val);
-        setMontoTransferencia(calcTransferencia(val, recargoPct, total));
+        const formatted = fmtMiles(val);
+        setMontoEfectivo(formatted);
+        setMontoTransferencia(calcTransferencia(formatted, recargoPct, total));
+    };
+
+    const handleTransferenciaChange = (val) => {
+        const formatted = fmtMiles(val);
+        setMontoTransferencia(formatted);
+        const tr = parseFloat(rawNum(formatted)) || 0;
+        const pct = parseFloat(recargoPct) || 0;
+        const trBase = pct > 0 ? tr / (1 + pct / 100) : tr;
+        const ef = Math.max(0, total - trBase);
+        setMontoEfectivo(ef > 0 ? fmtMiles(ef.toFixed(0)) : '');
     };
 
     const handleRecargoPctChange = (val) => {
@@ -199,10 +252,10 @@ export function VentasScanner() {
 
             const precioCustom = precioCustomRes.data?.precio_ars ?? null;
             if (precioCustom != null) {
-                setCurrentPrice(precioCustom.toFixed(0));
+                setCurrentPrice(fmtMiles(precioCustom.toFixed(0)));
                 setSavedPrice(precioCustom);
             } else if (prices.precioVentaArg != null) {
-                setCurrentPrice(prices.precioVentaArg.toFixed(0));
+                setCurrentPrice(fmtMiles(prices.precioVentaArg.toFixed(0)));
             }
             setCurrentDolarBlue(dolarBlue);
             setCurrentIndice(indice.toString());
@@ -298,84 +351,23 @@ export function VentasScanner() {
         }
     }, [selectEntrada]);
 
+    // Recibe el código cuando el scanner global detecta un escaneo estando ya en esta página
     useEffect(() => {
-        const onKeyDown = (e) => {
-            const active = document.activeElement;
-            const isUserInput =
-                active &&
-                ['INPUT', 'TEXTAREA', 'SELECT'].includes(active.tagName) &&
-                !active.dataset.scanner;
-
-            const now = Date.now();
-            const timeSinceLastKey = now - lastKeyTimeRef.current;
-
-            if (e.key === 'Enter') {
-                const raw = scanBufferRef.current.trim();
-                scanBufferRef.current = '';
-                setScanStatus('idle');
-
-                if (raw.length >= 2) {
-                    // Hay contenido en el buffer → es un escaneo, procesar siempre
-                    e.preventDefault();
-                    let code = raw;
-                    let codigoFallback = null;
-                    if (raw.startsWith('http')) {
-                        try {
-                            // URL bien formada (funciona en desarrollo o si el scanner no garbliza)
-                            const url = new URL(raw);
-                            const segments = url.pathname.split('/').filter(Boolean);
-                            code = segments[segments.length - 1] || raw;
-                            // ?c= es el código del producto, usado si el ID quedó desactualizado
-                            codigoFallback = url.searchParams.get('c') || null;
-                        } catch {
-                            // URL garbled por layout de teclado español (: → Ñ, / → -, - → ', ? → _, = → ¡)
-                            // Restaurar los guiones del UUID (los ' reemplazan los - del UUID)
-                            const normalized = raw.replace(/'/g, '-');
-                            // Extraer UUID del patrón -scan-{uuid}
-                            const uuidMatch = normalized.match(
-                                /-scan-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/i
-                            );
-                            // Extraer código de producto del patrón _c{cualquier_char}{codigo}
-                            const codeMatch = normalized.match(/_c.(.+)$/);
-                            if (uuidMatch) code = uuidMatch[1];
-                            if (codeMatch) codigoFallback = codeMatch[1];
-                        }
-                    }
-                    processCode(code, codigoFallback);
-                }
-                // Si buffer vacío, dejar que Enter actúe normal en el input
-                return;
-            }
-
-            if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
-                if (isUserInput) {
-                    // Continuación de un escaneo en curso (caracteres llegando rápido)
-                    const isScanContinuation = scanBufferRef.current.length > 0 && timeSinceLastKey < 80;
-                    if (isScanContinuation) {
-                        // Capturar en buffer y bloquear el input para que no reciba el char
-                        e.preventDefault();
-                    } else if (timeSinceLastKey > 800) {
-                        // Pausa larga → resetear buffer (podría ser escritura manual)
-                        scanBufferRef.current = '';
-                    }
-                    // Primer char del escaneo: va al input Y al buffer (sin prevent)
-                    // los siguientes chars llegan rápido y se bloquean del input
-                } else {
-                    e.preventDefault();
-                }
-
-                if (now - lastKeyTimeRef.current > 800) {
-                    scanBufferRef.current = '';
-                }
-                scanBufferRef.current += e.key;
-                lastKeyTimeRef.current = now;
-                setScanStatus('scanning');
-            }
-        };
-
-        document.addEventListener('keydown', onKeyDown);
-        return () => document.removeEventListener('keydown', onKeyDown);
+        const handler = (e) => processCode(e.detail.code, e.detail.codigoFallback);
+        window.addEventListener('scanner:code', handler);
+        return () => window.removeEventListener('scanner:code', handler);
     }, [processCode]);
+
+    // Procesa el código cuando se navega a esta página desde otra sección con ?scan=
+    useEffect(() => {
+        if (didProcessScanParam.current) return;
+        const scanParam = searchParams.get('scan');
+        if (!scanParam) return;
+        didProcessScanParam.current = true;
+        const codigoFallback = searchParams.get('c') || null;
+        setSearchParams({}, { replace: true });
+        processCode(scanParam, codigoFallback);
+    }, [processCode, searchParams, setSearchParams]);
 
     const recalcWithIndice = (entrada, dolar, indiceVal) => {
         const idx = parseFloat(indiceVal);
@@ -385,7 +377,7 @@ export function VentasScanner() {
             { cotizacion_dolar: dolar, indice_ganancia_valor: idx }
         );
         if (prices.precioVentaArg != null) {
-            setCurrentPrice(prices.precioVentaArg.toFixed(0));
+            setCurrentPrice(fmtMiles(prices.precioVentaArg.toFixed(0)));
         }
     };
 
@@ -403,7 +395,7 @@ export function VentasScanner() {
     const addToCart = () => {
         if (!selectedEntrada) return;
         const qty = parseFloat(currentQty);
-        const price = parseFloat(currentPrice);
+        const price = parseFloat(rawNum(currentPrice));
 
         if (!qty || qty <= 0) { toast.error('Ingresá una cantidad válida'); return; }
         if (!price || price <= 0) { toast.error('Ingresá un precio válido'); return; }
@@ -425,8 +417,8 @@ export function VentasScanner() {
             mTransferencia = parseFloat((total * (1 + pct / 100)).toFixed(2));
         } else {
             // mixto
-            const ef = parseFloat(montoEfectivo);
-            const tr = parseFloat(montoTransferencia);
+            const ef = parseFloat(rawNum(montoEfectivo));
+            const tr = parseFloat(rawNum(montoTransferencia));
             if (!ef || ef <= 0) {
                 toast.error('Ingresá el monto en efectivo');
                 return;
@@ -508,6 +500,7 @@ export function VentasScanner() {
             if (error) throw error;
 
             setCart([]);
+            setHideTransferencias(false);
             toast.success(`✓ ${records.length} venta(s) registrada(s)`);
         } catch {
             toast.error('Error al guardar las ventas');
@@ -533,6 +526,7 @@ export function VentasScanner() {
         setPrecioInfo(null);
         setSavedPrice(null);
         setEditingIndex(null);
+        setHideTransferencias(false);
         resetPago();
         toast.success('Venta abortada — carrito vacío');
     };
@@ -540,18 +534,18 @@ export function VentasScanner() {
     const openEdit = (index) => {
         const item = cart[index];
         setEditingIndex(index);
-        setEditPrice(item.precio_docena_ars.toString());
+        setEditPrice(fmtMiles(item.precio_docena_ars.toString()));
         setEditQty(item.cantidad_docenas.toString());
         setEditMetodo(item.metodo_pago);
         setEditCuenta(cuentas.find(c => c.id === item.cuenta_id) || null);
-        setEditEfectivo(item.monto_efectivo != null ? item.monto_efectivo.toString() : '');
-        setEditTransferencia(item.monto_transferencia != null ? item.monto_transferencia.toString() : '');
+        setEditEfectivo(item.monto_efectivo != null ? fmtMiles(item.monto_efectivo.toString()) : '');
+        setEditTransferencia(item.monto_transferencia != null ? fmtMiles(item.monto_transferencia.toString()) : '');
         setEditRecargoPct('');
     };
 
     const saveEdit = () => {
         const qty = parseFloat(editQty);
-        const price = parseFloat(editPrice);
+        const price = parseFloat(rawNum(editPrice));
         if (!qty || qty <= 0) { toast.error('Cantidad inválida'); return; }
         if (!price || price <= 0) { toast.error('Precio inválido'); return; }
 
@@ -568,10 +562,10 @@ export function VentasScanner() {
         if (editMetodo === 'efectivo') {
             mEfectivo = baseTotal;
         } else if (editMetodo === 'transferencia') {
-            mTransferencia = parseFloat(editTransferencia) || baseTotal;
+            mTransferencia = parseFloat(rawNum(editTransferencia)) || baseTotal;
         } else {
-            const ef = parseFloat(editEfectivo);
-            const tr = parseFloat(editTransferencia);
+            const ef = parseFloat(rawNum(editEfectivo));
+            const tr = parseFloat(rawNum(editTransferencia));
             if (!ef || ef <= 0) { toast.error('Ingresá el monto en efectivo'); return; }
             if (!tr || tr <= 0) { toast.error('El monto de transferencia debe ser mayor a 0'); return; }
             mEfectivo = ef;
@@ -599,17 +593,59 @@ export function VentasScanner() {
     };
 
     const totalCarrito = cart.reduce((sum, i) => sum + i.total_ars, 0);
+    const totalTransferencias = cart.reduce((sum, i) => sum + (i.monto_transferencia || 0), 0);
+    const hayTransferencias = totalTransferencias > 0;
 
     const ownerName = selectedEntrada ? getPropietario(selectedEntrada) : null;
     const ownerColor = ownerName ? getUserColor(ownerName) : '#9ca3af';
 
     const total = currentPrice && currentQty
-        ? parseFloat(currentPrice) * parseFloat(currentQty)
+        ? parseFloat(rawNum(currentPrice)) * parseFloat(currentQty)
         : 0;
 
     const editItem = editingIndex !== null ? cart[editingIndex] : null;
     const editColor = editItem ? getUserColor(editItem.propietario) : '#9ca3af';
-    const editTotalCalc = editPrice && editQty ? (parseFloat(editPrice) || 0) * (parseFloat(editQty) || 0) : 0;
+    const editTotalCalc = editPrice && editQty ? (parseFloat(rawNum(editPrice)) || 0) * (parseFloat(editQty) || 0) : 0;
+
+    const renderPresetButtons = (onSelect, activeVal, activeColor) => (
+        <div className="flex gap-2 flex-wrap items-center mb-2">
+            {recargoPresets.map(p => {
+                const isActive = parseFloat(activeVal) === p;
+                return (
+                    <div key={p} className="flex items-center">
+                        <button
+                            type="button"
+                            onClick={() => onSelect(isActive ? '' : String(p))}
+                            className="text-sm font-bold py-2.5 px-5 rounded-l-xl border-2 transition-all active:scale-95"
+                            style={isActive
+                                ? { borderColor: activeColor, backgroundColor: activeColor + '25', color: activeColor }
+                                : { borderColor: 'var(--border)', color: 'var(--muted-foreground)', backgroundColor: 'transparent' }}
+                        >
+                            {p}%
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => removeRecargoPreset(p)}
+                            className="text-base font-bold py-2.5 px-3 rounded-r-xl border-2 border-l-0 transition-all text-muted-foreground hover:text-destructive"
+                            style={{ borderColor: isActive ? activeColor : 'var(--border)' }}
+                        >
+                            ×
+                        </button>
+                    </div>
+                );
+            })}
+            {recargoPresets.length < 3 && (
+                <button
+                    type="button"
+                    onClick={() => setShowAddPresetModal(true)}
+                    className="text-sm font-semibold py-2.5 px-4 rounded-xl border-2 border-dashed transition-all text-muted-foreground hover:border-primary hover:text-primary active:scale-95"
+                    style={{ borderColor: 'var(--border)' }}
+                >
+                    + Agregar %
+                </button>
+            )}
+        </div>
+    );
 
     return (
         <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-5">
@@ -720,15 +756,16 @@ export function VentasScanner() {
                                         Precio / docena (ARS)
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={editPrice}
                                         onChange={e => {
-                                            const val = e.target.value;
+                                            const val = fmtMiles(e.target.value);
                                             setEditPrice(val);
                                             if (editRecargoPct) {
-                                                const tot = (parseFloat(val) || 0) * (parseFloat(editQty) || 0);
+                                                const tot = (parseFloat(rawNum(val)) || 0) * (parseFloat(editQty) || 0);
                                                 if (editMetodo === 'transferencia') {
-                                                    setEditTransferencia((tot * (1 + (parseFloat(editRecargoPct) || 0) / 100)).toFixed(0));
+                                                    setEditTransferencia(fmtMiles((tot * (1 + (parseFloat(editRecargoPct) || 0) / 100)).toFixed(0)));
                                                 } else if (editMetodo === 'mixto') {
                                                     setEditTransferencia(calcTransferencia(editEfectivo, editRecargoPct, tot));
                                                 }
@@ -748,9 +785,9 @@ export function VentasScanner() {
                                             const val = e.target.value;
                                             setEditQty(val);
                                             if (editRecargoPct) {
-                                                const tot = (parseFloat(editPrice) || 0) * (parseFloat(val) || 0);
+                                                const tot = (parseFloat(rawNum(editPrice)) || 0) * (parseFloat(val) || 0);
                                                 if (editMetodo === 'transferencia') {
-                                                    setEditTransferencia((tot * (1 + (parseFloat(editRecargoPct) || 0) / 100)).toFixed(0));
+                                                    setEditTransferencia(fmtMiles((tot * (1 + (parseFloat(editRecargoPct) || 0) / 100)).toFixed(0)));
                                                 } else if (editMetodo === 'mixto') {
                                                     setEditTransferencia(calcTransferencia(editEfectivo, editRecargoPct, tot));
                                                 }
@@ -843,34 +880,26 @@ export function VentasScanner() {
                             {/* Recargo transferencia */}
                             {editMetodo === 'transferencia' && editTotalCalc > 0 && (
                                 <div className="space-y-2">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                            Recargo transferencia
-                                        </label>
-                                        <div className="flex items-center gap-1.5">
-                                            <input
-                                                type="number"
-                                                value={editRecargoPct}
-                                                onChange={e => {
-                                                    const val = e.target.value;
-                                                    setEditRecargoPct(val);
-                                                    setEditTransferencia((editTotalCalc * (1 + (parseFloat(val) || 0) / 100)).toFixed(0));
-                                                }}
-                                                placeholder="0"
-                                                min="0"
-                                                className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
-                                            />
-                                            <span className="text-xs text-muted-foreground font-semibold">%</span>
-                                        </div>
-                                    </div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block">
+                                        Recargo transferencia
+                                    </label>
+                                    {renderPresetButtons(
+                                        (val) => {
+                                            setEditRecargoPct(val);
+                                            setEditTransferencia(fmtMiles((editTotalCalc * (1 + (parseFloat(val) || 0) / 100)).toFixed(0)));
+                                        },
+                                        editRecargoPct,
+                                        editColor
+                                    )}
                                     <div>
                                         <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
                                             Monto transferencia (ARS)
                                         </label>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={editTransferencia}
-                                            onChange={e => setEditTransferencia(e.target.value)}
+                                            onChange={e => setEditTransferencia(fmtMiles(e.target.value))}
                                             placeholder={editTotalCalc.toFixed(0)}
                                             className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
                                         />
@@ -886,10 +915,11 @@ export function VentasScanner() {
                                             Monto en efectivo (ARS)
                                         </label>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={editEfectivo}
                                             onChange={e => {
-                                                const val = e.target.value;
+                                                const val = fmtMiles(e.target.value);
                                                 setEditEfectivo(val);
                                                 setEditTransferencia(calcTransferencia(val, editRecargoPct, editTotalCalc));
                                             }}
@@ -898,34 +928,38 @@ export function VentasScanner() {
                                         />
                                     </div>
                                     <div>
-                                        <div className="flex items-center justify-between mb-1.5">
-                                            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                                Transferencia (ARS)
-                                            </label>
-                                            <div className="flex items-center gap-1.5">
-                                                <span className="text-xs text-muted-foreground">Recargo</span>
-                                                <input
-                                                    type="number"
-                                                    value={editRecargoPct}
-                                                    onChange={e => {
-                                                        const val = e.target.value;
-                                                        setEditRecargoPct(val);
-                                                        setEditTransferencia(calcTransferencia(editEfectivo, val, editTotalCalc));
-                                                    }}
-                                                    placeholder="0"
-                                                    min="0"
-                                                    className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
-                                                />
-                                                <span className="text-xs text-muted-foreground font-semibold">%</span>
-                                            </div>
-                                        </div>
+                                        <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                            Monto en transferencia (ARS)
+                                        </label>
                                         <input
-                                            type="number"
+                                            type="text"
+                                            inputMode="numeric"
                                             value={editTransferencia}
-                                            onChange={e => setEditTransferencia(e.target.value)}
+                                            onChange={e => {
+                                                const val = fmtMiles(e.target.value);
+                                                setEditTransferencia(val);
+                                                const tr = parseFloat(rawNum(val)) || 0;
+                                                const pct = parseFloat(editRecargoPct) || 0;
+                                                const trBase = pct > 0 ? tr / (1 + pct / 100) : tr;
+                                                const ef = Math.max(0, editTotalCalc - trBase);
+                                                setEditEfectivo(ef > 0 ? fmtMiles(ef.toFixed(0)) : '');
+                                            }}
                                             placeholder="0"
                                             className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
                                         />
+                                    </div>
+                                    <div>
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                                            Recargo transferencia
+                                        </label>
+                                        {renderPresetButtons(
+                                            (val) => {
+                                                setEditRecargoPct(val);
+                                                setEditTransferencia(calcTransferencia(editEfectivo, val, editTotalCalc));
+                                            },
+                                            editRecargoPct,
+                                            editColor
+                                        )}
                                     </div>
                                 </div>
                             )}
@@ -952,6 +986,49 @@ export function VentasScanner() {
                                 <CheckCircle className="w-5 h-5" />
                                 Guardar cambios
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Modal: agregar preset de recargo */}
+            {showAddPresetModal && (
+                <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+                    <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-xs">
+                        <div className="p-5 border-b border-border">
+                            <h3 className="font-bold text-foreground">Agregar recargo</h3>
+                            <p className="text-xs text-muted-foreground mt-0.5">Se guardará como acceso rápido</p>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <input
+                                    type="number"
+                                    value={addPresetInput}
+                                    onChange={e => setAddPresetInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') handleAddPreset(); }}
+                                    placeholder="Ej: 10"
+                                    min="0"
+                                    autoFocus
+                                    className="flex-1 px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
+                                />
+                                <span className="text-sm font-semibold text-muted-foreground">%</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <button
+                                    type="button"
+                                    onClick={() => { setShowAddPresetModal(false); setAddPresetInput(''); }}
+                                    className="flex-1 py-2.5 rounded-xl border border-border font-semibold text-sm text-muted-foreground hover:bg-muted transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleAddPreset}
+                                    className="flex-1 py-2.5 rounded-xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+                                >
+                                    Agregar
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1047,9 +1124,10 @@ export function VentasScanner() {
                                 </label>
                                 <input
                                     ref={priceInputRef}
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     value={currentPrice}
-                                    onChange={e => setCurrentPrice(e.target.value)}
+                                    onChange={e => setCurrentPrice(fmtMiles(e.target.value))}
                                     placeholder={loadingPrice ? 'Calculando...' : '0'}
                                     disabled={loadingPrice}
                                     className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none disabled:opacity-50 font-medium"
@@ -1164,32 +1242,10 @@ export function VentasScanner() {
                         {/* Recargo transferencia completa */}
                         {metodoPago === 'transferencia' && total > 0 && (
                             <div>
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                        Recargo transferencia
-                                    </label>
-                                    <div className="flex items-center gap-1.5">
-                                        <input
-                                            type="number"
-                                            value={recargoPct}
-                                            onChange={e => handleRecargoPctChange(e.target.value)}
-                                            placeholder="0"
-                                            min="0"
-                                            className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
-                                        />
-                                        <span className="text-xs text-muted-foreground font-semibold">%</span>
-                                    </div>
-                                </div>
-                                {parseFloat(recargoPct) > 0 && (
-                                    <div className="flex items-center justify-between text-xs bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-xl">
-                                        <span className="text-amber-700 font-medium">
-                                            ${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })} + {recargoPct}%
-                                        </span>
-                                        <span className="font-bold text-amber-700">
-                                            ${(total * (1 + parseFloat(recargoPct) / 100)).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS
-                                        </span>
-                                    </div>
-                                )}
+                                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                                    Recargo transferencia
+                                </label>
+                                {renderPresetButtons(handleRecargoPctChange, recargoPct, ownerColor)}
                             </div>
                         )}
 
@@ -1202,76 +1258,103 @@ export function VentasScanner() {
                                         Monto en efectivo (ARS)
                                     </label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={montoEfectivo}
                                         onChange={e => handleEfectivoChange(e.target.value)}
                                         placeholder="0"
-                                        min="0"
                                         className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
                                     />
                                 </div>
 
-                                {/* Transferencia + recargo */}
+                                {/* Transferencia */}
                                 <div>
-                                    <div className="flex items-center justify-between mb-1.5">
-                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
-                                            Transferencia (ARS)
-                                        </label>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-xs text-muted-foreground">Recargo</span>
-                                            <input
-                                                type="number"
-                                                value={recargoPct}
-                                                onChange={e => handleRecargoPctChange(e.target.value)}
-                                                placeholder="0"
-                                                min="0"
-                                                className="w-16 px-2 py-1.5 border border-input rounded-lg text-sm bg-background text-foreground focus:outline-none text-center font-medium"
-                                            />
-                                            <span className="text-xs text-muted-foreground font-semibold">%</span>
-                                        </div>
-                                    </div>
+                                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide">
+                                        Monto en transferencia (ARS)
+                                    </label>
                                     <input
-                                        type="number"
+                                        type="text"
+                                        inputMode="numeric"
                                         value={montoTransferencia}
-                                        onChange={e => setMontoTransferencia(e.target.value)}
+                                        onChange={e => handleTransferenciaChange(e.target.value)}
                                         placeholder="0"
-                                        min="0"
                                         className="w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium"
                                     />
+                                </div>
+
+                                {/* Recargo transferencia */}
+                                <div>
+                                    <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-2">
+                                        Recargo transferencia
+                                    </label>
+                                    {renderPresetButtons(handleRecargoPctChange, recargoPct, ownerColor)}
                                 </div>
 
                                 {/* Resumen desglose */}
-                                {parseFloat(montoEfectivo) > 0 && parseFloat(montoTransferencia) > 0 && (
-                                    <>
-                                        <div className="grid grid-cols-2 gap-2 text-xs">
-                                            <div className="bg-muted rounded-lg px-3 py-2 text-center">
-                                                <p className="text-muted-foreground">Efectivo</p>
-                                                <p className="font-bold text-foreground">
-                                                    ${parseFloat(montoEfectivo).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                {parseFloat(rawNum(montoEfectivo)) > 0 && parseFloat(rawNum(montoTransferencia)) > 0 && (
+                                    <div className="rounded-2xl overflow-hidden border border-border">
+                                        <div className="grid grid-cols-2 divide-x divide-border">
+                                            <div className="flex flex-col items-center gap-1 px-3 py-3.5 bg-muted/40">
+                                                <div className="flex items-center gap-1.5 text-muted-foreground">
+                                                    <Banknote className="w-3.5 h-3.5" />
+                                                    <span className="text-xs font-semibold uppercase tracking-wide">Efectivo</span>
+                                                </div>
+                                                <p className="text-xl font-bold text-foreground leading-tight">
+                                                    ${parseFloat(rawNum(montoEfectivo)).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                                                 </p>
+                                                <span className="text-xs text-muted-foreground font-medium">ARS</span>
                                             </div>
-                                            <div className="bg-muted rounded-lg px-3 py-2 text-center">
-                                                <p className="text-muted-foreground flex items-center justify-center gap-1">
-                                                    Transferencia
+                                            <div className="flex flex-col items-center gap-1 px-3 py-3.5 bg-muted/40">
+                                                <div className="flex items-center gap-1.5 text-muted-foreground flex-wrap justify-center">
+                                                    <Building2 className="w-3.5 h-3.5" />
+                                                    <span className="text-xs font-semibold uppercase tracking-wide">Transferencia</span>
                                                     {parseFloat(recargoPct) > 0 && (
-                                                        <span className="text-amber-600 font-semibold">+{recargoPct}%</span>
+                                                        <span className="text-amber-600 font-bold bg-amber-50 dark:bg-amber-950/30 px-1.5 py-0.5 rounded-md text-xs leading-none">
+                                                            +{recargoPct}%
+                                                        </span>
                                                     )}
+                                                </div>
+                                                <p className="text-xl font-bold text-foreground leading-tight">
+                                                    ${parseFloat(rawNum(montoTransferencia)).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                                                 </p>
-                                                <p className="font-bold text-foreground">
-                                                    ${parseFloat(montoTransferencia).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
-                                                </p>
+                                                <span className="text-xs text-muted-foreground font-medium">ARS</span>
                                             </div>
                                         </div>
-                                        {parseFloat(recargoPct) > 0 && (
-                                            <div className="flex items-center justify-between text-xs bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded-xl">
-                                                <span className="text-amber-700 font-medium">Total con recargo</span>
-                                                <span className="font-bold text-amber-700">
-                                                    ${(parseFloat(montoEfectivo) + parseFloat(montoTransferencia)).toLocaleString('es-AR', { maximumFractionDigits: 0 })} ARS
-                                                </span>
-                                            </div>
-                                        )}
-                                    </>
+                                    </div>
                                 )}
+                            </div>
+                        )}
+
+                        {/* Total con recargo (transferencia) */}
+                        {total > 0 && metodoPago === 'transferencia' && parseFloat(recargoPct) > 0 && (
+                            <div
+                                className="rounded-xl px-4 py-3 flex items-center justify-between"
+                                style={{ backgroundColor: '#f59e0b18', border: '1px solid #f59e0b50' }}
+                            >
+                                <div>
+                                    <span className="text-xs font-semibold text-amber-600 block">+{recargoPct}% recargo</span>
+                                    <span className="text-sm font-medium text-amber-700">Total a cobrar</span>
+                                </div>
+                                <span className="text-2xl font-bold text-amber-600">
+                                    ${(total * (1 + parseFloat(recargoPct) / 100)).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    <span className="text-sm font-semibold ml-1 opacity-70">ARS</span>
+                                </span>
+                            </div>
+                        )}
+
+                        {metodoPago === 'mixto' && parseFloat(recargoPct) > 0 && parseFloat(rawNum(montoEfectivo)) > 0 && parseFloat(rawNum(montoTransferencia)) > 0 && (
+                            <div
+                                className="rounded-xl px-4 py-3 flex items-center justify-between"
+                                style={{ backgroundColor: '#f59e0b18', border: '1px solid #f59e0b50' }}
+                            >
+                                <div>
+                                    <span className="text-xs font-semibold text-amber-600 block">+{recargoPct}% recargo en transferencia</span>
+                                    <span className="text-sm font-medium text-amber-700">Total a cobrar</span>
+                                </div>
+                                <span className="text-2xl font-bold text-amber-600">
+                                    ${(parseFloat(rawNum(montoEfectivo)) + parseFloat(rawNum(montoTransferencia))).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    <span className="text-sm font-semibold ml-1 opacity-70">ARS</span>
+                                </span>
                             </div>
                         )}
 
@@ -1281,7 +1364,9 @@ export function VentasScanner() {
                                 className="rounded-xl px-4 py-3 flex items-center justify-between"
                                 style={{ backgroundColor: ownerColor + '12', border: `1px solid ${ownerColor}30` }}
                             >
-                                <span className="text-sm font-medium text-muted-foreground">Total</span>
+                                <span className="text-sm font-medium text-muted-foreground">
+                                    {metodoPago === 'transferencia' && parseFloat(recargoPct) > 0 ? 'Total neto' : 'Total'}
+                                </span>
                                 <span className="text-2xl font-bold" style={{ color: ownerColor }}>
                                     ${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                                     <span className="text-sm font-semibold ml-1 opacity-70">ARS</span>
@@ -1385,6 +1470,44 @@ export function VentasScanner() {
                     </ul>
 
                     <div ref={cartFooterRef} className="p-4 border-t border-border space-y-2 scroll-mb-4">
+
+                        {/* Botón ocultar transferencias */}
+                        {hayTransferencias && (
+                            <button
+                                type="button"
+                                onClick={() => setHideTransferencias(v => !v)}
+                                className="w-full flex items-center justify-between gap-2 px-4 py-2.5 rounded-xl border-2 text-sm font-semibold transition-all"
+                                style={hideTransferencias
+                                    ? { borderColor: '#3b82f6', color: '#3b82f6', backgroundColor: '#3b82f610' }
+                                    : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
+                                }
+                            >
+                                <span className="flex items-center gap-2">
+                                    {hideTransferencias ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    {hideTransferencias ? 'Mostrando solo efectivo' : 'Ver solo efectivo (ocultar transferencias)'}
+                                </span>
+                                {hideTransferencias && (
+                                    <span className="text-xs font-bold px-2 py-0.5 rounded-lg" style={{ backgroundColor: '#3b82f620' }}>
+                                        −${totalTransferencias.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    </span>
+                                )}
+                            </button>
+                        )}
+
+                        {/* Resumen efectivo a cobrar */}
+                        {hideTransferencias && hayTransferencias && (
+                            <div className="rounded-xl px-4 py-3 flex items-center justify-between" style={{ backgroundColor: '#3b82f610', border: '1px solid #3b82f640' }}>
+                                <div>
+                                    <span className="text-xs font-semibold block" style={{ color: '#3b82f6' }}>Efectivo a cobrar ahora</span>
+                                    <span className="text-xs text-muted-foreground">Las transferencias se registran igual</span>
+                                </div>
+                                <span className="text-2xl font-bold" style={{ color: '#3b82f6' }}>
+                                    ${(totalCarrito - totalTransferencias).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    <span className="text-sm font-semibold ml-1 opacity-70">ARS</span>
+                                </span>
+                            </div>
+                        )}
+
                         <button
                             onClick={confirmSale}
                             disabled={saving}
