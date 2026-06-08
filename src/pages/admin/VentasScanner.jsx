@@ -1180,7 +1180,7 @@ export function VentasScanner() {
                                         <button
                                             key={id}
                                             type="button"
-                                            onClick={() => { setMetodoPago(id); setSelectedCuenta(null); setMontoEfectivo(''); }}
+                                            onClick={() => { setMetodoPago(id); setSelectedCuenta(null); setMontoEfectivo(''); setMontoTransferencia(''); setRecargoPct(''); }}
                                             className="flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-xs font-semibold transition-all"
                                             style={active
                                                 ? { borderColor: ownerColor, backgroundColor: ownerColor + '15', color: ownerColor }
