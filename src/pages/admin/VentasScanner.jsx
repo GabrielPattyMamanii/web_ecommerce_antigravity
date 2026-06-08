@@ -125,6 +125,7 @@ export function VentasScanner() {
     const [cart, setCart] = useState([]);
     const [saving, setSaving] = useState(false);
     const [hideTransferencias, setHideTransferencias] = useState(false);
+    const [nombrePedido, setNombrePedido] = useState('');
 
     // --- Editar ítem del carrito ---
     const [editingIndex, setEditingIndex] = useState(null);
@@ -602,10 +603,14 @@ export function VentasScanner() {
         try {
             const _now = new Date();
             const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
+            const ventaId = crypto.randomUUID();
+            const nombrePedidoTrim = nombrePedido.trim() || null;
             const records = cart.map(({ dolar_blue, ...item }) => ({
                 ...item,
                 fecha: today,
                 dolar_blue,
+                venta_id: ventaId,
+                nombre_pedido: nombrePedidoTrim,
             }));
 
             const { error } = await supabase.from('ventas').insert(records);
@@ -613,6 +618,7 @@ export function VentasScanner() {
 
             setCart([]);
             setHideTransferencias(false);
+            setNombrePedido('');
             toast.success(`✓ ${records.length} venta(s) registrada(s)`);
         } catch {
             toast.error('Error al guardar las ventas');
@@ -640,6 +646,7 @@ export function VentasScanner() {
         setSavedPrice(null);
         setEditingIndex(null);
         setHideTransferencias(false);
+        setNombrePedido('');
         resetPago();
         toast.success('Venta abortada — carrito vacío');
     };
@@ -1743,6 +1750,23 @@ export function VentasScanner() {
                     </ul>
 
                     <div ref={cartFooterRef} className="p-4 border-t border-border space-y-2 scroll-mb-4">
+
+                        {/* Nombre opcional del pedido */}
+                        <div>
+                            <label className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1.5">
+                                <Tag className="w-3.5 h-3.5" />
+                                Nombre del pedido <span className="font-normal opacity-70">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={nombrePedido}
+                                onChange={(e) => setNombrePedido(e.target.value)}
+                                placeholder={`Pedido de las ${new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' })}`}
+                                maxLength={80}
+                                className="w-full px-3.5 py-2.5 rounded-xl border border-border bg-background text-sm
+                                           text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                            />
+                        </div>
 
                         {/* Botón ocultar transferencias */}
                         {hayTransferencias && (

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast';
 import {
     Package, Trash2, RefreshCw, User,
     Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign, ArrowRight,
-    AlertTriangle, Lock, Eye, EyeOff
+    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -46,11 +46,43 @@ function formatMonthTabShort(ym) {
     return { short: mon, year: y };
 }
 
+function formatHora(isoTimestamp) {
+    if (!isoTimestamp) return '—';
+    return new Date(isoTimestamp).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+}
+
+function nombrePedidoGenerico(isoTimestamp) {
+    return `Pedido de las ${formatHora(isoTimestamp)}`;
+}
+
+/* Agrupa las ventas de un día en pedidos (mismo venta_id = mismo carrito confirmado) */
+function groupByPedido(items) {
+    const map = new Map();
+    for (const v of items) {
+        const key = v.venta_id || `legacy-${v.id}`;
+        if (!map.has(key)) map.set(key, []);
+        map.get(key).push(v);
+    }
+    return [...map.entries()]
+        .map(([ventaId, rows]) => ({
+            ventaId,
+            rows: [...rows].sort((a, b) => a.id - b.id),
+            nombre: rows[0]?.nombre_pedido || null,
+            hora: rows[0]?.created_at,
+            total: rows.reduce((s, v) => s + Number(v.total_ars), 0),
+        }))
+        .sort((a, b) => (b.hora || '').localeCompare(a.hora || ''));
+}
+
 const METODO_CONFIG = {
     efectivo:      { label: 'Efectivo',      Icon: Banknote,  color: '#16a34a' },
     transferencia: { label: 'Transferencia', Icon: Building2, color: '#2563eb' },
     mixto:         { label: 'Mixto',         Icon: Blend,     color: '#9333ea' },
 };
+
+/* Paleta cíclica para distinguir visualmente un pedido de otro dentro del mismo día */
+const PEDIDO_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#14b8a6'];
+const pedidoColor = (index) => PEDIDO_COLORS[index % PEDIDO_COLORS.length];
 
 /* ─── buildDaySummary ─────────────────────────────────────────── */
 
@@ -447,16 +479,217 @@ function DeleteDayModal({ fecha, itemCount, onConfirm, onClose }) {
     );
 }
 
+/* ─── PedidoCard — tarjeta compacta de un pedido (mismo carrito confirmado) ── */
+
+function PedidoCard({ pedido, color, fmtMonto, onOpen }) {
+    const displayName = pedido.nombre || nombrePedidoGenerico(pedido.hora);
+
+    return (
+        <button
+            onClick={onOpen}
+            className="group flex flex-col text-left rounded-2xl border overflow-hidden bg-card
+                       transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 active:scale-[0.98]"
+            style={{ borderColor: color + '35' }}
+        >
+            {/* Franja superior de color — identifica al pedido de un vistazo */}
+            <span className="h-1.5 w-full flex-shrink-0" style={{ backgroundColor: color }} />
+
+            <div className="p-4 flex flex-col gap-2.5 flex-1" style={{ backgroundColor: color + '08' }}>
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0"
+                        style={{ backgroundColor: color + '1f', color }}>
+                        <ShoppingBag className="w-4 h-4" />
+                    </span>
+                    <span className="font-bold text-sm text-foreground truncate">{displayName}</span>
+                </div>
+
+                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full self-start"
+                    style={{ backgroundColor: color + '1a', color }}>
+                    <Clock className="w-3 h-3" />
+                    {formatHora(pedido.hora)} hs
+                </span>
+
+                <div className="flex items-center justify-between mt-1 pt-2.5 border-t" style={{ borderColor: color + '25' }}>
+                    <span className="text-xs text-muted-foreground">
+                        {pedido.rows.length} producto{pedido.rows.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="font-bold text-sm text-foreground">{fmtMonto(pedido.total)}</span>
+                </div>
+            </div>
+        </button>
+    );
+}
+
+/* ─── PedidoModal — detalle completo de un pedido ───────────────────── */
+
+function PedidoModal({ pedido, color, getUserColor, fmtMonto, onDelete, deletingId, onRename, onDeletePedido, deletingPedidoId, onClose }) {
+    const [editing,   setEditing]   = useState(false);
+    const [nameDraft, setNameDraft] = useState(pedido.nombre || '');
+    const displayName = pedido.nombre || nombrePedidoGenerico(pedido.hora);
+
+    const startEditing = () => {
+        setNameDraft(pedido.nombre || '');
+        setEditing(true);
+    };
+
+    const submitRename = (e) => {
+        e.preventDefault();
+        onRename(pedido.ventaId, nameDraft);
+        setEditing(false);
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black/60 z-[60] flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={onClose}>
+            <div onClick={(e) => e.stopPropagation()}
+                className="bg-card border border-border rounded-t-3xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg max-h-[90dvh] flex flex-col overflow-hidden">
+
+                {/* Franja de color — coincide con la tarjeta para identificar el pedido */}
+                <span className="h-1.5 w-full flex-shrink-0" style={{ backgroundColor: color }} />
+
+                {/* Cabecera */}
+                <div className="flex items-start justify-between gap-3 px-5 py-4 border-b border-border flex-shrink-0"
+                    style={{ backgroundColor: color + '0c' }}>
+                    <div className="min-w-0 flex-1">
+                        {editing ? (
+                            <form onSubmit={submitRename} className="flex items-center gap-1.5">
+                                <input
+                                    autoFocus
+                                    type="text"
+                                    value={nameDraft}
+                                    onChange={(e) => setNameDraft(e.target.value)}
+                                    placeholder={nombrePedidoGenerico(pedido.hora)}
+                                    maxLength={80}
+                                    className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-border bg-background text-sm font-semibold
+                                               text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+                                />
+                                <button type="submit"
+                                    className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors flex-shrink-0">
+                                    <Check className="w-4 h-4" />
+                                </button>
+                                <button type="button"
+                                    onClick={() => { setEditing(false); setNameDraft(pedido.nombre || ''); }}
+                                    className="p-2 rounded-lg hover:bg-muted text-muted-foreground transition-colors flex-shrink-0">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </form>
+                        ) : (
+                            <button onClick={startEditing} className="group flex items-center gap-2.5 text-left min-w-0 max-w-full">
+                                <span className="flex items-center justify-center w-9 h-9 rounded-xl flex-shrink-0"
+                                    style={{ backgroundColor: color + '1f', color }}>
+                                    <ShoppingBag className="w-4 h-4" />
+                                </span>
+                                <span className="font-bold text-base text-foreground truncate">{displayName}</span>
+                                <Pencil className="w-3.5 h-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0" />
+                            </button>
+                        )}
+                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mt-2"
+                            style={{ backgroundColor: color + '1a', color }}>
+                            <Clock className="w-3 h-3" />
+                            {formatHora(pedido.hora)} hs · {pedido.rows.length} producto{pedido.rows.length !== 1 ? 's' : ''}
+                        </span>
+                    </div>
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                        <button
+                            onClick={() => onDeletePedido(pedido)}
+                            disabled={deletingPedidoId === pedido.ventaId}
+                            title="Eliminar pedido completo"
+                            className="p-2 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                            {deletingPedidoId === pedido.ventaId
+                                ? <RefreshCw className="w-4 h-4 animate-spin" />
+                                : <Trash2 className="w-4 h-4" />
+                            }
+                        </button>
+                        <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors">
+                            <X className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Productos del pedido */}
+                <div className="flex-1 overflow-y-auto divide-y divide-border/60">
+                    {pedido.rows.map(venta => {
+                        const ownerColor = getUserColor(venta.propietario);
+                        return (
+                            <div key={venta.id} className="flex items-stretch"
+                                style={{ borderLeft: `4px solid ${ownerColor}` }}>
+                                <div className="flex-1 px-4 py-3.5 min-w-0">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <span className="font-semibold text-foreground text-sm">
+                                            {venta.producto_titulo}
+                                        </span>
+                                        {venta.codigo && (
+                                            <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                                                <Tag className="w-2.5 h-2.5" /> {venta.codigo}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                            style={{ backgroundColor: ownerColor + '20', color: ownerColor, border: `1px solid ${ownerColor}40` }}>
+                                            <User className="w-2.5 h-2.5" />
+                                            {venta.propietario || 'Sin propietario'}
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {venta.cantidad_docenas} doc × {fmtMonto(venta.precio_docena_ars)}
+                                        </span>
+                                        {Number(venta.dolar_blue) > 0 && (
+                                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                                <DollarSign className="w-2.5 h-2.5" />
+                                                ${Number(venta.dolar_blue).toLocaleString('es-AR')}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mt-1.5">
+                                        <PaymentBadge venta={venta} />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-end justify-between px-4 py-3.5 flex-shrink-0">
+                                    <p className="font-bold text-foreground text-base">
+                                        {fmtMonto(venta.total_ars)}
+                                    </p>
+                                    <button
+                                        onClick={() => onDelete(venta.id)}
+                                        disabled={deletingId === venta.id}
+                                        className="p-1.5 rounded-xl hover:bg-destructive/10 text-muted-foreground
+                                                   hover:text-destructive transition-colors"
+                                    >
+                                        {deletingId === venta.id
+                                            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                            : <Trash2 className="w-3.5 h-3.5" />
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+
+                {/* Total del pedido */}
+                <div className="flex items-center justify-between px-5 py-3.5 border-t border-border flex-shrink-0"
+                    style={{ backgroundColor: color + '0c' }}>
+                    <span className="text-sm font-semibold text-muted-foreground">Total del pedido</span>
+                    <span className="text-lg font-bold text-foreground">{fmtMonto(pedido.total)}</span>
+                </div>
+            </div>
+        </div>
+    );
+}
+
 /* ─── DayDetail — panel de detalle (inline + bottom-sheet en mobile) ── */
 
-function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, isMobile, onDeleteDay }) {
-    const [showItems,        setShowItems]        = useState(false);
+function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, isMobile, onDeleteDay, onRenamePedido, onDeletePedido, deletingPedidoId }) {
+    const [activeTab,        setActiveTab]        = useState('resumen');
     const [showUSD,          setShowUSD]          = useState(false);
     const [showDeleteDay,    setShowDeleteDay]    = useState(false);
+    const [openPedidoId,     setOpenPedidoId]     = useState(null);
     const dolarDia = items.find(v => Number(v.dolar_blue) > 0)?.dolar_blue ?? null;
     const fmtMonto = (n) => showUSD && dolarDia
         ? `u$s ${formatUSD(n / dolarDia)}`
         : `$${formatARS(n)}`;
+    const pedidos = groupByPedido(items);
+    const openPedidoIndex = pedidos.findIndex(p => p.ventaId === openPedidoId);
+    const openPedido = openPedidoIndex >= 0 ? pedidos[openPedidoIndex] : null;
     const panelRef = useRef(null);
 
     /* Scroll suave hacia el panel solo en desktop */
@@ -526,83 +759,65 @@ function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, 
                 />
             )}
 
-            {/* Resumen por propietario */}
-            <div className={`px-4 py-4 ${isMobile ? 'overflow-y-auto' : ''}`}
-                style={isMobile ? { maxHeight: 'calc(80dvh - 200px)' } : {}}>
-                <DailySummary items={items} getUserColor={getUserColor} showUSD={showUSD} setShowUSD={setShowUSD} />
-
-                {/* Ventas individuales — colapsable */}
-                <div className="border-t border-border mt-4">
+            {/* Pestañas: Resumen / Pedidos */}
+            <div className="flex items-center gap-1 px-4 pt-3 border-b border-border">
+                {[
+                    { id: 'resumen', label: 'Resumen' },
+                    { id: 'pedidos', label: `Pedidos (${pedidos.length})` },
+                ].map(tab => (
                     <button
-                        onClick={() => setShowItems(v => !v)}
-                        className="w-full flex items-center justify-between py-3 text-sm
-                                   font-medium text-muted-foreground transition-colors"
+                        key={tab.id}
+                        onClick={() => setActiveTab(tab.id)}
+                        className={[
+                            'px-4 py-2 text-sm font-semibold rounded-t-xl transition-colors -mb-px border-b-2',
+                            activeTab === tab.id
+                                ? 'text-primary border-primary'
+                                : 'text-muted-foreground border-transparent hover:text-foreground',
+                        ].join(' ')}
                     >
-                        <span>Ver ventas individuales</span>
-                        {showItems ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                        {tab.label}
                     </button>
-
-                    {showItems && (
-                        <div className="divide-y divide-border/60 border-t border-border -mx-4">
-                            {[...items].sort((a, b) => (a.propietario || '').localeCompare(b.propietario || '')).map(venta => {
-                                const color = getUserColor(venta.propietario);
-                                return (
-                                    <div key={venta.id} className="flex items-stretch"
-                                        style={{ borderLeft: `4px solid ${color}` }}>
-                                        <div className="flex-1 px-4 py-3.5 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="font-semibold text-foreground text-sm">
-                                                    {venta.producto_titulo}
-                                                </span>
-                                                {venta.codigo && (
-                                                    <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                                                        <Tag className="w-2.5 h-2.5" /> {venta.codigo}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                                                    style={{ backgroundColor: color + '20', color, border: `1px solid ${color}40` }}>
-                                                    <User className="w-2.5 h-2.5" />
-                                                    {venta.propietario || 'Sin propietario'}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {venta.cantidad_docenas} doc × {fmtMonto(venta.precio_docena_ars)}
-                                                </span>
-                                                {Number(venta.dolar_blue) > 0 && (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                                                        <DollarSign className="w-2.5 h-2.5" />
-                                                        ${Number(venta.dolar_blue).toLocaleString('es-AR')}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="mt-1.5">
-                                                <PaymentBadge venta={venta} />
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end justify-between px-4 py-3.5 flex-shrink-0">
-                                            <p className="font-bold text-foreground text-base">
-                                                {fmtMonto(venta.total_ars)}
-                                            </p>
-                                            <button
-                                                onClick={() => onDelete(venta.id)}
-                                                disabled={deletingId === venta.id}
-                                                className="p-1.5 rounded-xl hover:bg-destructive/10 text-muted-foreground
-                                                           hover:text-destructive transition-colors"
-                                            >
-                                                {deletingId === venta.id
-                                                    ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                                    : <Trash2 className="w-3.5 h-3.5" />
-                                                }
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    )}
-                </div>
+                ))}
             </div>
+
+            {/* Contenido según pestaña activa */}
+            <div className={`px-4 py-4 ${isMobile ? 'overflow-y-auto' : ''}`}
+                style={isMobile ? { maxHeight: 'calc(80dvh - 240px)' } : {}}>
+                {activeTab === 'resumen' && (
+                    <DailySummary items={items} getUserColor={getUserColor} showUSD={showUSD} setShowUSD={setShowUSD} />
+                )}
+
+                {activeTab === 'pedidos' && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {pedidos.map((pedido, idx) => (
+                            <PedidoCard
+                                key={pedido.ventaId}
+                                pedido={pedido}
+                                color={pedidoColor(idx)}
+                                fmtMonto={fmtMonto}
+                                onOpen={() => setOpenPedidoId(pedido.ventaId)}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Modal con el detalle del pedido seleccionado */}
+            {openPedido && (
+                <PedidoModal
+                    key={openPedido.ventaId}
+                    pedido={openPedido}
+                    color={pedidoColor(openPedidoIndex)}
+                    getUserColor={getUserColor}
+                    fmtMonto={fmtMonto}
+                    onDelete={onDelete}
+                    deletingId={deletingId}
+                    onRename={onRenamePedido}
+                    onDeletePedido={onDeletePedido}
+                    deletingPedidoId={deletingPedidoId}
+                    onClose={() => setOpenPedidoId(null)}
+                />
+            )}
         </>
     );
 
@@ -1409,6 +1624,7 @@ export function VentasHistorial() {
     const [ventas,        setVentas]        = useState([]);
     const [loading,       setLoading]       = useState(true);
     const [deletingId,    setDeletingId]    = useState(null);
+    const [deletingPedidoId, setDeletingPedidoId] = useState(null);
     const [appUsers,      setAppUsers]      = useState([]);
     const [selectedMonth, setSelectedMonth] = useState(null);
     const [selectedDay,   setSelectedDay]   = useState(null);
@@ -1467,6 +1683,18 @@ export function VentasHistorial() {
         0
     );
 
+    const renamePedido = async (ventaId, nombre) => {
+        const nombreFinal = nombre.trim() || null;
+        try {
+            const { error } = await supabase.from('ventas').update({ nombre_pedido: nombreFinal }).eq('venta_id', ventaId);
+            if (error) throw error;
+            setVentas(prev => prev.map(v => v.venta_id === ventaId ? { ...v, nombre_pedido: nombreFinal } : v));
+            toast.success('Pedido renombrado');
+        } catch {
+            toast.error('Error al renombrar el pedido');
+        }
+    };
+
     const deleteVenta = async (id) => {
         if (!window.confirm('¿Eliminar esta venta?')) return;
         setDeletingId(id);
@@ -1479,6 +1707,23 @@ export function VentasHistorial() {
             toast.error('Error al eliminar');
         } finally {
             setDeletingId(null);
+        }
+    };
+
+    const deletePedido = async (pedido) => {
+        const cantidad = pedido.rows.length;
+        if (!window.confirm(`¿Eliminar este pedido completo? Se eliminarán ${cantidad} producto${cantidad !== 1 ? 's' : ''} del pedido.`)) return;
+        setDeletingPedidoId(pedido.ventaId);
+        try {
+            const ids = pedido.rows.map(r => r.id);
+            const { error } = await supabase.from('ventas').delete().in('id', ids);
+            if (error) throw error;
+            setVentas(prev => prev.filter(v => !ids.includes(v.id)));
+            toast.success('Pedido eliminado');
+        } catch {
+            toast.error('Error al eliminar el pedido');
+        } finally {
+            setDeletingPedidoId(null);
         }
     };
 
@@ -1666,6 +1911,9 @@ export function VentasHistorial() {
                             deletingId={deletingId}
                             isMobile={isMobile}
                             onDeleteDay={deleteDayVentas}
+                            onRenamePedido={renamePedido}
+                            onDeletePedido={deletePedido}
+                            deletingPedidoId={deletingPedidoId}
                         />
                     )}
                 </>
