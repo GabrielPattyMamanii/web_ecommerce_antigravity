@@ -438,7 +438,7 @@ export function AgregarTanda() {
 
             const { data: existingRows, error: existingError } = await supabase
                 .from('entradas')
-                .select('id, codigo')
+                .select('id, codigo, cantidad_docenas')
                 .eq('tanda_nombre', tandaNameOrigen);
             if (existingError) throw existingError;
 
@@ -446,7 +446,7 @@ export function AgregarTanda() {
             (existingRows || []).forEach(row => {
                 const key = normalizeCode(row.codigo);
                 if (!existingByCode.has(key)) existingByCode.set(key, []);
-                existingByCode.get(key).push(row.id);
+                existingByCode.get(key).push({ id: row.id, cantidad_docenas: row.cantidad_docenas });
             });
 
             const matchedIds = new Set();
@@ -455,10 +455,17 @@ export function AgregarTanda() {
 
             entriesToInsert.forEach(entry => {
                 const candidates = existingByCode.get(normalizeCode(entry.codigo));
-                const matchId = candidates?.find(id => !matchedIds.has(id));
-                if (matchId) {
-                    matchedIds.add(matchId);
-                    rowsToUpdate.push({ id: matchId, fields: entry });
+                const match = candidates?.find(r => !matchedIds.has(r.id));
+                if (match) {
+                    matchedIds.add(match.id);
+                    // No sobreescribir cant_docenas_copy si cantidad_docenas no cambió,
+                    // para preservar el progreso de escaneo (decrementos del scanner).
+                    const { cant_docenas_copy, ...fieldsWithoutCopy } = entry;
+                    const cantidadCambio = parseFloat(entry.cantidad_docenas) !== parseFloat(match.cantidad_docenas);
+                    const updateFields = cantidadCambio
+                        ? { ...fieldsWithoutCopy, cant_docenas_copy: entry.cantidad_docenas }
+                        : fieldsWithoutCopy;
+                    rowsToUpdate.push({ id: match.id, fields: updateFields });
                 } else {
                     rowsToInsert.push(entry);
                 }

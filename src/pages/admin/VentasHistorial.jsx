@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { calcPrice } from '../../utils/pricingUtils';
 import toast from 'react-hot-toast';
 import {
     Package, Trash2, RefreshCw, User,
     Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign, ArrowRight,
-    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers
+    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers, Search, Plus
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -12,6 +13,19 @@ import {
 function formatARS(n) {
     return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
+
+const fmtMiles = (str) => {
+    const digits = String(str).replace(/[^\d]/g, '');
+    if (!digits) return '';
+    return parseInt(digits, 10).toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+const rawNum = (str) => String(str ?? '').replace(/\./g, '');
+
+const METODOS_EDIT = [
+    { id: 'efectivo',      label: 'Efectivo',     Icon: Banknote  },
+    { id: 'transferencia', label: 'Transferencia', Icon: Building2 },
+    { id: 'mixto',         label: 'Mixto',         Icon: Blend     },
+];
 
 function parseDateParts(dateStr) {
     const [y, m, d] = dateStr.split('-');
@@ -520,11 +534,490 @@ function PedidoCard({ pedido, color, fmtMonto, onOpen }) {
     );
 }
 
+/* ─── EditVentaInline ─────────────────────────────────────────── */
+
+function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving }) {
+    /* ── búsqueda de producto ── */
+    const [query,           setQuery]           = useState('');
+    const [searching,       setSearching]       = useState(false);
+    const [results,         setResults]         = useState([]);
+    const [showDrop,        setShowDrop]        = useState(false);
+    const [selectedEntrada, setSelectedEntrada] = useState(null);
+    const [showSearch,      setShowSearch]      = useState(false);
+    const dropRef = useRef(null);
+
+    /* ── datos del producto ── */
+    const [prod, setProd] = useState({
+        producto_titulo: venta.producto_titulo || '',
+        codigo:          venta.codigo           || '',
+        tanda_nombre:    venta.tanda_nombre     || '',
+        propietario:     venta.propietario      || '',
+    });
+    const setProdField = (k, v) => setProd(prev => ({ ...prev, [k]: v }));
+
+    /* ── precio y cantidad (strings formateados como en el scanner) ── */
+    const [loadingPrice, setLoadingPrice] = useState(false);
+    const [price, setPrice] = useState(fmtMiles(venta.precio_docena_ars || ''));
+    const [qty,   setQty]   = useState(String(venta.cantidad_docenas || ''));
+
+    /* ── pago ── */
+    const [metodo,         setMetodo]         = useState(venta.metodo_pago || 'efectivo');
+    const [selectedCuenta, setSelectedCuenta] = useState(null);
+    const [efectivo,       setEfectivo]       = useState(
+        venta.metodo_pago === 'mixto' ? fmtMiles(venta.monto_efectivo || '') : ''
+    );
+    const [transferencia,  setTransferencia]  = useState(
+        venta.metodo_pago !== 'efectivo' ? fmtMiles(venta.monto_transferencia || '') : ''
+    );
+
+    const ownerColor = appUsers.find(u => u.username === prod.propietario)?.color || '#6366f1';
+    const total = (parseFloat(rawNum(price)) || 0) * (parseFloat(qty) || 0);
+
+    /* inicializar cuenta cuando cargan las cuentas */
+    useEffect(() => {
+        if (cuentas.length > 0 && venta.cuenta_nombre) {
+            const found = cuentas.find(c => c.nombre === venta.cuenta_nombre);
+            if (found) setSelectedCuenta(found);
+        }
+    }, [cuentas]);
+
+    /* cerrar dropdown al hacer clic fuera */
+    useEffect(() => {
+        const h = (e) => { if (dropRef.current && !dropRef.current.contains(e.target)) setShowDrop(false); };
+        document.addEventListener('mousedown', h);
+        return () => document.removeEventListener('mousedown', h);
+    }, []);
+
+    /* búsqueda con debounce */
+    useEffect(() => {
+        if (!query.trim() || query.length < 2) { setResults([]); setShowDrop(false); return; }
+        const t = setTimeout(async () => {
+            setSearching(true);
+            try {
+                const { data } = await supabase
+                    .from('entradas')
+                    .select('id, producto_titulo, codigo, propietario, propietario_producto, tanda_nombre, marca, precio_docena, gastos, bultos, cantidad_docenas')
+                    .or(`codigo.ilike.%${query}%,producto_titulo.ilike.%${query}%,marca.ilike.%${query}%,tanda_nombre.ilike.%${query}%`)
+                    .order('tanda_nombre', { ascending: false })
+                    .limit(20);
+                setResults(data || []);
+                setShowDrop(true);
+            } finally { setSearching(false); }
+        }, 300);
+        return () => clearTimeout(t);
+    }, [query]);
+
+    const handleSelectEntrada = async (entrada) => {
+        setSelectedEntrada(entrada);
+        const propietarioEntrada = entrada.propietario_producto?.trim() || entrada.propietario?.trim() || '';
+        setProd({
+            producto_titulo: entrada.producto_titulo || entrada.codigo || '',
+            codigo:          entrada.codigo           || '',
+            tanda_nombre:    entrada.tanda_nombre     || '',
+            propietario:     propietarioEntrada,
+        });
+        setQuery(''); setShowDrop(false); setShowSearch(false);
+
+        setLoadingPrice(true);
+        try {
+            // 1. Precio custom (tabla precios_custom)
+            const precioCustom = entrada.codigo
+                ? (await supabase.from('precios_custom').select('precio_ars').eq('codigo', entrada.codigo).maybeSingle()).data?.precio_ars
+                : null;
+
+            if (precioCustom != null) {
+                setPrice(fmtMiles(Number(precioCustom).toFixed(0)));
+                return;
+            }
+
+            // 2. Calcular precio de lista: dólar blue + índice de tanda
+            const [dolarRes, settingsRes] = await Promise.all([
+                fetch('https://dolarapi.com/v1/dolares/blue'),
+                entrada.tanda_nombre
+                    ? supabase.from('tanda_settings').select('indice_ganancia_valor').eq('tanda_nombre', entrada.tanda_nombre).maybeSingle()
+                    : Promise.resolve({ data: null }),
+            ]);
+
+            if (!dolarRes.ok) throw new Error('no dolar');
+            const dolarBlue = parseFloat((await dolarRes.json())?.venta);
+            if (!dolarBlue) throw new Error('no dolar value');
+
+            const indice = parseFloat(settingsRes.data?.indice_ganancia_valor || 1.5);
+            const prices = calcPrice(
+                { ...entrada, _source: 'entradas' },
+                { cotizacion_dolar: dolarBlue, indice_ganancia_valor: indice }
+            );
+
+            if (prices.precioVentaArg != null) {
+                setPrice(fmtMiles(prices.precioVentaArg.toFixed(0)));
+            } else if (entrada.precio_docena) {
+                setPrice(fmtMiles(entrada.precio_docena));
+            }
+        } catch {
+            if (entrada.precio_docena) setPrice(fmtMiles(entrada.precio_docena));
+        } finally {
+            setLoadingPrice(false);
+        }
+    };
+
+    const calcTransf = (ef, tot) => {
+        const base = Math.max(0, tot - (parseFloat(rawNum(ef)) || 0));
+        return base === 0 ? '' : fmtMiles(base.toFixed(0));
+    };
+    const handleEfectivoChange = (val) => {
+        const fmt = fmtMiles(val);
+        setEfectivo(fmt);
+        setTransferencia(calcTransf(fmt, total));
+    };
+    const handleTransferenciaChange = (val) => {
+        const fmt = fmtMiles(val);
+        setTransferencia(fmt);
+        const tr = parseFloat(rawNum(fmt)) || 0;
+        const ef = Math.max(0, total - tr);
+        setEfectivo(ef > 0 ? fmtMiles(ef.toFixed(0)) : '');
+    };
+
+    const handleSave = () => {
+        const precio   = parseFloat(rawNum(price)) || 0;
+        const cantidad = parseFloat(qty)            || 0;
+        const total_ars = precio * cantidad;
+        let monto_efectivo = 0, monto_transferencia = 0, cuenta_nombre = null;
+        if (metodo === 'efectivo') {
+            monto_efectivo = total_ars;
+        } else if (metodo === 'transferencia') {
+            monto_transferencia = parseFloat(rawNum(transferencia)) || total_ars;
+            cuenta_nombre = selectedCuenta?.nombre || null;
+        } else {
+            monto_efectivo      = parseFloat(rawNum(efectivo))      || 0;
+            monto_transferencia = parseFloat(rawNum(transferencia)) || 0;
+            cuenta_nombre = selectedCuenta?.nombre || null;
+        }
+        onSave({
+            producto_titulo:   prod.producto_titulo,
+            codigo:            prod.codigo       || null,
+            tanda_nombre:      prod.tanda_nombre || null,
+            cantidad_docenas:  cantidad,
+            precio_docena_ars: precio,
+            total_ars,
+            propietario:       prod.propietario  || null,
+            metodo_pago:       metodo,
+            monto_efectivo,
+            monto_transferencia,
+            cuenta_nombre,
+        });
+    };
+
+    const inputCls = 'w-full px-3 py-2.5 border border-input rounded-xl text-base bg-background text-foreground focus:outline-none font-medium';
+    const labelCls = 'text-xs font-semibold text-muted-foreground block mb-1.5 uppercase tracking-wide';
+
+    return (
+        <div className="px-5 py-4 space-y-4">
+
+            {/* ── Buscador de producto ── */}
+            <div>
+                <label className={labelCls}>Producto</label>
+
+                {prod.producto_titulo && !showSearch && (
+                    <div className="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border-2 mb-3"
+                        style={{ borderColor: ownerColor + '50', backgroundColor: ownerColor + '08' }}>
+                        <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-foreground truncate">{prod.producto_titulo}</p>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                {prod.codigo && (
+                                    <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{prod.codigo}</span>
+                                )}
+                                {prod.tanda_nombre && (
+                                    <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                                        <Layers className="w-2.5 h-2.5" />{prod.tanda_nombre}
+                                    </span>
+                                )}
+                            </div>
+                        </div>
+                        <button type="button"
+                            onClick={() => { setSelectedEntrada(null); setQuery(''); setShowSearch(true); }}
+                            className="text-xs font-semibold hover:underline flex-shrink-0"
+                            style={{ color: ownerColor }}>
+                            Cambiar
+                        </button>
+                    </div>
+                )}
+
+                {(showSearch || !prod.producto_titulo) && (
+                    <div ref={dropRef} className="relative">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                            <input
+                                autoFocus
+                                className={`${inputCls} pl-9 pr-16`}
+                                value={query}
+                                onChange={e => setQuery(e.target.value)}
+                                onFocus={() => query.length >= 2 && setShowDrop(true)}
+                                placeholder="Buscar por nombre, código, marca o tanda…"
+                            />
+                            {searching && <RefreshCw className="absolute right-10 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />}
+                            {query && !searching && (
+                                <button type="button" onClick={() => { setQuery(''); setShowDrop(false); }}
+                                    className="absolute right-10 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                                    <X className="w-3.5 h-3.5" />
+                                </button>
+                            )}
+                            {prod.producto_titulo && (
+                                <button type="button"
+                                    onClick={() => { setShowSearch(false); setQuery(''); setShowDrop(false); }}
+                                    title="Volver al producto actual"
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+                                    <X className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
+                        {showDrop && results.length > 0 && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-xl overflow-hidden max-h-52 overflow-y-auto">
+                                {results.map(e => {
+                                    const eProp = e.propietario_producto?.trim() || e.propietario?.trim() || '';
+                                    const eColor = appUsers.find(u => u.username === eProp)?.color || '#9ca3af';
+                                    return (
+                                        <button key={e.id} type="button" onMouseDown={() => handleSelectEntrada(e)}
+                                            className="w-full text-left px-3 py-2.5 transition-colors border-b border-border/50 last:border-0"
+                                            style={{ borderLeft: `4px solid ${eColor}`, backgroundColor: `${eColor}08` }}
+                                            onMouseEnter={ev => ev.currentTarget.style.backgroundColor = `${eColor}18`}
+                                            onMouseLeave={ev => ev.currentTarget.style.backgroundColor = `${eColor}08`}>
+                                            <p className="text-sm font-semibold text-foreground truncate">{e.producto_titulo || e.codigo || '—'}</p>
+                                            <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                                {e.codigo && <span className="text-[10px] font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">{e.codigo}</span>}
+                                                {e.marca && <span className="text-[10px] text-muted-foreground">{e.marca}</span>}
+                                                {e.tanda_nombre && <span className="text-[10px] text-muted-foreground flex items-center gap-1"><Layers className="w-2.5 h-2.5" />{e.tanda_nombre}</span>}
+                                                {eProp && (
+                                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full flex items-center gap-1"
+                                                        style={{ backgroundColor: `${eColor}20`, color: eColor }}>
+                                                        <User className="w-2.5 h-2.5" />{eProp}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        )}
+                        {showDrop && results.length === 0 && !searching && query.length >= 2 && (
+                            <div className="absolute z-50 left-0 right-0 mt-1 bg-card border border-border rounded-xl shadow-xl px-4 py-3 text-center text-sm text-muted-foreground">
+                                Sin resultados para "{query}"
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* ── Precio y cantidad ── */}
+            <div className="grid grid-cols-2 gap-3">
+                <div>
+                    <label className={labelCls}>Precio por docena (ARS)</label>
+                    <div className="relative">
+                        <input
+                            type="text"
+                            inputMode="numeric"
+                            value={price}
+                            onChange={e => setPrice(fmtMiles(e.target.value))}
+                            placeholder={loadingPrice ? 'Buscando precio…' : '0'}
+                            disabled={loadingPrice}
+                            className={`${inputCls} pr-8 disabled:opacity-60`}
+                        />
+                        {loadingPrice && (
+                            <RefreshCw className="absolute right-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground animate-spin" />
+                        )}
+                    </div>
+                </div>
+                <div>
+                    <label className={labelCls}>Cantidad (docenas)</label>
+                    <input
+                        type="number"
+                        value={qty}
+                        onChange={e => setQty(e.target.value)}
+                        min="0.5"
+                        step="0.5"
+                        className={inputCls}
+                    />
+                </div>
+            </div>
+
+            {/* ── Propietario ── */}
+            {appUsers.length > 0 && (
+                <div>
+                    <label className={labelCls}>Propietario</label>
+                    <select className={inputCls} value={prod.propietario} onChange={e => setProdField('propietario', e.target.value)}>
+                        <option value="">Sin propietario</option>
+                        {appUsers.map(u => <option key={u.username} value={u.username}>{u.username}</option>)}
+                    </select>
+                </div>
+            )}
+
+            {/* ── Método de pago ── */}
+            <div>
+                <label className={labelCls}>Método de pago</label>
+                <div className="grid grid-cols-3 gap-2">
+                    {METODOS_EDIT.map(({ id, label, Icon }) => {
+                        const active = metodo === id;
+                        return (
+                            <button key={id} type="button"
+                                onClick={() => { setMetodo(id); setSelectedCuenta(null); setEfectivo(''); setTransferencia(''); }}
+                                className="flex flex-col items-center gap-1.5 py-3 rounded-xl border-2 text-xs font-semibold transition-all"
+                                style={active
+                                    ? { borderColor: ownerColor, backgroundColor: ownerColor + '15', color: ownerColor }
+                                    : { borderColor: 'var(--border)', color: 'var(--muted-foreground)' }
+                                }>
+                                <Icon className="w-4 h-4" />
+                                {label}
+                            </button>
+                        );
+                    })}
+                </div>
+            </div>
+
+            {/* ── Cuenta destino ── */}
+            {(metodo === 'transferencia' || metodo === 'mixto') && (
+                <div>
+                    <label className={labelCls}>Cuenta destino</label>
+                    {cuentas.length === 0 ? (
+                        <p className="text-xs text-yellow-600 bg-yellow-50 dark:bg-yellow-950/20 px-3 py-2 rounded-xl">
+                            No hay cuentas activas.
+                        </p>
+                    ) : (
+                        <div className="space-y-1.5">
+                            {cuentas.map(cuenta => {
+                                const sel = selectedCuenta?.id === cuenta.id;
+                                return (
+                                    <button key={cuenta.id} type="button" onClick={() => setSelectedCuenta(cuenta)}
+                                        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl border-2 text-left transition-all"
+                                        style={sel
+                                            ? { borderColor: ownerColor, backgroundColor: ownerColor + '15' }
+                                            : { borderColor: 'var(--border)' }
+                                        }>
+                                        <Building2 className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                                        <div>
+                                            <p className="text-sm font-semibold text-foreground">{cuenta.nombre}</p>
+                                            {cuenta.titular && <p className="text-xs text-muted-foreground">{cuenta.titular}</p>}
+                                        </div>
+                                        {sel && <div className="ml-auto w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: ownerColor }} />}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Montos mixto ── */}
+            {metodo === 'mixto' && total > 0 && (
+                <div className="space-y-3">
+                    <div>
+                        <label className={labelCls}>Monto en efectivo (ARS)</label>
+                        <input type="text" inputMode="numeric" value={efectivo}
+                            onChange={e => handleEfectivoChange(e.target.value)}
+                            placeholder="0" className={inputCls} />
+                    </div>
+                    <div>
+                        <label className={labelCls}>Monto en transferencia (ARS)</label>
+                        <input type="text" inputMode="numeric" value={transferencia}
+                            onChange={e => handleTransferenciaChange(e.target.value)}
+                            placeholder="0" className={inputCls} />
+                    </div>
+                    {parseFloat(rawNum(efectivo)) > 0 && parseFloat(rawNum(transferencia)) > 0 && (
+                        <div className="rounded-2xl overflow-hidden border border-border">
+                            <div className="grid grid-cols-2 divide-x divide-border">
+                                <div className="flex flex-col items-center gap-1 px-3 py-3.5 bg-muted/40">
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Banknote className="w-3.5 h-3.5" />
+                                        <span className="text-xs font-semibold uppercase tracking-wide">Efectivo</span>
+                                    </div>
+                                    <p className="text-xl font-bold text-foreground leading-tight">
+                                        ${parseFloat(rawNum(efectivo)).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    </p>
+                                    <span className="text-xs text-muted-foreground font-medium">ARS</span>
+                                </div>
+                                <div className="flex flex-col items-center gap-1 px-3 py-3.5 bg-muted/40">
+                                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                                        <Building2 className="w-3.5 h-3.5" />
+                                        <span className="text-xs font-semibold uppercase tracking-wide">Transferencia</span>
+                                    </div>
+                                    <p className="text-xl font-bold text-foreground leading-tight">
+                                        ${parseFloat(rawNum(transferencia)).toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                                    </p>
+                                    <span className="text-xs text-muted-foreground font-medium">ARS</span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* ── Total destacado ── */}
+            {total > 0 && (
+                <div className="rounded-xl px-4 py-3 flex items-center justify-between"
+                    style={{ backgroundColor: ownerColor + '12', border: `1px solid ${ownerColor}30` }}>
+                    <span className="text-sm font-medium text-muted-foreground">Total</span>
+                    <span className="text-2xl font-bold" style={{ color: ownerColor }}>
+                        ${total.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
+                        <span className="text-sm font-semibold ml-1 opacity-70">ARS</span>
+                    </span>
+                </div>
+            )}
+
+            {/* ── Botones ── */}
+            <div className="flex gap-2">
+                <button type="button" onClick={onCancel} disabled={saving}
+                    className="flex-1 py-3 rounded-xl border border-border text-sm font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50">
+                    Cancelar
+                </button>
+                <button type="button" onClick={handleSave}
+                    disabled={saving || !prod.producto_titulo.trim()}
+                    className="flex-1 py-3 rounded-xl font-bold text-base transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 text-white disabled:opacity-50"
+                    style={{ backgroundColor: ownerColor }}>
+                    {saving
+                        ? <><RefreshCw className="w-4 h-4 animate-spin" /> Guardando…</>
+                        : <><Check className="w-5 h-5" /> Guardar cambios</>
+                    }
+                </button>
+            </div>
+        </div>
+    );
+}
+
 /* ─── PedidoModal — detalle completo de un pedido ───────────────────── */
 
-function PedidoModal({ pedido, color, getUserColor, fmtMonto, onDelete, deletingId, onRename, onDeletePedido, deletingPedidoId, onClose }) {
-    const [editing,   setEditing]   = useState(false);
-    const [nameDraft, setNameDraft] = useState(pedido.nombre || '');
+function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete, deletingId, onRename, onDeletePedido, deletingPedidoId, onEdit, onAdd, onClose }) {
+    const [editing,        setEditing]        = useState(false);
+    const [nameDraft,      setNameDraft]      = useState(pedido.nombre || '');
+    const [cuentas,        setCuentas]        = useState([]);
+    const [editingId,      setEditingId]      = useState(null);
+    const [savingId,       setSavingId]       = useState(null);
+    const [addingProduct,  setAddingProduct]  = useState(false);
+    const [savingAdd,      setSavingAdd]      = useState(false);
+
+    useEffect(() => {
+        supabase.from('cuentas_bancarias').select('id, nombre, titular').eq('activa', true).then(({ data }) => {
+            if (data) setCuentas(data);
+        });
+    }, []);
+
+    const handleEditSave = async (ventaId, data) => {
+        setSavingId(ventaId);
+        try {
+            await onEdit(ventaId, data);
+            setEditingId(null);
+        } finally {
+            setSavingId(null);
+        }
+    };
+
+    const handleAdd = async (data) => {
+        setSavingAdd(true);
+        try {
+            await onAdd(pedido.ventaId, data);
+            setAddingProduct(false);
+        } finally {
+            setSavingAdd(false);
+        }
+    };
+
     const displayName = pedido.nombre || nombrePedidoGenerico(pedido.hora);
 
     const startEditing = () => {
@@ -626,64 +1119,105 @@ function PedidoModal({ pedido, color, getUserColor, fmtMonto, onDelete, deleting
                 <div className="flex-1 overflow-y-auto divide-y divide-border/60">
                     {pedido.rows.map(venta => {
                         const ownerColor = getUserColor(venta.propietario);
+                        const isEditing  = editingId === venta.id;
                         return (
-                            <div key={venta.id} className="flex items-stretch"
-                                style={{ borderLeft: `4px solid ${ownerColor}` }}>
-                                <div className="flex-1 px-4 py-3.5 min-w-0">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <span className="font-semibold text-foreground text-sm">
-                                            {venta.producto_titulo}
-                                        </span>
-                                        {venta.codigo && (
-                                            <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                                                <Tag className="w-2.5 h-2.5" /> {venta.codigo}
-                                            </span>
-                                        )}
-                                        {venta.tanda_nombre && (
-                                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                                <Layers className="w-2.5 h-2.5" /> {venta.tanda_nombre}
-                                            </span>
-                                        )}
+                            <div key={venta.id} style={{ borderLeft: `4px solid ${ownerColor}` }}>
+                                {isEditing ? (
+                                    <EditVentaInline
+                                        venta={venta}
+                                        appUsers={appUsers}
+                                        cuentas={cuentas}
+                                        onSave={(data) => handleEditSave(venta.id, data)}
+                                        onCancel={() => setEditingId(null)}
+                                        saving={savingId === venta.id}
+                                    />
+                                ) : (
+                                    <div className="flex items-stretch">
+                                        <div className="flex-1 px-4 py-3.5 min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <span className="font-semibold text-foreground text-sm">
+                                                    {venta.producto_titulo}
+                                                </span>
+                                                {venta.codigo && (
+                                                    <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
+                                                        <Tag className="w-2.5 h-2.5" /> {venta.codigo}
+                                                    </span>
+                                                )}
+                                                {venta.tanda_nombre && (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
+                                                        <Layers className="w-2.5 h-2.5" /> {venta.tanda_nombre}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                                    style={{ backgroundColor: ownerColor + '20', color: ownerColor, border: `1px solid ${ownerColor}40` }}>
+                                                    <User className="w-2.5 h-2.5" />
+                                                    {venta.propietario || 'Sin propietario'}
+                                                </span>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {venta.cantidad_docenas} doc × {fmtMonto(venta.precio_docena_ars)}
+                                                </span>
+                                                {Number(venta.dolar_blue) > 0 && (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
+                                                        <DollarSign className="w-2.5 h-2.5" />
+                                                        ${Number(venta.dolar_blue).toLocaleString('es-AR')}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="mt-1.5">
+                                                <PaymentBadge venta={venta} />
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end justify-between px-3 py-3.5 flex-shrink-0">
+                                            <p className="font-bold text-foreground text-base">
+                                                {fmtMonto(venta.total_ars)}
+                                            </p>
+                                            <div className="flex items-center gap-1 mt-auto">
+                                                <button
+                                                    onClick={() => setEditingId(venta.id)}
+                                                    title="Editar producto"
+                                                    className="p-1.5 rounded-xl hover:bg-primary/10 text-muted-foreground hover:text-primary transition-colors"
+                                                >
+                                                    <Pencil className="w-3.5 h-3.5" />
+                                                </button>
+                                                <button
+                                                    onClick={() => onDelete(venta.id)}
+                                                    disabled={deletingId === venta.id}
+                                                    className="p-1.5 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                                                >
+                                                    {deletingId === venta.id
+                                                        ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                                        : <Trash2 className="w-3.5 h-3.5" />
+                                                    }
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                    <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                        <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                                            style={{ backgroundColor: ownerColor + '20', color: ownerColor, border: `1px solid ${ownerColor}40` }}>
-                                            <User className="w-2.5 h-2.5" />
-                                            {venta.propietario || 'Sin propietario'}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground">
-                                            {venta.cantidad_docenas} doc × {fmtMonto(venta.precio_docena_ars)}
-                                        </span>
-                                        {Number(venta.dolar_blue) > 0 && (
-                                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                                                <DollarSign className="w-2.5 h-2.5" />
-                                                ${Number(venta.dolar_blue).toLocaleString('es-AR')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="mt-1.5">
-                                        <PaymentBadge venta={venta} />
-                                    </div>
-                                </div>
-                                <div className="flex flex-col items-end justify-between px-4 py-3.5 flex-shrink-0">
-                                    <p className="font-bold text-foreground text-base">
-                                        {fmtMonto(venta.total_ars)}
-                                    </p>
-                                    <button
-                                        onClick={() => onDelete(venta.id)}
-                                        disabled={deletingId === venta.id}
-                                        className="p-1.5 rounded-xl hover:bg-destructive/10 text-muted-foreground
-                                                   hover:text-destructive transition-colors"
-                                    >
-                                        {deletingId === venta.id
-                                            ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            : <Trash2 className="w-3.5 h-3.5" />
-                                        }
-                                    </button>
-                                </div>
+                                )}
                             </div>
                         );
                     })}
+
+                    {/* ── Agregar producto ── */}
+                    {addingProduct ? (
+                        <EditVentaInline
+                            venta={{}}
+                            appUsers={appUsers}
+                            cuentas={cuentas}
+                            onSave={handleAdd}
+                            onCancel={() => setAddingProduct(false)}
+                            saving={savingAdd}
+                        />
+                    ) : (
+                        <button
+                            onClick={() => setAddingProduct(true)}
+                            className="w-full flex items-center justify-center gap-2 py-3.5 text-sm font-semibold text-primary hover:bg-primary/5 transition-colors"
+                        >
+                            <Plus className="w-4 h-4" />
+                            Agregar producto al pedido
+                        </button>
+                    )}
                 </div>
 
                 {/* Total del pedido */}
@@ -699,7 +1233,7 @@ function PedidoModal({ pedido, color, getUserColor, fmtMonto, onDelete, deleting
 
 /* ─── DayDetail — panel de detalle (inline + bottom-sheet en mobile) ── */
 
-function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, isMobile, onDeleteDay, onRenamePedido, onDeletePedido, deletingPedidoId }) {
+function DayDetail({ fecha, items, getUserColor, appUsers, onClose, onDelete, deletingId, isMobile, onDeleteDay, onRenamePedido, onDeletePedido, deletingPedidoId, onEdit, onAdd }) {
     const [activeTab,        setActiveTab]        = useState('resumen');
     const [showUSD,          setShowUSD]          = useState(false);
     const [showDeleteDay,    setShowDeleteDay]    = useState(false);
@@ -830,12 +1364,15 @@ function DayDetail({ fecha, items, getUserColor, onClose, onDelete, deletingId, 
                     pedido={openPedido}
                     color={pedidoColor(openPedidoIndex)}
                     getUserColor={getUserColor}
+                    appUsers={appUsers}
                     fmtMonto={fmtMonto}
                     onDelete={onDelete}
                     deletingId={deletingId}
                     onRename={onRenamePedido}
                     onDeletePedido={onDeletePedido}
                     deletingPedidoId={deletingPedidoId}
+                    onEdit={onEdit}
+                    onAdd={onAdd}
                     onClose={() => setOpenPedidoId(null)}
                 />
             )}
@@ -1704,6 +2241,31 @@ export function VentasHistorial() {
         0
     );
 
+    const editVenta = async (id, data) => {
+        const { error } = await supabase.from('ventas').update(data).eq('id', id);
+        if (error) throw error;
+        setVentas(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
+        toast.success('Venta actualizada');
+    };
+
+    const addVenta = async (pedidoVentaId, data) => {
+        const refRow = ventas.find(v => v.venta_id === pedidoVentaId);
+        const { data: inserted, error } = await supabase
+            .from('ventas')
+            .insert({
+                ...data,
+                venta_id:      pedidoVentaId,
+                fecha:         refRow?.fecha         || null,
+                nombre_pedido: refRow?.nombre_pedido || null,
+                dolar_blue:    refRow?.dolar_blue    || null,
+            })
+            .select()
+            .single();
+        if (error) throw error;
+        setVentas(prev => [...prev, inserted]);
+        toast.success('Producto agregado');
+    };
+
     const renamePedido = async (ventaId, nombre) => {
         const nombreFinal = nombre.trim() || null;
         try {
@@ -1927,6 +2489,7 @@ export function VentasHistorial() {
                             fecha={selectedDay}
                             items={grouped[selectedDay]}
                             getUserColor={getUserColor}
+                            appUsers={appUsers}
                             onClose={() => setSelectedDay(null)}
                             onDelete={deleteVenta}
                             deletingId={deletingId}
@@ -1935,6 +2498,8 @@ export function VentasHistorial() {
                             onRenamePedido={renamePedido}
                             onDeletePedido={deletePedido}
                             deletingPedidoId={deletingPedidoId}
+                            onEdit={editVenta}
+                            onAdd={addVenta}
                         />
                     )}
                 </>
