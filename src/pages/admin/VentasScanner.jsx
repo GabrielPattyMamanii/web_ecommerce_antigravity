@@ -7,7 +7,7 @@ import toast from 'react-hot-toast';
 import {
     ScanLine, Trash2, CheckCircle, Package,
     ShoppingCart, X, User, Info, Loader2, Tag, Store,
-    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle, Search
+    Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle, Search, Layers
 } from 'lucide-react';
 
 const METODOS = [
@@ -86,6 +86,10 @@ export function VentasScanner() {
     // --- Producto encontrado ---
     const [foundEntradas, setFoundEntradas] = useState([]);
     const [showPropietarioModal, setShowPropietarioModal] = useState(false);
+    const [showTandaModal, setShowTandaModal] = useState(false);
+    const [tandaEntries, setTandaEntries] = useState([]);
+    const [tandaSoldMap, setTandaSoldMap] = useState({});
+    const [loadingTandaStock, setLoadingTandaStock] = useState(false);
     const [selectedEntrada, setSelectedEntrada] = useState(null);
     const [loadingPrice, setLoadingPrice] = useState(false);
     const [precioInfo, setPrecioInfo] = useState(null);
@@ -374,6 +378,40 @@ export function VentasScanner() {
         }
     }, [selectEntrada]);
 
+    const openTandaPicker = useCallback(async (entries) => {
+        const propietarioKey = getPropietario(entries[0]) ?? null;
+        setTandaEntries(entries);
+        setShowTandaModal(true);
+        setLoadingTandaStock(true);
+        try {
+            const codigo = entries[0].codigo;
+            // Igual que ControlMercancía: sumar todas las ventas de (codigo, propietario)
+            // sin filtrar por tanda, y aplicar ese total a cada entrada
+            const { data } = await supabase
+                .from('ventas')
+                .select('cantidad_docenas')
+                .eq('codigo', codigo)
+                .eq('propietario', propietarioKey);
+            const totalSold = (data || []).reduce((sum, v) => sum + Number(v.cantidad_docenas), 0);
+            setTandaSoldMap({ __total__: totalSold });
+        } catch {
+            setTandaSoldMap({ __total__: 0 });
+        } finally {
+            setLoadingTandaStock(false);
+        }
+    }, [getPropietario]);
+
+    const handleSelectPropietario = useCallback(async (propietarioKey) => {
+        const entries = foundEntradas.filter(e => (getPropietario(e) ?? null) === propietarioKey);
+        setShowPropietarioModal(false);
+        setFoundEntradas([]);
+        if (entries.length === 1) {
+            selectEntrada(entries[0]);
+        } else {
+            openTandaPicker(entries);
+        }
+    }, [foundEntradas, getPropietario, selectEntrada, openTandaPicker]);
+
     // Captura escaneos directamente cuando se está en esta página
     useGlobalScanner(processCode);
 
@@ -653,6 +691,9 @@ export function VentasScanner() {
         setStockInfo(null);
         setFoundEntradas([]);
         setShowPropietarioModal(false);
+        setShowTandaModal(false);
+        setTandaEntries([]);
+        setTandaSoldMap({});
         setCurrentPrice('');
         setCurrentQty('1');
         setCurrentDolarBlue(null);
@@ -875,119 +916,229 @@ export function VentasScanner() {
                                     Sin resultados para "{searchQuery}"
                                 </p>
                             )}
-                            {searchResults.length > 0 && (
-                                <ul className="divide-y divide-border">
-                                    {searchResults.map((entrada, i) => {
-                                        const owner = getPropietario(entrada);
-                                        const color = getUserColor(owner);
-                                        const available = entrada._available;
-                                        const total = Number(entrada.cantidad_docenas) || 0;
-                                        const isOut = available <= 0 && total > 0;
-                                        const isLow = !isOut && total > 0 && (available / total) <= 0.25;
-                                        const stockColor = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
-                                        return (
-                                            <li key={entrada.id ?? i}>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => selectFromSearch(entrada)}
-                                                    className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-start gap-3"
-                                                >
-                                                    <div
-                                                        className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5"
-                                                        style={{ backgroundColor: color + '20', border: `2px solid ${color}` }}
+                            {searchResults.length > 0 && (() => {
+                                // Agrupar por (propietario + codigo) para el paso 1
+                                const groups = new Map();
+                                for (const e of searchResults) {
+                                    const propKey = getPropietario(e) ?? null;
+                                    const groupKey = `${propKey ?? ''}||${e.codigo ?? e.id}`;
+                                    if (!groups.has(groupKey)) groups.set(groupKey, { propKey, entries: [] });
+                                    groups.get(groupKey).entries.push(e);
+                                }
+                                return (
+                                    <ul className="divide-y divide-border">
+                                        {[...groups.values()].map(({ propKey, entries }) => {
+                                            const color = getUserColor(propKey);
+                                            const tandaCount = entries.length;
+                                            const totalDocenas = entries.reduce((s, e) => s + (Number(e.cantidad_docenas) || 0), 0);
+                                            const totalAvailable = entries.reduce((s, e) => s + (e._available ?? 0), 0);
+                                            const isOut = totalAvailable <= 0 && totalDocenas > 0;
+                                            const isLow = !isOut && totalDocenas > 0 && (totalAvailable / totalDocenas) <= 0.25;
+                                            const stockColor = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#16a34a';
+                                            const sample = entries[0];
+                                            return (
+                                                <li key={`${propKey ?? ''}||${sample.codigo ?? sample.id}`}>
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            if (tandaCount === 1) {
+                                                                selectFromSearch(entries[0]);
+                                                            } else {
+                                                                setLastScanned(sample.codigo || sample.producto_titulo || '');
+                                                                closeSearchModal();
+                                                                openTandaPicker(entries);
+                                                            }
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 hover:bg-muted/50 transition-colors flex items-center gap-3"
                                                     >
-                                                        <User className="w-3.5 h-3.5" style={{ color }} />
-                                                    </div>
-                                                    <div className="flex-1 min-w-0">
-                                                        <p className="text-sm font-semibold text-foreground truncate">
-                                                            {entrada.producto_titulo || entrada.codigo || '—'}
-                                                        </p>
-                                                        <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
-                                                            {entrada.codigo && (
-                                                                <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
-                                                                    {entrada.codigo}
-                                                                </span>
-                                                            )}
-                                                            {entrada.marca && (
-                                                                <span className="text-xs text-muted-foreground">{entrada.marca}</span>
-                                                            )}
-                                                            <span className="text-xs font-semibold" style={{ color }}>
-                                                                {owner || 'Sin propietario'}
-                                                            </span>
+                                                        <div
+                                                            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                                            style={{ backgroundColor: color + '20', border: `2px solid ${color}` }}
+                                                        >
+                                                            <User className="w-3.5 h-3.5" style={{ color }} />
                                                         </div>
-                                                        <div className="flex items-center gap-1.5 mt-1">
-                                                            <span
-                                                                className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                                                                style={{ backgroundColor: stockColor + '15', color: stockColor }}
-                                                            >
-                                                                {isOut ? <AlertTriangle className="w-2.5 h-2.5" /> : <Package className="w-2.5 h-2.5" />}
-                                                                {isOut
-                                                                    ? 'Sin stock'
-                                                                    : `${available % 1 === 0 ? available : available.toFixed(1)} / ${total} disponibles`
-                                                                }
-                                                            </span>
-                                                            {entrada.tanda_nombre && (
-                                                                <span className="text-xs text-muted-foreground truncate">
-                                                                    {entrada.tanda_nombre}
+                                                        <div className="flex-1 min-w-0">
+                                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                                <p className="text-sm font-semibold text-foreground truncate">
+                                                                    {sample.producto_titulo || sample.codigo || '—'}
+                                                                </p>
+                                                            </div>
+                                                            <div className="flex flex-wrap items-center gap-1.5 mt-0.5">
+                                                                {sample.codigo && (
+                                                                    <span className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-muted-foreground">
+                                                                        {sample.codigo}
+                                                                    </span>
+                                                                )}
+                                                                {sample.marca && (
+                                                                    <span className="text-xs text-muted-foreground">{sample.marca}</span>
+                                                                )}
+                                                                <span className="text-xs font-semibold" style={{ color }}>
+                                                                    {propKey || 'Sin propietario'}
                                                                 </span>
-                                                            )}
+                                                            </div>
+                                                            <div className="flex items-center gap-1.5 mt-1">
+                                                                <span
+                                                                    className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                                                    style={{ backgroundColor: stockColor + '15', color: stockColor }}
+                                                                >
+                                                                    {isOut ? <AlertTriangle className="w-2.5 h-2.5" /> : <Package className="w-2.5 h-2.5" />}
+                                                                    {isOut
+                                                                        ? 'Sin stock'
+                                                                        : `${totalAvailable % 1 === 0 ? totalAvailable : totalAvailable.toFixed(1)} / ${totalDocenas} disponibles`
+                                                                    }
+                                                                </span>
+                                                            </div>
                                                         </div>
-                                                    </div>
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
-                            )}
+                                                        {tandaCount > 1 && (
+                                                            <span className="text-xs font-bold px-2 py-1 rounded-full flex-shrink-0"
+                                                                style={{ backgroundColor: color + '20', color }}>
+                                                                {tandaCount} tandas
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                </li>
+                                            );
+                                        })}
+                                    </ul>
+                                );
+                            })()}
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Modal: seleccionar propietario */}
-            {showPropietarioModal && (
+            {/* Modal paso 1: seleccionar propietario */}
+            {showPropietarioModal && (() => {
+                // Agrupar foundEntradas por propietario
+                const byProp = new Map();
+                for (const e of foundEntradas) {
+                    const key = getPropietario(e) ?? null;
+                    if (!byProp.has(key)) byProp.set(key, []);
+                    byProp.get(key).push(e);
+                }
+                const propGroups = [...byProp.entries()];
+                return (
+                    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                        <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm">
+                            <div className="p-5 border-b border-border flex items-center justify-between">
+                                <div>
+                                    <h3 className="font-bold text-foreground">Seleccioná el propietario</h3>
+                                    <p className="text-xs text-muted-foreground mt-0.5">
+                                        Código: <strong>{lastScanned}</strong>
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => { setShowPropietarioModal(false); setFoundEntradas([]); }}
+                                    className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+                            <div className="p-4 space-y-2">
+                                {propGroups.map(([propKey, entries]) => {
+                                    const color = getUserColor(propKey);
+                                    const tandaCount = entries.length;
+                                    return (
+                                        <button
+                                            key={propKey ?? '__sin_prop__'}
+                                            onClick={() => handleSelectPropietario(propKey)}
+                                            className="w-full text-left px-4 py-3 rounded-xl border transition-all hover:shadow-md active:scale-[0.98]"
+                                            style={{ borderColor: color + '60', backgroundColor: color + '08' }}
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div
+                                                    className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                                                    style={{ backgroundColor: color + '25', border: `2px solid ${color}` }}
+                                                >
+                                                    <User className="w-4 h-4" style={{ color }} />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="font-semibold text-sm" style={{ color }}>
+                                                        {propKey || 'Sin propietario'}
+                                                    </p>
+                                                    <p className="text-xs text-muted-foreground">
+                                                        {entries[0].producto_titulo}
+                                                    </p>
+                                                </div>
+                                                <span className="text-xs font-bold px-2 py-1 rounded-full flex-shrink-0"
+                                                    style={{ backgroundColor: color + '20', color }}>
+                                                    {tandaCount} tanda{tandaCount !== 1 ? 's' : ''}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    </div>
+                );
+            })()}
+
+            {/* Modal paso 2: seleccionar tanda */}
+            {showTandaModal && (
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                     <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-sm">
                         <div className="p-5 border-b border-border flex items-center justify-between">
                             <div>
-                                <h3 className="font-bold text-foreground">Seleccioná el propietario</h3>
+                                <h3 className="font-bold text-foreground">Seleccioná la tanda</h3>
                                 <p className="text-xs text-muted-foreground mt-0.5">
                                     Código: <strong>{lastScanned}</strong>
                                 </p>
                             </div>
                             <button
-                                onClick={() => { setShowPropietarioModal(false); setFoundEntradas([]); }}
+                                onClick={() => { setShowTandaModal(false); setTandaEntries([]); setTandaSoldMap({}); setFoundEntradas([]); }}
                                 className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground"
                             >
                                 <X className="w-4 h-4" />
                             </button>
                         </div>
                         <div className="p-4 space-y-2">
-                            {foundEntradas.map((entrada, i) => {
-                                const name = getPropietario(entrada);
-                                const color = getUserColor(name);
+                            {tandaEntries.map((entrada) => {
+                                const propKey = getPropietario(entrada) ?? null;
+                                const color = getUserColor(propKey);
+                                const total = Number(entrada.cantidad_docenas) || 0;
+                                const sold = loadingTandaStock ? null : (tandaSoldMap['__total__'] ?? 0);
+                                const available = sold !== null ? total - sold : null;
+                                const isOut = available !== null && available <= 0 && total > 0;
+                                const isLow = !isOut && available !== null && total > 0 && (available / total) <= 0.25;
                                 return (
                                     <button
-                                        key={entrada.id ?? i}
-                                        onClick={() => selectEntrada(entrada)}
-                                        className="w-full text-left px-4 py-3 rounded-xl border transition-all hover:shadow-md"
+                                        key={entrada.id}
+                                        onClick={() => {
+                                            setShowTandaModal(false);
+                                            setTandaEntries([]);
+                                            setTandaSoldMap({});
+                                            setFoundEntradas([]);
+                                            selectEntrada(entrada);
+                                        }}
+                                        disabled={isOut}
+                                        className="w-full text-left px-4 py-3 rounded-xl border transition-all hover:shadow-md active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed"
                                         style={{ borderColor: color + '60', backgroundColor: color + '08' }}
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <div
-                                                className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-                                                style={{ backgroundColor: color + '25', border: `2px solid ${color}` }}
-                                            >
-                                                <User className="w-4 h-4" style={{ color }} />
-                                            </div>
-                                            <div>
-                                                <p className="font-semibold text-sm" style={{ color }}>
-                                                    {name || 'Sin propietario'}
-                                                </p>
-                                                <p className="text-xs text-muted-foreground">
-                                                    {entrada.producto_titulo} · {entrada.marca}
+                                        <div className="flex items-center justify-between gap-3">
+                                            <div className="flex items-center gap-2.5 min-w-0">
+                                                <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
+                                                    style={{ backgroundColor: color + '25' }}>
+                                                    <Layers className="w-3.5 h-3.5" style={{ color }} />
+                                                </div>
+                                                <p className="font-semibold text-sm text-foreground truncate">
+                                                    {entrada.tanda_nombre || 'Sin tanda'}
                                                 </p>
                                             </div>
+                                            <span className={`text-xs font-bold px-2 py-1 rounded-full flex-shrink-0 ${
+                                                isOut
+                                                    ? 'bg-red-100 text-red-600'
+                                                    : isLow
+                                                        ? 'bg-amber-100 text-amber-700'
+                                                        : 'bg-green-100 text-green-700'
+                                            }`}>
+                                                {loadingTandaStock
+                                                    ? '…'
+                                                    : isOut
+                                                        ? 'Sin stock'
+                                                        : `${available} / ${total} disp.`
+                                                }
+                                            </span>
                                         </div>
                                     </button>
                                 );

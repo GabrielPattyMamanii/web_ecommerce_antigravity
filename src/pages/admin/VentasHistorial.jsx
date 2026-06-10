@@ -2223,6 +2223,7 @@ export function VentasHistorial() {
     const [showAccumulator, setShowAccumulator] = useState(false);
     const [showCuentas,     setShowCuentas]     = useState(false);
     const [showCruce,       setShowCruce]       = useState(false);
+    const [codigoFilter,    setCodigoFilter]    = useState('');
 
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -2257,8 +2258,14 @@ export function VentasHistorial() {
 
     useEffect(() => { fetchVentas(); }, [fetchVentas]);
 
+    /* Filtro por código de producto */
+    const codigoTrim = codigoFilter.trim().toLowerCase();
+    const displayVentas = codigoTrim
+        ? ventas.filter(v => (v.codigo || '').toLowerCase().includes(codigoTrim))
+        : ventas;
+
     /* Agrupar ventas por día */
-    const grouped = ventas.reduce((acc, v) => {
+    const grouped = displayVentas.reduce((acc, v) => {
         if (!acc[v.fecha]) acc[v.fecha] = [];
         acc[v.fecha].push(v);
         return acc;
@@ -2381,7 +2388,10 @@ export function VentasHistorial() {
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold text-foreground">Historial de Ventas</h1>
                     <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                        {ventas.length} venta{ventas.length !== 1 ? 's' : ''} registrada{ventas.length !== 1 ? 's' : ''}
+                        {codigoTrim
+                            ? `${displayVentas.length} de ${ventas.length} venta${ventas.length !== 1 ? 's' : ''}`
+                            : `${ventas.length} venta${ventas.length !== 1 ? 's' : ''} registrada${ventas.length !== 1 ? 's' : ''}`
+                        }
                     </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -2417,6 +2427,26 @@ export function VentasHistorial() {
                     <RefreshCw className="w-5 h-5" />
                 </button>
                 </div>
+            </div>
+
+            {/* ── Filtro por código de producto ── */}
+            <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                <input
+                    type="text"
+                    value={codigoFilter}
+                    onChange={e => { setCodigoFilter(e.target.value); setSelectedDay(null); }}
+                    placeholder="Filtrar por código de producto…"
+                    className="w-full pl-9 pr-8 py-2 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                />
+                {codigoFilter && (
+                    <button
+                        onClick={() => { setCodigoFilter(''); setSelectedDay(null); }}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                        <X className="w-4 h-4" />
+                    </button>
+                )}
             </div>
 
             {showCruce && (
