@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "insecure-defaults": {
+      "source": "trailofbits/skills",
+      "sourceType": "github",
+      "skillPath": "plugins/insecure-defaults/skills/insecure-defaults/SKILL.md",
+      "computedHash": "420c8a4a1979d5d0989248bd433f1770d7a8f463ae0efd42313e2d285057b476"
+    },
     "vercel-react-best-practices": {
       "source": "vercel-labs/agent-skills",
       "sourceType": "github",

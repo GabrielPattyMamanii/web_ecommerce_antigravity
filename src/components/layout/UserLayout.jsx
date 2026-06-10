@@ -5,16 +5,19 @@ import {
     FileText,
     ClipboardList,
     Truck,
-    LogOut,
-    Bell,
     Sun,
     Moon,
-    Store,
-    ExternalLink
 } from 'lucide-react';
 import { useDarkMode } from '../../hooks/useDarkMode';
 import { useMercanciaUser } from '../../context/MiMercaderiaContext';
 import { supabase } from '../../lib/supabase';
+
+const ALL_NAV_ITEMS = [
+    { path: '/dashboard',                 icon: LayoutDashboard, label: 'Dashboard',          section: null },
+    { path: '/dashboard/carga-boletas',   icon: FileText,        label: 'Cargar Boletas',     section: null },
+    { path: '/dashboard/resumen',         icon: ClipboardList,   label: 'Resumen',            section: null },
+    { path: '/dashboard/calculo',         icon: Truck,           label: 'Cálculo Transporte', section: null },
+];
 
 export function UserLayout() {
     const location = useLocation();
@@ -22,6 +25,8 @@ export function UserLayout() {
     const { isDark, toggleDarkMode } = useDarkMode();
     const { mercanciaUser } = useMercanciaUser();
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [appUser, setAppUser] = useState(null);
+    const [userPermissions, setUserPermissions] = useState(null); // null = cargando
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -29,20 +34,21 @@ export function UserLayout() {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const [appUser, setAppUser] = useState(null);
-
     useEffect(() => {
         const username = sessionStorage.getItem('app_username');
-        if (username) {
-            setAppUser(username);
+        const rawPerms = sessionStorage.getItem('app_user_permissions');
+        setAppUser(username);
+        try {
+            setUserPermissions(rawPerms ? JSON.parse(rawPerms) : []);
+        } catch {
+            setUserPermissions([]);
         }
     }, []);
 
     const handleLogout = async () => {
-        // Clear both provided auth methods
         await supabase.auth.signOut();
         sessionStorage.clear();
-        navigate('/admin/usuarios'); // Redirect to login/admin page
+        navigate('/admin/usuarios');
     };
 
     const isActive = (path) => {
@@ -51,12 +57,10 @@ export function UserLayout() {
         return false;
     };
 
-    const navItems = [
-        { path: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
-        { path: '/dashboard/carga-boletas', icon: FileText, label: 'Cargar Boletas' },
-        { path: '/dashboard/resumen', icon: ClipboardList, label: 'Resumen' },
-        { path: '/dashboard/calculo', icon: Truck, label: 'Cálculo Transporte' },
-    ];
+    // section === null → siempre visible (Dashboard); sino verifica permisos
+    const navItems = ALL_NAV_ITEMS.filter(item =>
+        item.section === null || (userPermissions ?? []).includes(item.section)
+    );
 
     // Mobile View
     if (isMobile) {

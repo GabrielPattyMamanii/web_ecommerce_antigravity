@@ -41,7 +41,7 @@ export function UserLogin() {
             localStorage.setItem('mercancia_user_name', data.nombre);
 
             toast.success(`Bienvenido ${data.nombre}!`);
-            setTimeout(() => navigate('/user/dashboard'), 500);
+            setTimeout(() => navigate('/dashboard'), 500);
 
         } catch (error) {
             toast.error('Error al iniciar sesión: ' + error.message);

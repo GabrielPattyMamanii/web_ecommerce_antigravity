@@ -495,8 +495,10 @@ function DeleteDayModal({ fecha, itemCount, onConfirm, onClose }) {
 
 /* ─── PedidoCard — tarjeta compacta de un pedido (mismo carrito confirmado) ── */
 
-function PedidoCard({ pedido, color, fmtMonto, onOpen }) {
+function PedidoCard({ pedido, color, fmtMonto, onOpen, getUserColor }) {
     const displayName = pedido.nombre || nombrePedidoGenerico(pedido.hora);
+    const registradoPor = pedido.rows[0]?.registrado_por || null;
+    const registradoColor = registradoPor && getUserColor ? getUserColor(registradoPor) : null;
 
     return (
         <button
@@ -517,11 +519,25 @@ function PedidoCard({ pedido, color, fmtMonto, onOpen }) {
                     <span className="font-bold text-sm text-foreground truncate">{displayName}</span>
                 </div>
 
-                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full self-start"
-                    style={{ backgroundColor: color + '1a', color }}>
-                    <Clock className="w-3 h-3" />
-                    {formatHora(pedido.hora)} hs
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                        style={{ backgroundColor: color + '1a', color }}>
+                        <Clock className="w-3 h-3" />
+                        {formatHora(pedido.hora)} hs
+                    </span>
+                    {registradoPor && (
+                        <span
+                            className="inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full"
+                            style={registradoColor && registradoColor !== '#9ca3af'
+                                ? { backgroundColor: registradoColor + '22', color: registradoColor, border: `1px solid ${registradoColor}50` }
+                                : { backgroundColor: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }
+                            }
+                        >
+                            <User className="w-3 h-3" />
+                            {registradoPor}
+                        </span>
+                    )}
+                </div>
 
                 <div className="flex items-center justify-between mt-1 pt-2.5 border-t" style={{ borderColor: color + '25' }}>
                     <span className="text-xs text-muted-foreground">
@@ -985,6 +1001,8 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
 
 function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete, deletingId, onRename, onDeletePedido, deletingPedidoId, onEdit, onAdd, onClose }) {
     const [editing,        setEditing]        = useState(false);
+    const registradoPor   = pedido.rows[0]?.registrado_por || null;
+    const registradoColor = registradoPor ? getUserColor(registradoPor) : null;
     const [nameDraft,      setNameDraft]      = useState(pedido.nombre || '');
     const [cuentas,        setCuentas]        = useState([]);
     const [editingId,      setEditingId]      = useState(null);
@@ -1086,11 +1104,25 @@ function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete
                                 </span>
                             </button>
                         )}
-                        <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full mt-2"
-                            style={{ backgroundColor: color + '1a', color }}>
-                            <Clock className="w-3 h-3" />
-                            {formatHora(pedido.hora)} hs · {pedido.rows.length} producto{pedido.rows.length !== 1 ? 's' : ''}
-                        </span>
+                        <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                                style={{ backgroundColor: color + '1a', color }}>
+                                <Clock className="w-3 h-3" />
+                                {formatHora(pedido.hora)} hs · {pedido.rows.length} producto{pedido.rows.length !== 1 ? 's' : ''}
+                            </span>
+                            {registradoPor && (
+                                <span
+                                    className="inline-flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded-full"
+                                    style={registradoColor && registradoColor !== '#9ca3af'
+                                        ? { backgroundColor: registradoColor + '22', color: registradoColor, border: `1px solid ${registradoColor}50` }
+                                        : { backgroundColor: 'var(--muted)', color: 'var(--foreground)', border: '1px solid var(--border)' }
+                                    }
+                                >
+                                    <User className="w-3.5 h-3.5" />
+                                    {registradoPor}
+                                </span>
+                            )}
+                        </div>
                     </div>
                     <div className="flex items-center gap-1.5 flex-shrink-0">
                         <button
@@ -1351,6 +1383,7 @@ function DayDetail({ fecha, items, getUserColor, appUsers, onClose, onDelete, de
                                 color={pedidoColor(idx)}
                                 fmtMonto={fmtMonto}
                                 onOpen={() => setOpenPedidoId(pedido.ventaId)}
+                                getUserColor={getUserColor}
                             />
                         ))}
                     </div>

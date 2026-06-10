@@ -17,18 +17,13 @@ export function Login() {
         setAuthError(null);
 
         try {
+            // Intentar Supabase Auth primero (admin principal)
             const { error } = await supabase.auth.signInWithPassword({
                 email: data.email,
                 password: data.password,
             });
 
-            if (error) {
-                setAuthError(error.message === 'Invalid login credentials'
-                    ? 'Email o contraseña incorrectos'
-                    : error.message);
-                setLoading(false);
-            } else {
-                // Check user role for redirection
+            if (!error) {
                 const { data: { user } } = await supabase.auth.getUser();
                 const { data: profile } = await supabase
                     .from('profiles')
@@ -39,9 +34,29 @@ export function Login() {
                 if (profile?.role === 'admin') {
                     navigate('/admin/dashboard');
                 } else {
-                    navigate('/user/dashboard');
+                    navigate('/dashboard');
                 }
+                return;
             }
+
+            // Fallback: verificar en app_users con bcrypt via RPC (hash nunca sale del servidor)
+            const { data: appUsers } = await supabase
+                .rpc('verify_app_user_password', {
+                    p_email: data.email.trim().toLowerCase(),
+                    p_password: data.password,
+                });
+
+            const appUser = appUsers?.[0];
+            if (appUser) {
+                sessionStorage.setItem('app_user_id', appUser.id);
+                sessionStorage.setItem('app_username', appUser.username);
+                sessionStorage.setItem('app_user_permissions', JSON.stringify(appUser.permissions || []));
+                navigate('/admin/dashboard');
+                return;
+            }
+
+            setAuthError('Email o contraseña incorrectos');
+            setLoading(false);
         } catch (err) {
             setAuthError('Ocurrió un error inesperado. Intente nuevamente.');
             setLoading(false);

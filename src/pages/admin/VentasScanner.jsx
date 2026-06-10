@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 import { supabase } from '../../lib/supabase';
 import { calcPrice } from '../../utils/pricingUtils';
 import toast from 'react-hot-toast';
@@ -373,12 +374,8 @@ export function VentasScanner() {
         }
     }, [selectEntrada]);
 
-    // Recibe el código cuando el scanner global detecta un escaneo estando ya en esta página
-    useEffect(() => {
-        const handler = (e) => processCode(e.detail.code, e.detail.codigoFallback);
-        window.addEventListener('scanner:code', handler);
-        return () => window.removeEventListener('scanner:code', handler);
-    }, [processCode]);
+    // Captura escaneos directamente cuando se está en esta página
+    useGlobalScanner(processCode);
 
     // Procesa el código cuando se navega a esta página desde otra sección con ?scan=
     useEffect(() => {
@@ -602,6 +599,25 @@ export function VentasScanner() {
 
         setSaving(true);
         try {
+            // Resolver quién registra la venta: app_user primero, luego Supabase Auth
+            let registradoPor = sessionStorage.getItem('app_username') || null;
+            if (!registradoPor) {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user?.email) {
+                    // Buscar en app_users por email para mostrar el username, no el email
+                    const { data: appUser } = await supabase
+                        .from('app_users')
+                        .select('username')
+                        .eq('email', user.email)
+                        .maybeSingle();
+                    registradoPor = appUser?.username
+                        || user.user_metadata?.full_name
+                        || user.user_metadata?.name
+                        || user.email
+                        || null;
+                }
+            }
+
             const _now = new Date();
             const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
             const ventaId = crypto.randomUUID();
@@ -612,6 +628,7 @@ export function VentasScanner() {
                 dolar_blue,
                 venta_id: ventaId,
                 nombre_pedido: nombrePedidoTrim,
+                registrado_por: registradoPor,
             }));
 
             const { error } = await supabase.from('ventas').insert(records);
