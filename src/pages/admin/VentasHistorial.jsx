@@ -582,6 +582,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
     const [loadingPrice, setLoadingPrice] = useState(false);
     const [price, setPrice] = useState(fmtMiles(venta.precio_docena_ars || ''));
     const [qty,   setQty]   = useState(String(venta.cantidad_docenas || ''));
+    const [qtyError, setQtyError] = useState(false);
 
     /* ── pago ── */
     const [metodo,         setMetodo]         = useState(venta.metodo_pago || 'efectivo');
@@ -703,6 +704,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
     const handleSave = () => {
         const precio   = parseFloat(rawNum(price)) || 0;
         const cantidad = parseFloat(qty)            || 0;
+        if (!cantidad || cantidad <= 0) { setQtyError(true); return; }
         const total_ars = precio * cantidad;
         let monto_efectivo = 0, monto_transferencia = 0, cuenta_nombre = null;
         if (metodo === 'efectivo') {
@@ -854,11 +856,16 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
                     <input
                         type="number"
                         value={qty}
-                        onChange={e => setQty(e.target.value)}
+                        onChange={e => { setQty(e.target.value); setQtyError(false); }}
                         min="0.5"
                         step="0.5"
-                        className={inputCls}
+                        className={`${inputCls} ${qtyError ? 'border-red-400 focus:ring-red-400' : ''}`}
                     />
+                    {qtyError && (
+                        <p className="text-xs text-red-600 mt-1.5 flex items-center gap-1 font-medium">
+                            <AlertTriangle className="w-3 h-3 flex-shrink-0" /> Ingresá una cantidad válida
+                        </p>
+                    )}
                 </div>
             </div>
 
