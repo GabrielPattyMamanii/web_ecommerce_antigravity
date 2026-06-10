@@ -113,8 +113,9 @@ function buildDaySummary(items) {
     for (const owner of Object.keys(byOwner)) {
         const codMap = {};
         for (const v of byOwner[owner].items) {
-            const key = v.codigo || v.producto_titulo || '—';
-            if (!codMap[key]) codMap[key] = { codigo: v.codigo, titulo: v.producto_titulo, docenas: 0 };
+            const tanda = v.tanda_nombre || null;
+            const key = `${v.codigo || v.producto_titulo || '—'}||${tanda || ''}`;
+            if (!codMap[key]) codMap[key] = { codigo: v.codigo, titulo: v.producto_titulo, tanda, docenas: 0 };
             codMap[key].docenas += Number(v.cantidad_docenas);
         }
         byOwner[owner].codigos = Object.values(codMap);
@@ -226,15 +227,21 @@ function DailySummary({ items, getUserColor, showUSD, setShowUSD }) {
                                 <span className="font-bold text-sm text-foreground">{fmt(total)}</span>
                             </div>
                             <div className="px-3 py-2 space-y-1">
-                                {codigos.map(c => (
-                                    <div key={c.codigo || c.titulo} className="flex items-center justify-between gap-2">
-                                        <span className="text-xs text-foreground flex items-center gap-1.5 min-w-0">
+                                {codigos.map((c, i) => (
+                                    <div key={`${c.codigo || c.titulo}-${c.tanda}-${i}`} className="flex items-center justify-between gap-2">
+                                        <span className="text-xs text-foreground flex items-center gap-1.5 min-w-0 flex-wrap">
                                             <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
                                             {c.codigo
                                                 ? <><span className="font-mono font-semibold">{c.codigo}</span>
                                                     {c.titulo && <span className="text-muted-foreground truncate"> ({c.titulo})</span>}</>
                                                 : <span className="text-muted-foreground">{c.titulo || '—'}</span>
                                             }
+                                            {c.tanda && (
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0"
+                                                    style={{ backgroundColor: '#f59e0b18', color: '#d97706' }}>
+                                                    <Layers className="w-2.5 h-2.5" />{c.tanda}
+                                                </span>
+                                            )}
                                         </span>
                                         <span className="text-xs font-semibold text-foreground flex-shrink-0 whitespace-nowrap">
                                             {c.docenas % 1 === 0 ? c.docenas : c.docenas.toFixed(1)} doc
