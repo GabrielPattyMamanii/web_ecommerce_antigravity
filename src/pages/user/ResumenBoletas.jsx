@@ -16,7 +16,7 @@ export function ResumenBoletas() {
     }, []);
 
     const fetchData = async () => {
-        const userId = localStorage.getItem('mercancia_user_id');
+        const userId = sessionStorage.getItem('mercancia_user_id');
         if (!userId) {
             setLoading(false);
             return;

@@ -7,38 +7,40 @@ const AdminPermissionsContext = createContext(null);
 export function AdminPermissionsProvider({ children }) {
     const { user, loading: authLoading } = useAuth();
     const [profile, setProfile] = useState(null);
+    const [appUserPermissions, setAppUserPermissions] = useState(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         if (authLoading) return;
-        if (!user) { setLoading(false); return; }
 
-        supabase
-            .from('profiles')
-            .select('role, permissions, display_name, email')
-            .eq('id', user.id)
-            .single()
-            .then(({ data }) => {
-                setProfile(data);
+        if (user) {
+            supabase
+                .from('profiles')
+                .select('role, permissions, display_name, email')
+                .eq('id', user.id)
+                .single()
+                .then(({ data }) => {
+                    setProfile(data);
+                    setLoading(false);
+                });
+        } else {
+            const appUserId = sessionStorage.getItem('app_user_id');
+            if (appUserId) {
+                supabase
+                    .rpc('get_app_user_permissions', { p_user_id: appUserId })
+                    .then(({ data }) => {
+                        setAppUserPermissions(Array.isArray(data) ? data : []);
+                        setLoading(false);
+                    });
+            } else {
+                setAppUserPermissions([]);
                 setLoading(false);
-            });
+            }
+        }
     }, [user?.id, authLoading]);
 
-    let isAdmin, permissions;
-
-    if (user) {
-        // Sesión Supabase Auth (admin principal)
-        isAdmin = profile?.role === 'admin';
-        permissions = profile?.permissions || [];
-    } else {
-        // Sesión via app_users (sessionStorage)
-        isAdmin = false;
-        try {
-            permissions = JSON.parse(sessionStorage.getItem('app_user_permissions') || '[]');
-        } catch {
-            permissions = [];
-        }
-    }
+    const isAdmin = !!user && profile?.role === 'admin';
+    const permissions = user ? (profile?.permissions || []) : (appUserPermissions ?? []);
 
     const can = (section) => isAdmin || permissions.includes(section);
 

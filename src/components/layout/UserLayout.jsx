@@ -36,11 +36,16 @@ export function UserLayout() {
 
     useEffect(() => {
         const username = sessionStorage.getItem('app_username');
-        const rawPerms = sessionStorage.getItem('app_user_permissions');
+        const appUserId = sessionStorage.getItem('app_user_id');
         setAppUser(username);
-        try {
-            setUserPermissions(rawPerms ? JSON.parse(rawPerms) : []);
-        } catch {
+
+        if (appUserId) {
+            supabase
+                .rpc('get_app_user_permissions', { p_user_id: appUserId })
+                .then(({ data }) => {
+                    setUserPermissions(Array.isArray(data) ? data : []);
+                });
+        } else {
             setUserPermissions([]);
         }
     }, []);

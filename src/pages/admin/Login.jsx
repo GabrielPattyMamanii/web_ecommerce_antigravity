@@ -50,7 +50,6 @@ export function Login() {
             if (appUser) {
                 sessionStorage.setItem('app_user_id', appUser.id);
                 sessionStorage.setItem('app_username', appUser.username);
-                sessionStorage.setItem('app_user_permissions', JSON.stringify(appUser.permissions || []));
                 navigate('/admin/dashboard');
                 return;
             }

@@ -67,7 +67,6 @@ function AppUsuarios() {
     const handleEnterAsUser = (user) => {
         sessionStorage.setItem('app_user_id', user.id);
         sessionStorage.setItem('app_username', user.username);
-        sessionStorage.setItem('app_user_permissions', JSON.stringify(user.permissions || []));
         navigate('/dashboard');
     };
 

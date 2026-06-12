@@ -4,9 +4,10 @@
 
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 
-// ── CORS headers (allow your frontend origin) ─────────────────────────────────
+const ALLOWED_ORIGIN = Deno.env.get('SITE_URL') ?? 'http://localhost:5173';
+
 const CORS_HEADERS = {
-    'Access-Control-Allow-Origin': '*',          // Tighten this in production
+    'Access-Control-Allow-Origin': ALLOWED_ORIGIN,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, apikey, x-client-info',
 };

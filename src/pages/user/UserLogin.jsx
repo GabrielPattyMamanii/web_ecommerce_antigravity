@@ -37,8 +37,8 @@ export function UserLogin() {
             }
 
             // Login Success
-            localStorage.setItem('mercancia_user_id', data.id);
-            localStorage.setItem('mercancia_user_name', data.nombre);
+            sessionStorage.setItem('mercancia_user_id', data.id);
+            sessionStorage.setItem('mercancia_user_name', data.nombre);
 
             toast.success(`Bienvenido ${data.nombre}!`);
             setTimeout(() => navigate('/dashboard'), 500);
