@@ -76,7 +76,8 @@ export function ControlMercanciaTanda() {
                 const { data: ventasData } = await supabase
                     .from('ventas')
                     .select('codigo, propietario, cantidad_docenas')
-                    .in('codigo', codes);
+                    .in('codigo', codes)
+                    .eq('tanda_nombre', tandaName);
                 const map = {};
                 for (const v of ventasData || []) {
                     const key = `${v.codigo}_${v.propietario}`;

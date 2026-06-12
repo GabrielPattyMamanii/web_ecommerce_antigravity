@@ -255,7 +255,10 @@ export function VentasScanner() {
                     ? supabase.from('precios_custom').select('precio_ars').eq('codigo', entrada.codigo).maybeSingle()
                     : Promise.resolve({ data: null }),
                 entrada.codigo && propietarioKey
-                    ? supabase.from('ventas').select('cantidad_docenas').eq('codigo', entrada.codigo).eq('propietario', propietarioKey)
+                    ? (() => {
+                        const q = supabase.from('ventas').select('cantidad_docenas').eq('codigo', entrada.codigo).eq('propietario', propietarioKey);
+                        return entrada.tanda_nombre ? q.eq('tanda_nombre', entrada.tanda_nombre) : q;
+                    })()
                     : Promise.resolve({ data: [] }),
             ]);
 
@@ -358,17 +361,26 @@ export function VentasScanner() {
                 return;
             }
 
-            const seen = new Map();
+            // Group by propietario; entries from different tandas are kept separate
+            const byPropietario = new Map();
             data.forEach(e => {
                 const key = getPropietario(e) ?? `__id_${e.id}`;
-                if (!seen.has(key)) seen.set(key, e);
+                if (!byPropietario.has(key)) byPropietario.set(key, []);
+                byPropietario.get(key).push(e);
             });
-            const unique = [...seen.values()];
+            const uniquePropietarios = [...byPropietario.keys()];
 
-            if (unique.length === 1) {
-                selectEntrada(unique[0]);
+            if (uniquePropietarios.length === 1) {
+                const entries = byPropietario.get(uniquePropietarios[0]);
+                if (entries.length === 1) {
+                    selectEntrada(entries[0]);
+                } else {
+                    // Same propietario but multiple tandas → show tanda picker
+                    openTandaPicker(entries);
+                }
             } else {
-                setFoundEntradas(unique);
+                // Multiple propietarios → show propietario picker (pass all entries)
+                setFoundEntradas(data);
                 setShowPropietarioModal(true);
             }
         } catch {
@@ -385,15 +397,19 @@ export function VentasScanner() {
         setLoadingTandaStock(true);
         try {
             const codigo = entries[0].codigo;
-            // Igual que ControlMercancía: sumar todas las ventas de (codigo, propietario)
-            // sin filtrar por tanda, y aplicar ese total a cada entrada
+            const tandaNames = entries.map(e => e.tanda_nombre).filter(Boolean);
             const { data } = await supabase
                 .from('ventas')
-                .select('cantidad_docenas')
+                .select('cantidad_docenas, tanda_nombre')
                 .eq('codigo', codigo)
-                .eq('propietario', propietarioKey);
-            const totalSold = (data || []).reduce((sum, v) => sum + Number(v.cantidad_docenas), 0);
-            setTandaSoldMap({ __total__: totalSold });
+                .eq('propietario', propietarioKey)
+                .in('tanda_nombre', tandaNames.length > 0 ? tandaNames : ['__none__']);
+            const soldByTanda = {};
+            for (const v of data || []) {
+                const t = v.tanda_nombre || '__unknown__';
+                soldByTanda[t] = (soldByTanda[t] || 0) + Number(v.cantidad_docenas);
+            }
+            setTandaSoldMap(soldByTanda);
         } catch {
             setTandaSoldMap({ __total__: 0 });
         } finally {
@@ -471,17 +487,17 @@ export function VentasScanner() {
             if (codes.length > 0) {
                 const { data: vData } = await supabase
                     .from('ventas')
-                    .select('codigo, propietario, cantidad_docenas')
+                    .select('codigo, propietario, cantidad_docenas, tanda_nombre')
                     .in('codigo', codes);
                 for (const v of vData || []) {
-                    const key = `${v.codigo}_${v.propietario}`;
+                    const key = `${v.codigo}_${v.propietario}_${v.tanda_nombre || ''}`;
                     salesMap[key] = (salesMap[key] || 0) + Number(v.cantidad_docenas);
                 }
             }
 
             setSearchResults(results.map(r => {
                 const owner = r.propietario_producto?.trim() || r.propietario?.trim() || '';
-                const sold = salesMap[`${r.codigo}_${owner}`] || 0;
+                const sold = salesMap[`${r.codigo}_${owner}_${r.tanda_nombre || ''}`] || 0;
                 const available = Number(r.cantidad_docenas) - sold;
                 return { ...r, _sold: sold, _available: available };
             }));
@@ -1097,7 +1113,7 @@ export function VentasScanner() {
                                 const propKey = getPropietario(entrada) ?? null;
                                 const color = getUserColor(propKey);
                                 const total = Number(entrada.cantidad_docenas) || 0;
-                                const sold = loadingTandaStock ? null : (tandaSoldMap['__total__'] ?? 0);
+                                const sold = loadingTandaStock ? null : (tandaSoldMap[entrada.tanda_nombre] ?? 0);
                                 const available = sold !== null ? total - sold : null;
                                 const isOut = available !== null && available <= 0 && total > 0;
                                 const isLow = !isOut && available !== null && total > 0 && (available / total) <= 0.25;
