@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
+import DOMPurify from 'dompurify';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Toast from '../../components/ui/Toast';
@@ -416,7 +417,7 @@ export function ProductForm() {
                                         color: '#374151'
                                     }}
                                     dangerouslySetInnerHTML={{
-                                        __html: formData.description || '<span style="color:#aaa">Sin descripción...</span>'
+                                        __html: DOMPurify.sanitize(formData.description || '<span style="color:#aaa">Sin descripción...</span>')
                                     }}
                                 />
                             ) : (

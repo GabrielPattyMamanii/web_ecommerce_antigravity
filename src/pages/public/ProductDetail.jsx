@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import DOMPurify from 'dompurify';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../context/cartStore';
@@ -461,7 +462,7 @@ export function ProductDetail() {
                             <div
                                 className="text-on-surface-variant leading-relaxed text-sm"
                                 dangerouslySetInnerHTML={{
-                                    __html: product.description || 'Prenda de alta calidad diseñada para el estilo moderno. Combinación perfecta de comodidad y elegancia para cualquier ocasión.'
+                                    __html: DOMPurify.sanitize(product.description || 'Prenda de alta calidad diseñada para el estilo moderno. Combinación perfecta de comodidad y elegancia para cualquier ocasión.')
                                 }}
                             />
                             {product.details && (

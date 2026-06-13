@@ -19,28 +19,20 @@ export function UserLogin() {
         setLoading(true);
 
         try {
-            // Custom Auth: Query 'clientes' table
             const { data, error } = await supabase
-                .from('clientes')
-                .select('*')
-                .eq('email', formData.email) // Assuming 'email' column exists. If not, maybe 'nombre'?
-                .single();
+                .rpc('verify_cliente_password', {
+                    p_email: formData.email,
+                    p_password: formData.password
+                });
 
-            if (error || !data) {
-                throw new Error("Usuario no encontrado");
-            }
+            if (error) throw new Error("Error al verificar credenciales");
+            if (!data || data.length === 0) throw new Error("Email o contraseña incorrectos");
 
-            // Simple password check (plaintext for now as per plan constraints)
-            // If we move to hashed passwords, we'd use bcryptjs here or a PG function
-            if (data.password_hash !== formData.password) {
-                throw new Error("Contraseña incorrecta");
-            }
+            const user = data[0];
+            sessionStorage.setItem('mercancia_user_id', user.id);
+            sessionStorage.setItem('mercancia_user_name', user.nombre);
 
-            // Login Success
-            sessionStorage.setItem('mercancia_user_id', data.id);
-            sessionStorage.setItem('mercancia_user_name', data.nombre);
-
-            toast.success(`Bienvenido ${data.nombre}!`);
+            toast.success(`Bienvenido ${user.nombre}!`);
             setTimeout(() => navigate('/dashboard'), 500);
 
         } catch (error) {

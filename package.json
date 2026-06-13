@@ -13,6 +13,7 @@
   "dependencies": {
     "@supabase/supabase-js": "^2.89.0",
     "clsx": "^2.1.1",
+    "dompurify": "^3.4.10",
     "dotenv": "^16.6.1",
     "framer-motion": "^12.33.0",
     "lucide-react": "^0.562.0",

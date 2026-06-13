@@ -22,6 +22,45 @@ const MP_STATUS_MAP: Record<string, string | null> = {
     // pending / in_process / authorized → no cambiar (dejar en pending)
 };
 
+async function verifyMPSignature(req: Request): Promise<boolean> {
+    const secret = Deno.env.get('MP_WEBHOOK_SECRET');
+    if (!secret) return true; // si no está configurado, no bloquear (modo legacy)
+
+    const xSignature  = req.headers.get('x-signature');
+    const xRequestId  = req.headers.get('x-request-id');
+    if (!xSignature || !xRequestId) return false;
+
+    // x-signature tiene formato: ts=<timestamp>,v1=<hash>
+    const parts: Record<string, string> = {};
+    for (const part of xSignature.split(',')) {
+        const [k, v] = part.split('=');
+        if (k && v) parts[k.trim()] = v.trim();
+    }
+    const ts = parts['ts'];
+    const v1 = parts['v1'];
+    if (!ts || !v1) return false;
+
+    // El id para el template viene del query param data.id
+    const url    = new URL(req.url);
+    const dataId = url.searchParams.get('data.id') ?? '';
+
+    const template = `id:${dataId};request-id:${xRequestId};ts:${ts};`;
+
+    const key = await crypto.subtle.importKey(
+        'raw',
+        new TextEncoder().encode(secret),
+        { name: 'HMAC', hash: 'SHA-256' },
+        false,
+        ['sign'],
+    );
+    const signatureBuffer = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(template));
+    const computed = Array.from(new Uint8Array(signatureBuffer))
+        .map(b => b.toString(16).padStart(2, '0'))
+        .join('');
+
+    return computed === v1;
+}
+
 serve(async (req: Request) => {
     if (req.method === 'OPTIONS') {
         return json({ ok: true }, 204);
@@ -42,6 +81,12 @@ serve(async (req: Request) => {
 
     if (!accessToken) {
         return json({ error: 'Configuración de servidor incompleta' }, 500);
+    }
+
+    const valid = await verifyMPSignature(req);
+    if (!valid) {
+        console.warn('[mp-webhook] Firma inválida — notificación rechazada');
+        return json({ error: 'Unauthorized' }, 401);
     }
 
     let body: Record<string, unknown>;

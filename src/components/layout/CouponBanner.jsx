@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import DOMPurify from 'dompurify';
 import { Copy, Check, X, Zap } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
@@ -130,7 +131,7 @@ export function CouponBanner() {
                     <div className="text-[13px] md:text-base font-bold tracking-tight inline-flex items-center justify-center gap-1.5 w-full md:w-auto">
                         <div className="inline-flex items-center gap-1.5 flex-wrap justify-center">
                             {coupon.message ? (
-                                <span className="opacity-90 leading-snug break-words" dangerouslySetInnerHTML={{ __html: coupon.message }} />
+                                <span className="opacity-90 leading-snug break-words" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(coupon.message) }} />
                             ) : (
                                 <span className="opacity-90 leading-snug">Usa el código y ahorrá</span>
                             )}
