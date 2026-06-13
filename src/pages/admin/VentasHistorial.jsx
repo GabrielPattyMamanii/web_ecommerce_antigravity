@@ -2259,7 +2259,7 @@ export function VentasHistorial() {
                     .select('*')
                     .order('fecha', { ascending: false })
                     .order('created_at', { ascending: false }),
-                supabase.from('app_users').select('username, color'),
+                supabase.rpc('get_app_user_colors'),
             ]);
             setVentas(data || []);
             setAppUsers(users || []);

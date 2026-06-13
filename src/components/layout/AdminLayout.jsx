@@ -12,6 +12,7 @@ import { useDarkMode } from '../../hooks/useDarkMode';
 import { AdminMobileMenu } from './AdminMobileMenu';
 import { MercanciaLoginModal } from '../mercancia/MercanciaLoginModal';
 import { useAdminPermissions } from '../../context/AdminPermissionsContext';
+import { GlobalQuickSale } from '../admin/GlobalQuickSale';
 
 // Mapa de path-prefix → section key para el guard de rutas.
 // /admin/dashboard NO está aquí: siempre es accesible para cualquier usuario autenticado.
@@ -173,6 +174,8 @@ const isActive = (path, exact = false) => {
                     <main className="flex-1 overflow-y-auto w-full">
                         <Outlet />
                     </main>
+
+                    <GlobalQuickSale />
                 </div>
             </>
         );

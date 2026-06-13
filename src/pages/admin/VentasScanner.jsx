@@ -148,7 +148,7 @@ export function VentasScanner() {
 
     useEffect(() => {
         Promise.all([
-            supabase.from('app_users').select('username, color'),
+            supabase.rpc('get_app_user_colors'),
             supabase.from('cuentas_bancarias').select('*').eq('activa', true).order('created_at'),
             supabase.from('configuracion').select('valor').eq('clave', 'recargo_presets').maybeSingle(),
         ]).then(([{ data: users }, { data: cuentasData }, { data: presetsData }]) => {
