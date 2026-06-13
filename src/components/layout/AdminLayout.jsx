@@ -12,7 +12,7 @@ import { useDarkMode } from '../../hooks/useDarkMode';
 import { AdminMobileMenu } from './AdminMobileMenu';
 import { MercanciaLoginModal } from '../mercancia/MercanciaLoginModal';
 import { useAdminPermissions } from '../../context/AdminPermissionsContext';
-import { GlobalQuickSale } from '../admin/GlobalQuickSale';
+import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 
 // Mapa de path-prefix → section key para el guard de rutas.
 // /admin/dashboard NO está aquí: siempre es accesible para cualquier usuario autenticado.
@@ -67,6 +67,15 @@ useEffect(() => {
             if (!can(section)) navigate('/admin/dashboard', { replace: true });
         }
     }, [location.pathname, permLoading, can]);
+
+    // Scanner global mobile: al escanear desde cualquier sección navega a Registrar Venta
+    useGlobalScanner(useCallback((code, codigoFallback) => {
+        if (!isMobile) return;
+        if (location.pathname.startsWith('/admin/ventas')) return;
+        const params = new URLSearchParams({ scan: code });
+        if (codigoFallback) params.set('c', codigoFallback);
+        navigate(`/admin/ventas?${params.toString()}`);
+    }, [isMobile, location.pathname, navigate]));
 
 const isActive = (path, exact = false) => {
         if (exact) return location.pathname === path;
@@ -174,8 +183,6 @@ const isActive = (path, exact = false) => {
                     <main className="flex-1 overflow-y-auto w-full">
                         <Outlet />
                     </main>
-
-                    <GlobalQuickSale />
                 </div>
             </>
         );
