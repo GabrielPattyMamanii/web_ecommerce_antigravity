@@ -5,7 +5,7 @@ import toast from 'react-hot-toast';
 import {
     Package, Trash2, RefreshCw, User,
     Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign, ArrowRight,
-    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers, Search, Plus
+    AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers, Search, Plus, ScanLine
 } from 'lucide-react';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
@@ -115,10 +115,22 @@ function buildDaySummary(items) {
         for (const v of byOwner[owner].items) {
             const tanda = v.tanda_nombre || null;
             const key = `${v.codigo || v.producto_titulo || '—'}||${tanda || ''}`;
-            if (!codMap[key]) codMap[key] = { codigo: v.codigo, titulo: v.producto_titulo, tanda, docenas: 0 };
+            if (!codMap[key]) codMap[key] = {
+                codigo: v.codigo, titulo: v.producto_titulo, tanda, docenas: 0,
+                dolar_blue: null, metodos_registro: new Set(), metodos_pago: new Set(),
+                ventas: [],
+            };
             codMap[key].docenas += Number(v.cantidad_docenas);
+            codMap[key].ventas.push(v);
+            if (Number(v.dolar_blue) > 0) codMap[key].dolar_blue = v.dolar_blue;
+            if (v.metodo_registro) codMap[key].metodos_registro.add(v.metodo_registro);
+            if (v.metodo_pago) codMap[key].metodos_pago.add(v.metodo_pago);
         }
-        byOwner[owner].codigos = Object.values(codMap);
+        byOwner[owner].codigos = Object.values(codMap).map(c => ({
+            ...c,
+            metodos_registro: [...c.metodos_registro],
+            metodos_pago: [...c.metodos_pago],
+        }));
     }
     return byOwner;
 }
@@ -168,6 +180,12 @@ function formatUSD(n) {
 }
 
 function DailySummary({ items, getUserColor, showUSD, setShowUSD }) {
+    const [expandedCodes, setExpandedCodes] = useState(new Set());
+    const toggleCode = (key) => setExpandedCodes(prev => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key); else next.add(key);
+        return next;
+    });
     const summary  = buildDaySummary(items);
     const owners   = Object.keys(summary);
     const totalDia = items.reduce((s, v) => s + Number(v.total_ars), 0);
@@ -226,28 +244,165 @@ function DailySummary({ items, getUserColor, showUSD, setShowUSD }) {
                                 </span>
                                 <span className="font-bold text-sm text-foreground">{fmt(total)}</span>
                             </div>
-                            <div className="px-3 py-2 space-y-1">
-                                {codigos.map((c, i) => (
-                                    <div key={`${c.codigo || c.titulo}-${c.tanda}-${i}`} className="flex items-center justify-between gap-2">
-                                        <span className="text-xs text-foreground flex items-center gap-1.5 min-w-0 flex-wrap">
-                                            <Tag className="w-3 h-3 text-muted-foreground flex-shrink-0" />
-                                            {c.codigo
-                                                ? <><span className="font-mono font-semibold">{c.codigo}</span>
-                                                    {c.titulo && <span className="text-muted-foreground truncate"> ({c.titulo})</span>}</>
-                                                : <span className="text-muted-foreground">{c.titulo || '—'}</span>
-                                            }
+                            <div className="px-3 py-2 space-y-2">
+                                {codigos.map((c, i) => {
+                                    const cKey = `${owner}||${c.codigo || c.titulo}-${c.tanda}-${i}`;
+                                    const isOpen = expandedCodes.has(cKey);
+                                    const hasMultiple = c.ventas.length > 1;
+                                    return (
+                                    <div key={cKey}
+                                        className="rounded-lg bg-muted/40 border border-border/50 px-2.5 py-2 space-y-1.5">
+                                        {/* Nombre + docenas totales */}
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-xs text-foreground font-semibold truncate min-w-0">
+                                                {c.titulo || c.codigo || '—'}
+                                            </span>
+                                            <div className="flex items-center gap-1.5 flex-shrink-0">
+                                                <span className="text-xs font-bold text-foreground whitespace-nowrap">
+                                                    {c.docenas % 1 === 0 ? c.docenas : c.docenas.toFixed(1)} doc
+                                                </span>
+                                                {hasMultiple && (
+                                                    <button
+                                                        onClick={() => toggleCode(cKey)}
+                                                        className="p-0.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                                                        title={isOpen ? 'Ocultar detalle' : `Ver ${c.ventas.length} ventas`}
+                                                    >
+                                                        {isOpen
+                                                            ? <ChevronUp className="w-3.5 h-3.5" />
+                                                            : <ChevronDown className="w-3.5 h-3.5" />
+                                                        }
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                        {/* Datos en badges inline — fluyen y wrappean naturalmente */}
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            {/* Código */}
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-mono font-semibold bg-muted px-1.5 py-0.5 rounded text-foreground">
+                                                <Tag className="w-2.5 h-2.5 text-muted-foreground" />
+                                                {c.codigo || '—'}
+                                            </span>
+                                            {/* Tanda */}
                                             {c.tanda && (
-                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-md flex-shrink-0"
-                                                    style={{ backgroundColor: '#f59e0b18', color: '#d97706' }}>
-                                                    <Layers className="w-2.5 h-2.5" />{c.tanda}
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-indigo-700 dark:text-indigo-400"
+                                                    style={{ backgroundColor: '#6366f118' }}>
+                                                    <Layers className="w-2.5 h-2.5" /> {c.tanda}
                                                 </span>
                                             )}
-                                        </span>
-                                        <span className="text-xs font-semibold text-foreground flex-shrink-0 whitespace-nowrap">
-                                            {c.docenas % 1 === 0 ? c.docenas : c.docenas.toFixed(1)} doc
-                                        </span>
+                                            {/* Dólar Blue */}
+                                            {Number(c.dolar_blue) > 0 && (
+                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-amber-700 dark:text-amber-400"
+                                                    style={{ backgroundColor: '#f59e0b18' }}>
+                                                    <DollarSign className="w-2.5 h-2.5" /> ${Number(c.dolar_blue).toLocaleString('es-AR')}
+                                                </span>
+                                            )}
+                                            {/* Tipo de carga */}
+                                            {c.metodos_registro.map(mr => (
+                                                <span key={mr} className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                                    mr === 'scanner'
+                                                        ? 'text-violet-700 dark:text-violet-400'
+                                                        : 'text-orange-700 dark:text-orange-400'
+                                                }`} style={{ backgroundColor: mr === 'scanner' ? '#8b5cf618' : '#f9731618' }}>
+                                                    {mr === 'scanner'
+                                                        ? <><ScanLine className="w-2.5 h-2.5" /> Scanner</>
+                                                        : <><Pencil className="w-2.5 h-2.5" /> Manual</>
+                                                    }
+                                                </span>
+                                            ))}
+                                            {/* Método de pago */}
+                                            {c.metodos_pago.map(mp => {
+                                                const cfg = METODO_CONFIG[mp] || METODO_CONFIG.efectivo;
+                                                const MpIcon = cfg.Icon;
+                                                return (
+                                                    <span key={mp} className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                                        style={{ backgroundColor: cfg.color + '18', color: cfg.color }}>
+                                                        <MpIcon className="w-2.5 h-2.5" /> {cfg.label}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                        {/* Hint clickeable cuando hay múltiples ventas y está cerrado */}
+                                        {hasMultiple && !isOpen && (
+                                            <button
+                                                onClick={() => toggleCode(cKey)}
+                                                className="w-full text-[10px] text-muted-foreground hover:text-foreground transition-colors text-center pt-0.5"
+                                            >
+                                                {c.ventas.length} ventas individuales
+                                            </button>
+                                        )}
+                                        {/* Dropdown: ventas individuales */}
+                                        {isOpen && (
+                                            <div className="border-t border-border/50 pt-1.5 mt-1 space-y-1.5">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+                                                    Detalle ({c.ventas.length} ventas)
+                                                </p>
+                                                {c.ventas.map(v => {
+                                                    const mpCfg = METODO_CONFIG[v.metodo_pago] || METODO_CONFIG.efectivo;
+                                                    const MpIcon = mpCfg.Icon;
+                                                    const regUser = v.registrado_por || null;
+                                                    const regColor = regUser ? getUserColor(regUser) : null;
+                                                    return (
+                                                        <div key={v.id} className="rounded-lg bg-background border border-border/60 px-2.5 py-2 space-y-1.5">
+                                                            {/* Fila 1: Hora + total */}
+                                                            <div className="flex items-center justify-between gap-2">
+                                                                <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-foreground">
+                                                                    <Clock className="w-3 h-3 text-muted-foreground" />
+                                                                    {formatHora(v.created_at)}
+                                                                </span>
+                                                                <span className="text-[11px] font-bold text-foreground">
+                                                                    {v.cantidad_docenas} doc — ${formatARS(v.total_ars)}
+                                                                </span>
+                                                            </div>
+                                                            {/* Fila 2: Registrado por (línea propia) */}
+                                                            {regUser && (
+                                                                <div className="flex items-center gap-1">
+                                                                    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                                        style={{
+                                                                            backgroundColor: (regColor || '#9ca3af') + '22',
+                                                                            color: regColor || '#9ca3af',
+                                                                            border: `1px solid ${(regColor || '#9ca3af')}50`,
+                                                                        }}>
+                                                                        <User className="w-2.5 h-2.5 flex-shrink-0" />
+                                                                        Registrado por: {regUser}
+                                                                    </span>
+                                                                </div>
+                                                            )}
+                                                            {/* Fila 3: Badges con todos los datos */}
+                                                            <div className="flex flex-wrap items-center gap-1.5">
+                                                                {Number(v.dolar_blue) > 0 && (
+                                                                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full text-amber-700 dark:text-amber-400"
+                                                                        style={{ backgroundColor: '#f59e0b18' }}>
+                                                                        <DollarSign className="w-2.5 h-2.5" /> ${Number(v.dolar_blue).toLocaleString('es-AR')}
+                                                                    </span>
+                                                                )}
+                                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                                                                    ${formatARS(v.precio_docena_ars)}/doc
+                                                                </span>
+                                                                {v.metodo_registro && (
+                                                                    <span className={`inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
+                                                                        v.metodo_registro === 'scanner'
+                                                                            ? 'text-violet-700 dark:text-violet-400'
+                                                                            : 'text-orange-700 dark:text-orange-400'
+                                                                    }`} style={{ backgroundColor: v.metodo_registro === 'scanner' ? '#8b5cf618' : '#f9731618' }}>
+                                                                        {v.metodo_registro === 'scanner'
+                                                                            ? <><ScanLine className="w-2.5 h-2.5" /> Scanner</>
+                                                                            : <><Pencil className="w-2.5 h-2.5" /> Manual</>
+                                                                        }
+                                                                    </span>
+                                                                )}
+                                                                <span className="inline-flex items-center gap-0.5 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                                                    style={{ backgroundColor: mpCfg.color + '18', color: mpCfg.color }}>
+                                                                    <MpIcon className="w-2.5 h-2.5" /> {mpCfg.label}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                             <div className="flex flex-wrap items-center gap-2 px-3 pb-2.5">
                                 {efectivo > 0 && (
@@ -1178,48 +1333,21 @@ function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete
                                         saving={savingId === venta.id}
                                     />
                                 ) : (
-                                    <div className="flex items-stretch">
-                                        <div className="flex-1 px-4 py-3.5 min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <span className="font-semibold text-foreground text-sm">
+                                    <div className="px-4 py-3.5 space-y-3">
+                                        {/* Header: título + total + acciones */}
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0 flex-1">
+                                                <p className="font-semibold text-foreground text-sm leading-tight">
                                                     {venta.producto_titulo}
-                                                </span>
-                                                {venta.codigo && (
-                                                    <span className="inline-flex items-center gap-1 text-xs bg-muted px-2 py-0.5 rounded-full text-muted-foreground">
-                                                        <Tag className="w-2.5 h-2.5" /> {venta.codigo}
-                                                    </span>
-                                                )}
-                                                {venta.tanda_nombre && (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200">
-                                                        <Layers className="w-2.5 h-2.5" /> {venta.tanda_nombre}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                                                <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
-                                                    style={{ backgroundColor: ownerColor + '20', color: ownerColor, border: `1px solid ${ownerColor}40` }}>
-                                                    <User className="w-2.5 h-2.5" />
-                                                    {venta.propietario || 'Sin propietario'}
-                                                </span>
-                                                <span className="text-xs text-muted-foreground">
+                                                </p>
+                                                <p className="text-xs text-muted-foreground mt-0.5">
                                                     {venta.cantidad_docenas} doc × {fmtMonto(venta.precio_docena_ars)}
+                                                </p>
+                                            </div>
+                                            <div className="flex items-center gap-1 flex-shrink-0">
+                                                <span className="font-bold text-foreground text-base mr-1">
+                                                    {fmtMonto(venta.total_ars)}
                                                 </span>
-                                                {Number(venta.dolar_blue) > 0 && (
-                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200">
-                                                        <DollarSign className="w-2.5 h-2.5" />
-                                                        ${Number(venta.dolar_blue).toLocaleString('es-AR')}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <div className="mt-1.5">
-                                                <PaymentBadge venta={venta} />
-                                            </div>
-                                        </div>
-                                        <div className="flex flex-col items-end justify-between px-3 py-3.5 flex-shrink-0">
-                                            <p className="font-bold text-foreground text-base">
-                                                {fmtMonto(venta.total_ars)}
-                                            </p>
-                                            <div className="flex items-center gap-1 mt-auto">
                                                 <button
                                                     onClick={() => setEditingId(venta.id)}
                                                     title="Editar producto"
@@ -1238,6 +1366,67 @@ function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete
                                                     }
                                                 </button>
                                             </div>
+                                        </div>
+
+                                        {/* Grilla de datos: 2 columnas */}
+                                        <div className="grid grid-cols-2 gap-x-3 gap-y-2 rounded-xl bg-muted/40 px-3 py-2.5 border border-border/50">
+                                            {/* Código */}
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Código</p>
+                                                <p className="text-xs font-mono font-semibold text-foreground mt-0.5 truncate">
+                                                    {venta.codigo || '—'}
+                                                </p>
+                                            </div>
+                                            {/* Tanda */}
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tanda</p>
+                                                {venta.tanda_nombre ? (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold mt-0.5 text-indigo-700 dark:text-indigo-400">
+                                                        <Layers className="w-3 h-3" /> {venta.tanda_nombre}
+                                                    </span>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground mt-0.5">—</p>
+                                                )}
+                                            </div>
+                                            {/* Dólar Blue */}
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Dólar Blue</p>
+                                                {Number(venta.dolar_blue) > 0 ? (
+                                                    <span className="inline-flex items-center gap-1 text-xs font-semibold mt-0.5 text-amber-700 dark:text-amber-400">
+                                                        <DollarSign className="w-3 h-3" /> ${Number(venta.dolar_blue).toLocaleString('es-AR')}
+                                                    </span>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground mt-0.5">—</p>
+                                                )}
+                                            </div>
+                                            {/* Tipo de carga */}
+                                            <div className="min-w-0">
+                                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Tipo de carga</p>
+                                                {venta.metodo_registro ? (
+                                                    <span className={`inline-flex items-center gap-1 text-xs font-semibold mt-0.5 ${
+                                                        venta.metodo_registro === 'scanner'
+                                                            ? 'text-violet-700 dark:text-violet-400'
+                                                            : 'text-orange-700 dark:text-orange-400'
+                                                    }`}>
+                                                        {venta.metodo_registro === 'scanner'
+                                                            ? <><ScanLine className="w-3 h-3" /> Scanner</>
+                                                            : <><Pencil className="w-3 h-3" /> Manual</>
+                                                        }
+                                                    </span>
+                                                ) : (
+                                                    <p className="text-xs text-muted-foreground mt-0.5">—</p>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Propietario + Método de pago */}
+                                        <div className="flex flex-wrap items-center gap-1.5">
+                                            <span className="inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                                                style={{ backgroundColor: ownerColor + '20', color: ownerColor, border: `1px solid ${ownerColor}40` }}>
+                                                <User className="w-2.5 h-2.5" />
+                                                {venta.propietario || 'Sin propietario'}
+                                            </span>
+                                            <PaymentBadge venta={venta} />
                                         </div>
                                     </div>
                                 )}
@@ -2397,7 +2586,7 @@ export function VentasHistorial() {
     return (
         <div className="p-3 sm:p-4 md:p-6 max-w-3xl mx-auto space-y-4">
 
-            {/* ── Título ── */}
+            {/* ── Título + refresh ── */}
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-xl sm:text-2xl font-bold text-foreground">Historial de Ventas</h1>
@@ -2408,39 +2597,41 @@ export function VentasHistorial() {
                         }
                     </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <button
-                        onClick={() => setShowCruce(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
-                        title="Cruce de cuentas"
-                    >
-                        <ArrowRight className="w-3.5 h-3.5" />
-                        Cruce
-                    </button>
-                    <button
-                        onClick={() => setShowCuentas(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
-                        title="Transferencias por cuenta"
-                    >
-                        <Building2 className="w-3.5 h-3.5" />
-                        Cuentas
-                    </button>
-                    <button
-                        onClick={() => setShowAccumulator(true)}
-                        className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
-                        title="Acumulado por propietario"
-                    >
-                        <TrendingUp className="w-3.5 h-3.5" />
-                        Acumulado
-                    </button>
                 <button
                     onClick={fetchVentas}
-                    className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors"
+                    className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors flex-shrink-0"
                     title="Actualizar"
                 >
                     <RefreshCw className="w-5 h-5" />
                 </button>
-                </div>
+            </div>
+
+            {/* ── Botones de acción ── */}
+            <div className="flex items-center gap-2 flex-wrap">
+                <button
+                    onClick={() => setShowCruce(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                    title="Cruce de cuentas"
+                >
+                    <ArrowRight className="w-3.5 h-3.5" />
+                    Cruce
+                </button>
+                <button
+                    onClick={() => setShowCuentas(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
+                    title="Transferencias por cuenta"
+                >
+                    <Building2 className="w-3.5 h-3.5" />
+                    Cuentas
+                </button>
+                <button
+                    onClick={() => setShowAccumulator(true)}
+                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
+                    title="Acumulado por propietario"
+                >
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    Acumulado
+                </button>
             </div>
 
             {/* ── Filtro por código de producto ── */}

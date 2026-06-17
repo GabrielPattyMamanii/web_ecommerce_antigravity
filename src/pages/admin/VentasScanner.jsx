@@ -106,6 +106,9 @@ export function VentasScanner() {
     // --- Stock disponible ---
     const [stockInfo, setStockInfo] = useState(null); // { total, sold, loading }
 
+    // --- Método de registro (scanner vs manual) ---
+    const metodoRegistroRef = useRef(null);
+
     // --- Buscador manual de productos ---
     const [showSearchModal, setShowSearchModal] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
@@ -320,6 +323,7 @@ export function VentasScanner() {
     }, [cart.length]);
 
     const processCode = useCallback(async (code, codigoFallback = null) => {
+        metodoRegistroRef.current = null;
         setScanStatus('searching');
         setLastScanned(codigoFallback || code);
         setSelectedEntrada(null);
@@ -527,6 +531,7 @@ export function VentasScanner() {
     };
 
     const selectFromSearch = (entrada) => {
+        metodoRegistroRef.current = 'manual';
         closeSearchModal();
         selectEntrada(entrada);
     };
@@ -621,6 +626,7 @@ export function VentasScanner() {
             monto_transferencia: mTransferencia,
             cuenta_id: selectedCuenta?.id || null,
             cuenta_nombre: selectedCuenta?.nombre || null,
+            metodo_registro: metodoRegistroRef.current,
         }]);
 
         if (selectedEntrada.codigo) {
@@ -653,30 +659,23 @@ export function VentasScanner() {
 
         setSaving(true);
         try {
-            // Resolver quién registra la venta: app_user primero, luego Supabase Auth
-            let registradoPor = sessionStorage.getItem('app_username') || null;
-            if (!registradoPor) {
-                const { data: { user } } = await supabase.auth.getUser();
-                if (user?.email) {
-                    // Buscar en app_users por email para mostrar el username, no el email
-                    const { data: appUser } = await supabase
-                        .from('app_users')
-                        .select('username')
-                        .eq('email', user.email)
-                        .maybeSingle();
-                    registradoPor = appUser?.username
-                        || user.user_metadata?.full_name
-                        || user.user_metadata?.name
-                        || user.email
-                        || null;
-                }
+            // Resolver quién registra: siempre validar contra la BD (regla 4 SECURITY_GUIDELINES)
+            let registradoPor = null;
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user?.email) {
+                const { data: appUser } = await supabase
+                    .from('app_users')
+                    .select('username')
+                    .eq('email', user.email)
+                    .maybeSingle();
+                registradoPor = appUser?.username || null;
             }
 
             const _now = new Date();
             const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
             const ventaId = crypto.randomUUID();
             const nombrePedidoTrim = nombrePedido.trim() || null;
-            const records = cart.map(({ dolar_blue, ...item }) => ({
+            const records = cart.map(({ dolar_blue, cuenta_id, ...item }) => ({
                 ...item,
                 fecha: today,
                 dolar_blue,
