@@ -28,6 +28,9 @@ dist-ssr/
 *.sln
 *.sw?
 
+# Backups de base de datos (NO subir)
+backups/
+
 # Temporales propios
 playground/
 tmp_*/ .env
