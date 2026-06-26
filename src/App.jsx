@@ -53,6 +53,7 @@ import { Senas } from './pages/public/Senas';
 import { VentasScanner } from './pages/admin/VentasScanner';
 import { VentasHistorial } from './pages/admin/VentasHistorial';
 import { CuentasBancarias } from './pages/admin/CuentasBancarias';
+import { EntregaDinero } from './pages/admin/EntregaDinero';
 import { ScrollToTop } from './components/layout/ScrollToTop';
 import { Toaster } from 'react-hot-toast';
 
@@ -168,6 +169,7 @@ function App() {
         <Route path="ventas" element={<VentasScanner />} />
         <Route path="ventas/historial" element={<VentasHistorial />} />
         <Route path="cuentas-bancarias" element={<CuentasBancarias />} />
+        <Route path="entrega-dinero" element={<EntregaDinero />} />
       </Route>
 
       {/* User Dashboard Routes - For App Users (Light Auth) */}

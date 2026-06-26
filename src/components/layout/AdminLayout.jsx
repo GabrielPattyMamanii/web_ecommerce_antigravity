@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut,
     CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun,
     Calculator, ShoppingCart, Users, ClipboardList, Ticket, HandCoins,
-    ScanLine, History, Building2, UserCog,
+    ScanLine, History, Building2, UserCog, Wallet,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
@@ -19,6 +19,7 @@ import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 const PATH_SECTION_MAP = [
     ['/admin/settings',                'settings'],
     ['/admin/cuentas-bancarias',       'cuentas-bancarias'],
+    ['/admin/entrega-dinero',          'entrega-dinero'],
     ['/admin/ventas/historial',        'ventas-historial'],
     ['/admin/ventas',                  'ventas'],
     ['/admin/posibles-compras',        'posibles-compras'],
@@ -116,6 +117,7 @@ const isActive = (path, exact = false) => {
         { to: '/admin/ventas',                 icon: ScanLine,         label: 'Registrar Venta',        section: 'ventas', exact: true },
         { to: '/admin/ventas/historial',       icon: History,          label: 'Historial Ventas',       section: 'ventas-historial' },
         { to: '/admin/cuentas-bancarias',      icon: Building2,        label: 'Cuentas Bancarias',      section: 'cuentas-bancarias' },
+        { to: '/admin/entrega-dinero',         icon: Wallet,           label: 'Entrega Dinero',         section: 'entrega-dinero' },
         { to: '/admin/settings',               icon: Settings,         label: 'Settings',               section: 'settings' },
     ];
 
