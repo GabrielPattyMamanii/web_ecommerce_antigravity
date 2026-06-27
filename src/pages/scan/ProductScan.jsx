@@ -3,6 +3,7 @@ import { useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { calcPrice, formatARS } from '../../utils/pricingUtils';
 import { useAuth } from '../../hooks/useAuth';
+import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
 
 export function ProductScan() {
     const { productId } = useParams();
@@ -66,13 +67,18 @@ export function ProductScan() {
 
             const indice = tandaSettings?.indice_ganancia_valor ?? 1.5;
 
-            // 3. Dólar blue en vivo
+            // 3. Dólar blue: desde API o valor manual según configuración
             let dolar = null;
             try {
-                const res = await fetch('https://dolarapi.com/v1/dolares/blue');
-                if (res.ok) {
-                    const json = await res.json();
-                    dolar = json?.venta ?? null;
+                const dolarCfg = await loadDolarConfigFromDB();
+                if (dolarCfg.useApi !== false) {
+                    const res = await fetch('https://dolarapi.com/v1/dolares/blue');
+                    if (res.ok) {
+                        const json = await res.json();
+                        dolar = json?.venta ?? null;
+                    }
+                } else {
+                    dolar = parseFloat(dolarCfg.manualValue) || null;
                 }
             } catch { /* sin conexión a la API */ }
 

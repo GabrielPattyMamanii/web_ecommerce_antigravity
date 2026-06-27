@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit, Trash2, X, AlertTriangle, CheckCircle, Settings, ShoppingCart, BarChart } from 'lucide-react';
+import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit, Trash2, X, AlertTriangle, CheckCircle, Settings, ShoppingCart, BarChart, Users } from 'lucide-react';
 import { Button } from '../ui/Button';
 import BuscadorMercancia from './BuscadorMercancia';
 
@@ -168,12 +168,20 @@ export function ListaTandas() {
                 <header className="bg-white px-5 pt-8 pb-5 sticky top-0 z-20 border-b border-gray-100">
                     <div className="flex justify-between items-center mb-6">
                         <h1 className="text-[28px] font-bold text-[#1A1A1A] tracking-tight">Mercancía</h1>
-                        <button 
-                            onClick={() => navigate('/admin/mercancia/nueva')}
-                            className="bg-[#FF5C39] p-2.5 rounded-full text-white shadow-lg shadow-orange-200 active:scale-95 transition-all"
-                        >
-                            <Plus className="w-6 h-6" strokeWidth={2.5} />
-                        </button>
+                        <div className="flex gap-2">
+                            <button
+                                onClick={() => navigate('/admin/mercancia/propietarios')}
+                                className="bg-[#4B6BFB] p-2.5 rounded-full text-white shadow-lg shadow-blue-200 active:scale-95 transition-all"
+                            >
+                                <Users className="w-6 h-6" strokeWidth={2.5} />
+                            </button>
+                            <button
+                                onClick={() => navigate('/admin/mercancia/nueva')}
+                                className="bg-[#FF5C39] p-2.5 rounded-full text-white shadow-lg shadow-orange-200 active:scale-95 transition-all"
+                            >
+                                <Plus className="w-6 h-6" strokeWidth={2.5} />
+                            </button>
+                        </div>
                     </div>
 
                     <div className="relative">
@@ -309,11 +317,18 @@ export function ListaTandas() {
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Control de Mercancía</h1>
                     <p className="text-muted-foreground mt-1">Gestiona tandas, marcas y stock de entrada.</p>
                 </div>
-                <Link to="/admin/mercancia/nueva">
-                    <Button className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
-                        <Plus className="w-4 h-4 mr-2" /> Nueva Tanda
-                    </Button>
-                </Link>
+                <div className="flex gap-3">
+                    <Link to="/admin/mercancia/propietarios">
+                        <Button variant="outline" className="w-full md:w-auto">
+                            <Users className="w-4 h-4 mr-2" /> Por Propietario
+                        </Button>
+                    </Link>
+                    <Link to="/admin/mercancia/nueva">
+                        <Button className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
+                            <Plus className="w-4 h-4 mr-2" /> Nueva Tanda
+                        </Button>
+                    </Link>
+                </div>
             </div>
 
             {/* Search */}

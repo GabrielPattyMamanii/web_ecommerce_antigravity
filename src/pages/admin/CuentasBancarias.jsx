@@ -411,6 +411,14 @@ export function CuentasBancarias() {
                     .update(payload)
                     .eq('id', editing.id);
                 if (error) throw error;
+
+                if (editing.nombre !== payload.nombre) {
+                    await supabase
+                        .from('ventas')
+                        .update({ cuenta_nombre: payload.nombre })
+                        .eq('cuenta_id', editing.id);
+                }
+
                 toast.success('Cuenta actualizada');
             } else {
                 const { error } = await supabase

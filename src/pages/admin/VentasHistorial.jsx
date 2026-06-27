@@ -7,6 +7,7 @@ import {
     Banknote, Building2, Blend, Tag, TrendingUp, X, ChevronDown, ChevronUp, DollarSign, ArrowRight,
     AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers, Search, Plus, ScanLine
 } from 'lucide-react';
+import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
 
@@ -810,16 +811,27 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             }
 
             // 2. Calcular precio de lista: dólar blue + índice de tanda
+            const dolarCfg = await loadDolarConfigFromDB();
+            const useApi = dolarCfg.useApi !== false;
+
             const [dolarRes, settingsRes] = await Promise.all([
-                fetch('https://dolarapi.com/v1/dolares/blue'),
+                useApi
+                    ? fetch('https://dolarapi.com/v1/dolares/blue')
+                    : Promise.resolve(null),
                 entrada.tanda_nombre
                     ? supabase.from('tanda_settings').select('indice_ganancia_valor').eq('tanda_nombre', entrada.tanda_nombre).maybeSingle()
                     : Promise.resolve({ data: null }),
             ]);
 
-            if (!dolarRes.ok) throw new Error('no dolar');
-            const dolarBlue = parseFloat((await dolarRes.json())?.venta);
-            if (!dolarBlue) throw new Error('no dolar value');
+            let dolarBlue;
+            if (useApi) {
+                if (!dolarRes.ok) throw new Error('no dolar');
+                dolarBlue = parseFloat((await dolarRes.json())?.venta);
+                if (!dolarBlue) throw new Error('no dolar value');
+            } else {
+                dolarBlue = parseFloat(dolarCfg.manualValue);
+                if (!dolarBlue) throw new Error('no manual dolar value');
+            }
 
             const indice = parseFloat(settingsRes.data?.indice_ganancia_valor || 1.5);
             const prices = calcPrice(

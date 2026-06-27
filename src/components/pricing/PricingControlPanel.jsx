@@ -3,22 +3,7 @@ import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Save, DollarSign, TrendingUp, ArrowLeft, RefreshCw, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
-
-const DOLAR_STORAGE_KEY = 'antigravity_dolar_api';
-
-function loadDolarConfig() {
-    try {
-        return JSON.parse(localStorage.getItem(DOLAR_STORAGE_KEY) || '{}');
-    } catch {
-        return {};
-    }
-}
-
-function saveDolarConfig(config) {
-    try {
-        localStorage.setItem(DOLAR_STORAGE_KEY, JSON.stringify(config));
-    } catch { /* ignore */ }
-}
+import { loadDolarConfigLocal, loadDolarConfigFromDB, saveDolarConfig } from '../../lib/dolarConfig';
 
 export function PricingControlPanel({
     tanda,
@@ -27,18 +12,17 @@ export function PricingControlPanel({
     onSave,
     loading
 }) {
-    const savedConfig = loadDolarConfig();
+    const savedConfig = loadDolarConfigLocal();
 
     const [localCotizacion, setLocalCotizacion] = useState(settings?.cotizacion_dolar || '');
     const [localIndiceTipo, setLocalIndiceTipo] = useState(settings?.indice_ganancia_tipo || 'personalizado');
     const [localIndiceValor, setLocalIndiceValor] = useState(settings?.indice_ganancia_valor || 1.5);
 
-    // Dólar Blue API state — persisted in localStorage
+    // Dólar Blue API state — persisted in Supabase (configuracion)
     const [useDolarBlue, setUseDolarBlue] = useState(savedConfig.useApi !== false);
     const [dolarBlueValue, setDolarBlueValue] = useState(null);
     const [fetchingDolar, setFetchingDolar] = useState(false);
     const [fetchError, setFetchError] = useState(null);
-    // Manual value: start from localStorage if API was disabled
     const [manualValue, setManualValue] = useState(
         savedConfig.useApi === false ? (savedConfig.manualValue || '') : ''
     );
@@ -87,16 +71,18 @@ export function PricingControlPanel({
         }
     }, [useDolarBlue, manualValue, settings, onSettingsChange]);
 
-    // Auto-fetch on mount only if API mode is active
+    // Load config from Supabase on mount, then decide whether to fetch API
     useEffect(() => {
-        if (useDolarBlue) fetchDolarBlue();
-        else {
-            // Restore saved manual value into parent settings
-            const saved = loadDolarConfig();
-            if (saved.manualValue) {
-                onSettingsChange({ ...settings, cotizacion_dolar: parseFloat(saved.manualValue) });
+        loadDolarConfigFromDB().then(cfg => {
+            const apiActive = cfg.useApi !== false;
+            setUseDolarBlue(apiActive);
+            if (apiActive) {
+                fetchDolarBlue();
+            } else if (cfg.manualValue) {
+                setManualValue(cfg.manualValue);
+                onSettingsChange({ ...settings, cotizacion_dolar: parseFloat(cfg.manualValue) });
             }
-        }
+        });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

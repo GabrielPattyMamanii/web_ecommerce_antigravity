@@ -9,6 +9,7 @@ import {
     ShoppingCart, X, User, Info, Loader2, Tag, Store,
     Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle, Search, Layers
 } from 'lucide-react';
+import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
 
 const METODOS = [
     { id: 'efectivo',       label: 'Efectivo',       Icon: Banknote },
@@ -247,8 +248,15 @@ export function VentasScanner() {
 
         try {
             const propietarioKey = entrada.propietario_producto?.trim() || entrada.propietario?.trim() || null;
+
+            // Check dolar config: if API disabled, use stored manual value
+            const dolarCfg = await loadDolarConfigFromDB();
+            const useApi = dolarCfg.useApi !== false;
+
             const [dolarRes, settingsRes, precioCustomRes, ventasRes] = await Promise.all([
-                fetch('https://dolarapi.com/v1/dolares/blue'),
+                useApi
+                    ? fetch('https://dolarapi.com/v1/dolares/blue')
+                    : Promise.resolve(null),
                 supabase
                     .from('tanda_settings')
                     .select('indice_ganancia_valor')
@@ -270,10 +278,17 @@ export function VentasScanner() {
             const sold = (ventasRes.data || []).reduce((sum, v) => sum + Number(v.cantidad_docenas), 0);
             setStockInfo({ total: totalDocenas, sold, loading: false });
 
-            if (!dolarRes.ok) throw new Error('API dólar no disponible');
-            const dolarJson = await dolarRes.json();
-            const dolarBlue = parseFloat(dolarJson?.venta);
-            if (!dolarBlue) throw new Error('Sin valor de dólar');
+            let dolarBlue;
+            if (useApi) {
+                if (!dolarRes.ok) throw new Error('API dólar no disponible');
+                const dolarJson = await dolarRes.json();
+                dolarBlue = parseFloat(dolarJson?.venta);
+                if (!dolarBlue) throw new Error('Sin valor de dólar');
+            } else {
+                dolarBlue = parseFloat(dolarCfg.manualValue);
+                if (!dolarBlue) throw new Error('No hay valor de dólar manual configurado');
+                setManualDolar(String(dolarBlue));
+            }
 
             const indice = parseFloat(settingsRes.data?.indice_ganancia_valor || 1.5);
 

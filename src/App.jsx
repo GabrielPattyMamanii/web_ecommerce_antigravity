@@ -54,6 +54,9 @@ import { VentasScanner } from './pages/admin/VentasScanner';
 import { VentasHistorial } from './pages/admin/VentasHistorial';
 import { CuentasBancarias } from './pages/admin/CuentasBancarias';
 import { EntregaDinero } from './pages/admin/EntregaDinero';
+import { EntregaDineroTanda } from './pages/admin/EntregaDineroTanda';
+import { MercanciaPropietarios } from './pages/admin/MercanciaPropietarios';
+import { MercanciaPropietariosTanda } from './pages/admin/MercanciaPropietariosTanda';
 import { ScrollToTop } from './components/layout/ScrollToTop';
 import { Toaster } from 'react-hot-toast';
 
@@ -129,6 +132,8 @@ function App() {
         <Route path="mercancia/nueva" element={<AgregarTanda />} />
         <Route path="mercancia/detalle/:tanda" element={<DetalleTanda />} />
         <Route path="mercancia/editar/:tandaNombre" element={<AgregarTanda />} />
+        <Route path="mercancia/propietarios" element={<MercanciaPropietarios />} />
+        <Route path="mercancia/propietarios/:tanda" element={<MercanciaPropietariosTanda />} />
 
         {/* Control de Mercancía Routes */}
         <Route path="control-mercancia" element={<ControlMercancia />} />
@@ -170,6 +175,7 @@ function App() {
         <Route path="ventas/historial" element={<VentasHistorial />} />
         <Route path="cuentas-bancarias" element={<CuentasBancarias />} />
         <Route path="entrega-dinero" element={<EntregaDinero />} />
+        <Route path="entrega-dinero/:tanda" element={<EntregaDineroTanda />} />
       </Route>
 
       {/* User Dashboard Routes - For App Users (Light Auth) */}

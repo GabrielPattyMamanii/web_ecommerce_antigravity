@@ -7,17 +7,7 @@ import { PackageX, Package, ShoppingBag, Archive, Search, ChevronRight, Tag, Dol
 import BuscadorMercancia from '../../components/mercancia/BuscadorMercancia';
 import { useMobile } from '../../hooks/useMobile';
 import { formatARS, formatUSD } from '../../utils/pricingUtils';
-
-const DOLAR_STORAGE_KEY = 'antigravity_dolar_api';
-
-function loadDolarConfig() {
-    try { return JSON.parse(localStorage.getItem(DOLAR_STORAGE_KEY) || '{}'); }
-    catch { return {}; }
-}
-function saveDolarConfig(config) {
-    try { localStorage.setItem(DOLAR_STORAGE_KEY, JSON.stringify(config)); }
-    catch { /* ignore */ }
-}
+import { loadDolarConfigLocal, loadDolarConfigFromDB, saveDolarConfig } from '../../lib/dolarConfig';
 
 export function PrecioVentaListado() {
     const [tandas, setTandas] = useState([]);
@@ -30,8 +20,8 @@ export function PrecioVentaListado() {
     const [searchLoading, setSearchLoading] = useState(false);
     const [users, setUsers] = useState([]);
 
-    // ── Global price settings — persisted in localStorage ──
-    const _saved = loadDolarConfig();
+    // ── Global price settings — persisted in Supabase (configuracion) ──
+    const _saved = loadDolarConfigLocal();
     const [useDolarBlue, setUseDolarBlue] = useState(_saved.useApi !== false);
     const [dolarBlueValue, setDolarBlueValue] = useState(null);
     const [manualDolar, setManualDolar] = useState(
@@ -74,7 +64,6 @@ export function PrecioVentaListado() {
             saveDolarConfig({ useApi: true, manualValue: '' });
             fetchDolarBlue();
         } else {
-            // Pre-fill manual with last known API value
             const prefill = dolarBlueValue ? String(dolarBlueValue) : manualDolar;
             setManualDolar(prefill);
             saveDolarConfig({ useApi: false, manualValue: prefill });
@@ -86,9 +75,16 @@ export function PrecioVentaListado() {
         saveDolarConfig({ useApi: false, manualValue: val });
     };
 
-    // Auto-fetch on mount only if API mode is active
+    // Load config from Supabase on mount, then decide whether to fetch API
     useEffect(() => {
-        if (loadDolarConfig().useApi !== false) fetchDolarBlue();
+        loadDolarConfigFromDB().then(cfg => {
+            const apiActive = cfg.useApi !== false;
+            setUseDolarBlue(apiActive);
+            if (!apiActive && cfg.manualValue) {
+                setManualDolar(cfg.manualValue);
+            }
+            if (apiActive) fetchDolarBlue();
+        });
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

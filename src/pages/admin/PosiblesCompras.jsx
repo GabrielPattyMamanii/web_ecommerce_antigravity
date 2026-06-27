@@ -3,6 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { ShoppingCart, Plus, X, Calculator, DollarSign, Save, Loader2, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import toast, { Toaster } from 'react-hot-toast';
 import { convertToWebP, validateImageFile, formatFileSize } from '../../lib/imageUtils';
+import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
 
 export function PosiblesCompras() {
     // Main State
@@ -115,14 +116,26 @@ export function PosiblesCompras() {
     const fetchDolar = async (type) => {
         setFormData(prev => ({ ...prev, dolarLoading: true, dolarType: type }));
         try {
-            const response = await fetch(`https://dolarapi.com/v1/dolares/${type}`);
-            const data = await response.json();
-            setFormData(prev => ({
-                ...prev,
-                dolarRate: data.venta,
-                dolarLoading: false
-            }));
-            toast.success(`Dólar ${type} actualizado: $${data.venta}`);
+            const dolarCfg = await loadDolarConfigFromDB();
+            if (dolarCfg.useApi !== false) {
+                const response = await fetch(`https://dolarapi.com/v1/dolares/${type}`);
+                const data = await response.json();
+                setFormData(prev => ({
+                    ...prev,
+                    dolarRate: data.venta,
+                    dolarLoading: false
+                }));
+                toast.success(`Dólar ${type} actualizado: $${data.venta}`);
+            } else {
+                const manualVal = parseFloat(dolarCfg.manualValue);
+                if (!manualVal) throw new Error('No hay valor manual de dólar configurado');
+                setFormData(prev => ({
+                    ...prev,
+                    dolarRate: manualVal,
+                    dolarLoading: false
+                }));
+                toast.success(`Dólar manual: $${manualVal}`);
+            }
         } catch (error) {
             console.error(error);
             toast.error('Error al consultar Dólar API');
