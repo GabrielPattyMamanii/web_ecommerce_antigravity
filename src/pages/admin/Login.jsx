@@ -143,7 +143,7 @@ export function Login() {
                                         placeholder="••••••••"
                                         {...register('password', {
                                             required: 'La contraseña es obligatoria',
-                                            minLength: { value: 6, message: "Mínimo 6 caracteres" }
+                                            minLength: { value: 12, message: "Mínimo 12 caracteres" }
                                         })}
                                         className="w-full bg-[#f5f7fa] border-none rounded-xl py-4 px-5 text-[#2c2f32] placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-public-primary transition-all duration-300 pr-12"
                                     />

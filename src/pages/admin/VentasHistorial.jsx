@@ -755,8 +755,10 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
 
     /* inicializar cuenta cuando cargan las cuentas */
     useEffect(() => {
-        if (cuentas.length > 0 && venta.cuenta_nombre) {
-            const found = cuentas.find(c => c.nombre === venta.cuenta_nombre);
+        if (cuentas.length > 0) {
+            const found = venta.cuenta_id
+                ? cuentas.find(c => c.id === venta.cuenta_id)
+                : cuentas.find(c => c.propietario === venta.cuenta_nombre || c.nombre === venta.cuenta_nombre);
             if (found) setSelectedCuenta(found);
         }
     }, [cuentas]);
@@ -878,11 +880,11 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             monto_efectivo = total_ars;
         } else if (metodo === 'transferencia') {
             monto_transferencia = parseFloat(rawNum(transferencia)) || total_ars;
-            cuenta_nombre = selectedCuenta?.nombre || null;
+            cuenta_nombre = selectedCuenta?.propietario || null;
         } else {
             monto_efectivo      = parseFloat(rawNum(efectivo))      || 0;
             monto_transferencia = parseFloat(rawNum(transferencia)) || 0;
-            cuenta_nombre = selectedCuenta?.nombre || null;
+            cuenta_nombre = selectedCuenta?.propietario || null;
         }
         onSave({
             producto_titulo:   prod.producto_titulo,
@@ -896,6 +898,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             monto_efectivo,
             monto_transferencia,
             cuenta_nombre,
+            cuenta_id: selectedCuenta?.id || null,
         });
     };
 
@@ -1192,7 +1195,7 @@ function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete
     const [savingAdd,      setSavingAdd]      = useState(false);
 
     useEffect(() => {
-        supabase.from('cuentas_bancarias').select('id, nombre, titular').eq('activa', true).then(({ data }) => {
+        supabase.from('cuentas_bancarias').select('id, nombre, titular, propietario').eq('activa', true).then(({ data }) => {
             if (data) setCuentas(data);
         });
     }, []);
@@ -1874,54 +1877,63 @@ function AccumulatorModal({ ventas, appUsers, onClose }) {
 /* ─── CuentasModal ────────────────────────────────────────────── */
 
 function CuentasModal({ ventas, onClose }) {
-    const [desde, setDesde] = useState(firstOfMonthStr);
-    const [hasta, setHasta] = useState(todayStr);
-    const [cuentasInfo, setCuentasInfo] = useState([]);
+    const [desde,         setDesde]         = useState(firstOfMonthStr);
+    const [hasta,         setHasta]         = useState(todayStr);
+    const [cuentasInfo,   setCuentasInfo]   = useState([]);
+    const [appUsers,      setAppUsers]      = useState([]);
+    const [loadingMeta,   setLoadingMeta]   = useState(true);
+    const [expandedProp,  setExpandedProp]  = useState(null);
 
     useEffect(() => {
-        supabase.from('cuentas_bancarias').select('nombre, titular, reiniciado_at, propietario').then(({ data }) => {
-            if (data) setCuentasInfo(data);
+        Promise.all([
+            supabase.from('cuentas_bancarias').select('id, nombre, propietario'),
+            supabase.from('app_users').select('username, color'),
+        ]).then(([{ data: cuentas }, { data: users }]) => {
+            if (cuentas) setCuentasInfo(cuentas);
+            setAppUsers(users || []);
+            setLoadingMeta(false);
         });
     }, []);
 
-    const getCuentaInfo        = (nombre) => cuentasInfo.find(c => c.nombre === nombre);
-    const getTitular           = (nombre) => getCuentaInfo(nombre)?.titular || null;
-    const getCuentaPropietario = (nombre) => getCuentaInfo(nombre)?.propietario || null;
-    const getReinicioDate      = (nombre) => {
-        const r = getCuentaInfo(nombre)?.reiniciado_at;
-        return r ? r.substring(0, 10) : null;
+    const getCuentaPropietario = (cuentaId, cuentaNombre) => {
+        if (cuentaId) {
+            const byId = cuentasInfo.find(c => c.id === cuentaId);
+            if (byId) return byId.propietario;
+        }
+        return cuentasInfo.find(c => c.nombre === cuentaNombre || c.propietario === cuentaNombre)?.propietario
+            || cuentaNombre
+            || null;
     };
 
-    const conTransf = ventas.filter(v => Number(v.monto_transferencia) > 0);
+    const getUserColor = (name) =>
+        appUsers.find(u => u.username?.toLowerCase() === name?.toLowerCase())?.color || '#9ca3af';
 
-    const filtered = conTransf.filter(v => v.fecha >= desde && v.fecha <= hasta);
+    const filtered = ventas
+        .filter(v => Number(v.monto_transferencia) > 0 && v.fecha >= desde && v.fecha <= hasta);
 
-    const byRango = {};
+    // Agrupar por propietario de la cuenta receptora (quien RECIBE el dinero)
+    const byProp = {};
     for (const v of filtered) {
-        const k = v.cuenta_nombre || 'Sin cuenta';
-        const reinicio = getReinicioDate(k);
-        if (reinicio && v.fecha < reinicio) continue;
-        if (!byRango[k]) byRango[k] = { monto: 0, ops: 0 };
-        byRango[k].monto += Number(v.monto_transferencia);
-        byRango[k].ops   += 1;
+        const prop = getCuentaPropietario(v.cuenta_id, v.cuenta_nombre) || 'Sin propietario';
+        if (!byProp[prop]) byProp[prop] = { monto: 0, ops: 0 };
+        byProp[prop].monto += Number(v.monto_transferencia);
+        byProp[prop].ops   += 1;
     }
 
-    const byHistorico = {};
-    for (const v of conTransf.filter(v => v.fecha <= hasta)) {
-        const k = v.cuenta_nombre || 'Sin cuenta';
-        const reinicio = getReinicioDate(k);
-        if (reinicio && v.fecha < reinicio) continue;
-        if (!byHistorico[k]) byHistorico[k] = 0;
-        byHistorico[k] += Number(v.monto_transferencia);
-    }
+    const propietarios = Object.keys(byProp).sort((a, b) => byProp[b].monto - byProp[a].monto);
+    const total = propietarios.reduce((s, p) => s + byProp[p].monto, 0);
 
-    const cuentas = [...new Set([
-        ...Object.keys(byRango),
-        ...Object.keys(byHistorico),
-    ])].sort((a, b) => (byRango[b]?.monto || 0) - (byRango[a]?.monto || 0));
+    const getVentasProp = (prop) =>
+        filtered
+            .filter(v => (getCuentaPropietario(v.cuenta_id, v.cuenta_nombre) || 'Sin propietario') === prop)
+            .sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.created_at || '').localeCompare(a.created_at || ''));
 
-    const totalRango     = Object.values(byRango).reduce((s, v) => s + v.monto, 0);
-    const totalHistorico = Object.values(byHistorico).reduce((s, v) => s + v, 0);
+    const fmtFechaCorta = (dateStr) => {
+        if (!dateStr) return '—';
+        const [y, m, d] = dateStr.split('-');
+        return new Date(Number(y), Number(m) - 1, Number(d))
+            .toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: '2-digit' });
+    };
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -1932,9 +1944,9 @@ function CuentasModal({ ventas, onClose }) {
                     <div>
                         <h2 className="font-bold text-foreground text-base flex items-center gap-2">
                             <Building2 className="w-4 h-4 text-blue-600" />
-                            Transferencias por cuenta
+                            Transferencias por propietario
                         </h2>
-                        <p className="text-xs text-muted-foreground mt-0.5">Montos enviados a cada cuenta bancaria</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">Total recibido por cada propietario</p>
                     </div>
                     <button onClick={onClose} className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors">
                         <X className="w-5 h-5" />
@@ -1965,7 +1977,7 @@ function CuentasModal({ ventas, onClose }) {
                     </div>
                 </div>
 
-                {/* Subtítulo */}
+                {/* Contador */}
                 <div className="px-5 pt-3 pb-1 flex-shrink-0">
                     <span className="text-xs text-muted-foreground">
                         {filtered.length} operación{filtered.length !== 1 ? 'es' : ''} con transferencia en el rango
@@ -1974,85 +1986,102 @@ function CuentasModal({ ventas, onClose }) {
 
                 {/* Cuerpo */}
                 <div className="flex-1 overflow-y-auto px-5 pb-5 space-y-2.5 pt-2">
-                    {cuentas.length === 0 && (
+                    {loadingMeta && (
+                        <div className="text-center py-10 text-muted-foreground">
+                            <RefreshCw className="w-6 h-6 mx-auto mb-2 animate-spin opacity-50" />
+                            <p className="text-sm">Cargando...</p>
+                        </div>
+                    )}
+                    {!loadingMeta && propietarios.length === 0 && (
                         <div className="text-center py-10 text-muted-foreground">
                             <Building2 className="w-10 h-10 mx-auto mb-2 opacity-30" />
                             <p className="text-sm">Sin transferencias en ese rango</p>
                         </div>
                     )}
 
-                    {cuentas.map(cuenta => {
-                        const rango       = byRango[cuenta];
-                        const hist        = byHistorico[cuenta] || 0;
-                        const propietario = getCuentaPropietario(cuenta);
-                        const color       = getPropColor(propietario).text;
+                    {!loadingMeta && propietarios.map(prop => {
+                        const { monto, ops } = byProp[prop];
+                        const color = getUserColor(prop);
+                        const isOpen = expandedProp === prop;
+                        const ventasProp = isOpen ? getVentasProp(prop) : [];
                         return (
-                            <div key={cuenta} className="rounded-2xl border overflow-hidden"
-                                style={{ borderColor: color + '50', backgroundColor: color + '08' }}>
-                                {/* Fila principal */}
-                                <div className="px-4 py-3 flex items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2 min-w-0">
-                                        <Building2 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color }} />
-                                        <div className="min-w-0">
-                                            <p className="font-bold text-sm text-foreground truncate">{cuenta}</p>
-                                            {getTitular(cuenta) && (
-                                                <p className="text-xs text-muted-foreground flex items-center gap-1 truncate">
-                                                    <User className="w-2.5 h-2.5 flex-shrink-0" />
-                                                    {getTitular(cuenta)}
-                                                </p>
-                                            )}
+                            <div key={prop} className="rounded-2xl border overflow-hidden" style={{ borderColor: color + '40' }}>
+                                <button
+                                    onClick={() => setExpandedProp(isOpen ? null : prop)}
+                                    className="w-full flex items-center justify-between px-4 py-3.5 transition-colors text-left"
+                                    style={{ backgroundColor: color + '08' }}
+                                >
+                                    <div className="flex items-center gap-2.5">
+                                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                                        <div>
+                                            <p className="text-sm font-bold capitalize" style={{ color }}>{prop}</p>
+                                            <p className="text-xs text-muted-foreground">{ops} operación{ops !== 1 ? 'es' : ''}</p>
                                         </div>
                                     </div>
-                                    <div className="text-right flex-shrink-0">
-                                        <p className="font-bold text-base tabular-nums" style={{ color }}>
-                                            {rango ? `$${formatARS(rango.monto)}` : '—'}
-                                        </p>
-                                        {rango && (
-                                            <p className="text-xs text-muted-foreground">
-                                                {rango.ops} op{rango.ops !== 1 ? 's' : ''}. en rango
-                                            </p>
-                                        )}
-                                    </div>
-                                </div>
-                                {/* Acumulado histórico */}
-                                <div className="px-4 pb-3 pt-2 border-t flex items-center justify-between"
-                                    style={{ borderColor: color + '25' }}>
-                                    <span className="text-xs text-muted-foreground">
-                                        {getReinicioDate(cuenta)
-                                            ? <>Desde reinicio hasta {hasta}</>
-                                            : <>Acumulado hasta {hasta}</>
+                                    <div className="flex items-center gap-2 flex-shrink-0">
+                                        <span className="font-bold text-base tabular-nums text-foreground">
+                                            ${formatARS(monto)}
+                                        </span>
+                                        {isOpen
+                                            ? <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                            : <ChevronDown className="w-4 h-4 text-muted-foreground" />
                                         }
-                                    </span>
-                                    <span className="text-xs font-semibold text-foreground tabular-nums">
-                                        ${formatARS(hist)}
-                                    </span>
-                                </div>
+                                    </div>
+                                </button>
+
+                                {isOpen && (
+                                    <div className="border-t divide-y divide-border/40" style={{ borderTopColor: color + '30' }}>
+                                        {ventasProp.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground px-4 py-3 text-center">
+                                                Sin ventas en este rango
+                                            </p>
+                                        ) : ventasProp.map(v => {
+                                            const propColor = getUserColor(v.propietario);
+                                            return (
+                                                <div key={v.id} className="px-4 py-2.5 flex items-center gap-2" style={{ backgroundColor: color + '04' }}>
+                                                    <span className="text-xs text-muted-foreground tabular-nums w-16 flex-shrink-0">
+                                                        {fmtFechaCorta(v.fecha)}
+                                                    </span>
+                                                    {v.propietario && (
+                                                        <span
+                                                            className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold capitalize flex-shrink-0"
+                                                            style={{ backgroundColor: propColor + '22', color: propColor }}
+                                                        >
+                                                            {v.propietario}
+                                                        </span>
+                                                    )}
+                                                    <div className="flex-1 min-w-0">
+                                                        {v.codigo ? (
+                                                            <span className="inline-flex items-center gap-0.5 text-xs bg-muted px-1.5 py-0.5 rounded font-mono font-semibold text-foreground">
+                                                                <Tag className="w-2.5 h-2.5 text-muted-foreground" />
+                                                                {v.codigo}
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-xs text-muted-foreground truncate block">
+                                                                {v.producto_titulo || '—'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className="text-sm font-bold text-blue-600 flex-shrink-0 tabular-nums">
+                                                        ${formatARS(v.monto_transferencia)}
+                                                    </span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
                             </div>
                         );
                     })}
 
-                    {/* Total rango */}
-                    {totalRango > 0 && (
+                    {!loadingMeta && total > 0 && (
                         <div className="flex items-center justify-between px-4 py-3.5 rounded-2xl bg-blue-600/10 border border-blue-600/20 mt-1">
                             <span className="text-sm font-bold text-foreground flex items-center gap-2">
                                 <Building2 className="w-4 h-4 text-blue-600" />
                                 Total transferido en rango
                             </span>
                             <span className="text-xl font-bold text-blue-700 tabular-nums">
-                                ${formatARS(totalRango)}
-                            </span>
-                        </div>
-                    )}
-
-                    {/* Total histórico */}
-                    {totalHistorico > 0 && (
-                        <div className="flex items-center justify-between px-4 py-3 rounded-2xl bg-muted border border-border">
-                            <span className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                <TrendingUp className="w-4 h-4" />
-                                Total histórico hasta {hasta}
-                            </span>
-                            <span className="text-base font-bold text-foreground tabular-nums">
-                                ${formatARS(totalHistorico)}
+                                ${formatARS(total)}
                             </span>
                         </div>
                     )}
@@ -2080,18 +2109,25 @@ function CruceModal({ ventas, onClose }) {
     const [vistaBalance, setVistaBalance] = useState(true); // true=balance, false=detalle por par
 
     useEffect(() => {
-        supabase.from('cuentas_bancarias').select('nombre, propietario').then(({ data }) => {
+        supabase.from('cuentas_bancarias').select('id, nombre, propietario').then(({ data }) => {
             if (data) setCuentasInfo(data);
         });
     }, []);
 
-    const getCuentaProp = (cuentaNombre) =>
-        cuentasInfo.find(c => c.nombre === cuentaNombre)?.propietario || null;
+    const getCuentaProp = (cuentaId, cuentaNombre) => {
+        if (cuentaId) {
+            const byId = cuentasInfo.find(c => c.id === cuentaId);
+            if (byId) return byId.propietario;
+        }
+        return cuentasInfo.find(c => c.nombre === cuentaNombre || c.propietario === cuentaNombre)?.propietario
+            || cuentaNombre
+            || null;
+    };
 
     const buildCruces = (items) => {
         const byPar = {};
         for (const v of items) {
-            const propCuenta = getCuentaProp(v.cuenta_nombre);
+            const propCuenta = getCuentaProp(v.cuenta_id, v.cuenta_nombre);
             if (!propCuenta || !v.propietario || propCuenta.toLowerCase() === v.propietario.toLowerCase()) continue;
             const key = `${v.propietario}|${propCuenta}`;
             if (!byPar[key]) byPar[key] = { de: v.propietario, a: propCuenta, monto: 0, montoUsd: 0, sinDolar: false, items: [] };
@@ -2439,6 +2475,7 @@ export function VentasHistorial() {
     const [showCuentas,     setShowCuentas]     = useState(false);
     const [showCruce,       setShowCruce]       = useState(false);
     const [codigoFilter,    setCodigoFilter]    = useState('');
+    const [propietarioFilter, setPropietarioFilter] = useState(null);
 
     useEffect(() => {
         const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -2475,8 +2512,17 @@ export function VentasHistorial() {
 
     /* Filtro por código de producto */
     const codigoTrim = codigoFilter.trim().toLowerCase();
+    const propietariosForCode = codigoTrim
+        ? [...new Set(
+            ventas
+                .filter(v => (v.codigo || '').toLowerCase().includes(codigoTrim))
+                .map(v => v.propietario || 'Sin propietario')
+          )]
+        : [];
     const displayVentas = codigoTrim
-        ? ventas.filter(v => (v.codigo || '').toLowerCase().includes(codigoTrim))
+        ? ventas
+            .filter(v => (v.codigo || '').toLowerCase().includes(codigoTrim))
+            .filter(v => !propietarioFilter || (v.propietario || 'Sin propietario') === propietarioFilter)
         : ventas;
 
     /* Agrupar ventas por día */
@@ -2652,19 +2698,53 @@ export function VentasHistorial() {
                 <input
                     type="text"
                     value={codigoFilter}
-                    onChange={e => { setCodigoFilter(e.target.value); setSelectedDay(null); }}
+                    onChange={e => { setCodigoFilter(e.target.value); setSelectedDay(null); setPropietarioFilter(null); }}
                     placeholder="Filtrar por código de producto…"
                     className="w-full pl-9 pr-8 py-2 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                 />
                 {codigoFilter && (
                     <button
-                        onClick={() => { setCodigoFilter(''); setSelectedDay(null); }}
+                        onClick={() => { setCodigoFilter(''); setSelectedDay(null); setPropietarioFilter(null); }}
                         className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <X className="w-4 h-4" />
                     </button>
                 )}
             </div>
+
+            {/* ── Selector de propietario (visible solo cuando el código tiene >1 propietario) ── */}
+            {codigoTrim && propietariosForCode.length > 1 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-semibold text-muted-foreground">Propietario:</span>
+                    <button
+                        onClick={() => { setPropietarioFilter(null); setSelectedDay(null); }}
+                        className={`text-xs font-semibold px-3 py-1 rounded-full border transition-all ${
+                            !propietarioFilter
+                                ? 'bg-foreground text-background border-foreground'
+                                : 'border-border text-muted-foreground hover:text-foreground'
+                        }`}
+                    >
+                        Todos
+                    </button>
+                    {propietariosForCode.map(p => {
+                        const color = getUserColor(p);
+                        const isSelected = propietarioFilter === p;
+                        return (
+                            <button
+                                key={p}
+                                onClick={() => { setPropietarioFilter(isSelected ? null : p); setSelectedDay(null); }}
+                                className="text-xs font-semibold px-3 py-1 rounded-full border transition-all"
+                                style={isSelected
+                                    ? { backgroundColor: color, color: '#fff', borderColor: color }
+                                    : { borderColor: color + '60', color, backgroundColor: color + '12' }
+                                }
+                            >
+                                {p}
+                            </button>
+                        );
+                    })}
+                </div>
+            )}
 
             {showCruce && (
                 <CruceModal

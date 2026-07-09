@@ -39,7 +39,7 @@ function agruparPorMarca(ventas) {
         const cod = v.codigo || String(v.id);
         if (!marcaMap[marca]) marcaMap[marca] = {};
         if (!marcaMap[marca][cod]) {
-            marcaMap[marca][cod] = { codigo: cod, titulo: v.producto_titulo || cod, efectivo: 0, transferencia: 0, cuentas: new Set(), usd: 0, precioDocena: 0, dolar_blue: null, ventas: [] };
+            marcaMap[marca][cod] = { codigo: cod, titulo: v.producto_titulo || cod, efectivo: 0, transferencia: 0, cuentas: new Set(), usd: 0, precioDocena: 0, dolar_blue: null, ventas: [], totalDocenas: 0 };
         }
         const entry = marcaMap[marca][cod];
         entry.efectivo += montoEfectivo(v);
@@ -48,6 +48,7 @@ function agruparPorMarca(ventas) {
         entry.usd += calcUSD(montoEfectivo(v), v.dolar_blue);
         if (Number(v.precio_docena_ars) > 0) entry.precioDocena = Number(v.precio_docena_ars);
         if (Number(v.dolar_blue) > 0) entry.dolar_blue = v.dolar_blue;
+        entry.totalDocenas += Number(v.cantidad_docenas || 1);
         entry.ventas.push(v);
     }
     return Object.entries(marcaMap)
@@ -118,6 +119,87 @@ function exportarPDF(propietario, tandaNombre, marcas, totalEfectivo, totalUSD) 
     toast.success('PDF generado');
 }
 
+/* ─── VentaRow ─────────────────────────────────────────────────── */
+function VentaRow({ v }) {
+    const [expandidoDocenas, setExpandidoDocenas] = useState(false);
+    const tieneMultiplesDocenas = Number(v.cantidad_docenas) > 1;
+    const cantDoc = Number(v.cantidad_docenas || 1);
+    const efectivoUnit = montoEfectivo(v) / cantDoc;
+    const transferenciaUnit = Number(v.monto_transferencia || 0) / cantDoc;
+
+    return (
+        <React.Fragment>
+            <tr className="border-t border-border/20 hover:bg-muted/20 transition-colors">
+                <td className="px-4 py-1.5 text-muted-foreground whitespace-nowrap">
+                    <div className="flex items-center gap-1">
+                        {tieneMultiplesDocenas && (
+                            <button
+                                onClick={() => setExpandidoDocenas(o => !o)}
+                                className="p-0.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0"
+                            >
+                                {expandidoDocenas
+                                    ? <ChevronUp className="w-3 h-3" />
+                                    : <ChevronDown className="w-3 h-3" />}
+                            </button>
+                        )}
+                        {formatFecha(v.created_at)}
+                        {v.cantidad_docenas > 0 && (
+                            <span className="ml-1.5 text-foreground/70 font-medium">{v.cantidad_docenas} doc.</span>
+                        )}
+                    </div>
+                </td>
+                <td className="px-4 py-1.5 text-foreground">
+                    {Number(v.precio_docena_ars) > 0 ? `$ ${formatARS(v.precio_docena_ars)}` : '—'}
+                </td>
+                <td className="px-4 py-1.5 text-right text-green-600 dark:text-green-400 font-medium">
+                    {montoEfectivo(v) > 0 ? `$ ${formatARS(montoEfectivo(v))}` : '—'}
+                </td>
+                <td className="px-4 py-1.5 text-right text-purple-600 dark:text-purple-400 font-medium">
+                    {Number(v.monto_transferencia) > 0 ? (
+                        <span className="relative group cursor-default">
+                            $ {formatARS(v.monto_transferencia)}
+                            {v.cuenta_nombre && (
+                                <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10">
+                                    {v.cuenta_nombre}
+                                </span>
+                            )}
+                        </span>
+                    ) : '—'}
+                </td>
+                <td className="px-4 py-1.5 text-right text-blue-600 dark:text-blue-400 font-medium">
+                    {Number(v.dolar_blue) > 0 ? `$ ${Number(v.dolar_blue).toLocaleString('es-AR')}` : '—'}
+                </td>
+                <td className="px-4 py-1.5 text-right text-amber-600 dark:text-amber-400 font-medium">
+                    {calcUSD(montoEfectivo(v), v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(montoEfectivo(v), v.dolar_blue))}` : '—'}
+                </td>
+            </tr>
+            {expandidoDocenas && Array.from({ length: cantDoc }).map((_, i) => (
+                <tr key={i} className="border-t border-border/10 bg-muted/10">
+                    <td className="pl-8 pr-4 py-1 text-muted-foreground/70 whitespace-nowrap text-[11px]">
+                        <span className="mr-1 text-muted-foreground/40">└</span>
+                        Doc. {i + 1}/{cantDoc}
+                    </td>
+                    <td className="px-4 py-1 text-foreground/80 text-[11px]">
+                        {Number(v.precio_docena_ars) > 0 ? `$ ${formatARS(v.precio_docena_ars)}` : '—'}
+                    </td>
+                    <td className="px-4 py-1 text-right text-green-600/80 dark:text-green-400/80 text-[11px]">
+                        {efectivoUnit > 0 ? `$ ${formatARS(efectivoUnit)}` : '—'}
+                    </td>
+                    <td className="px-4 py-1 text-right text-purple-600/80 dark:text-purple-400/80 text-[11px]">
+                        {transferenciaUnit > 0 ? `$ ${formatARS(transferenciaUnit)}` : '—'}
+                    </td>
+                    <td className="px-4 py-1 text-right text-blue-600/80 dark:text-blue-400/80 text-[11px]">
+                        {Number(v.dolar_blue) > 0 ? `$ ${Number(v.dolar_blue).toLocaleString('es-AR')}` : '—'}
+                    </td>
+                    <td className="px-4 py-1 text-right text-amber-600/80 dark:text-amber-400/80 text-[11px]">
+                        {calcUSD(efectivoUnit, v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(efectivoUnit, v.dolar_blue))}` : '—'}
+                    </td>
+                </tr>
+            ))}
+        </React.Fragment>
+    );
+}
+
 /* ─── ProductoCard ─────────────────────────────────────────────── */
 function ProductoCard({ p }) {
     const [expandido, setExpandido] = useState(false);
@@ -132,7 +214,7 @@ function ProductoCard({ p }) {
                     <span className="text-xs text-muted-foreground shrink-0">({p.codigo})</span>
                     {tieneMultiples && (
                         <span className="text-xs bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 rounded-full px-1.5 py-0.5 font-semibold shrink-0">
-                            {p.ventas.length}×
+                            {p.totalDocenas}×
                         </span>
                     )}
                 </div>
@@ -209,38 +291,7 @@ function ProductoCard({ p }) {
                             </thead>
                             <tbody>
                                 {p.ventas.map((v) => (
-                                    <tr key={v.id} className="border-t border-border/20 hover:bg-muted/20 transition-colors">
-                                        <td className="px-4 py-1.5 text-muted-foreground whitespace-nowrap">
-                                            {formatFecha(v.created_at)}
-                                            {v.cantidad_docenas > 0 && (
-                                                <span className="ml-1.5 text-foreground/70 font-medium">{v.cantidad_docenas} doc.</span>
-                                            )}
-                                        </td>
-                                        <td className="px-4 py-1.5 text-foreground">
-                                            {Number(v.precio_docena_ars) > 0 ? `$ ${formatARS(v.precio_docena_ars)}` : '—'}
-                                        </td>
-                                        <td className="px-4 py-1.5 text-right text-green-600 dark:text-green-400 font-medium">
-                                            {montoEfectivo(v) > 0 ? `$ ${formatARS(montoEfectivo(v))}` : '—'}
-                                        </td>
-                                        <td className="px-4 py-1.5 text-right text-purple-600 dark:text-purple-400 font-medium">
-                                            {Number(v.monto_transferencia) > 0 ? (
-                                                <span className="relative group cursor-default">
-                                                    $ {formatARS(v.monto_transferencia)}
-                                                    {v.cuenta_nombre && (
-                                                        <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10">
-                                                            {v.cuenta_nombre}
-                                                        </span>
-                                                    )}
-                                                </span>
-                                            ) : '—'}
-                                        </td>
-                                        <td className="px-4 py-1.5 text-right text-blue-600 dark:text-blue-400 font-medium">
-                                            {Number(v.dolar_blue) > 0 ? `$ ${Number(v.dolar_blue).toLocaleString('es-AR')}` : '—'}
-                                        </td>
-                                        <td className="px-4 py-1.5 text-right text-amber-600 dark:text-amber-400 font-medium">
-                                            {calcUSD(montoEfectivo(v), v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(montoEfectivo(v), v.dolar_blue))}` : '—'}
-                                        </td>
-                                    </tr>
+                                    <VentaRow key={v.id} v={v} />
                                 ))}
                             </tbody>
                         </table>

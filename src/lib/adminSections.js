@@ -13,7 +13,7 @@ export const ADMIN_SECTIONS = [
     { key: 'control-mercancia',      label: 'Control de Mercancía' },
     { key: 'precio-venta-sugerido',  label: 'Precio Venta Sugerido' },
     { key: 'usuarios',               label: 'Usuarios (Mercadería)' },
-    { key: 'calculo-precios',        label: 'Cálculo de Precios' },
+    // { key: 'calculo-precios',        label: 'Cálculo de Precios' },
     { key: 'posibles-compras',       label: 'Posibles Compras' },
     { key: 'ventas',                 label: 'Registrar Venta' },
     { key: 'ventas-historial',       label: 'Historial de Ventas' },

@@ -7,12 +7,13 @@ import {
     Banknote, Tag, Clock, Lock, Eye, EyeOff,
 } from 'lucide-react';
 
-export const PROPIETARIOS = ['luis', 'gabriel', 'rosa'];
+export const PROPIETARIOS = ['luis', 'gabriel', 'rosa', 'eddy'];
 
 export const PROPIETARIO_COLORS = {
     luis:    'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300',
     gabriel: 'bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300',
     rosa:    'bg-pink-100 text-pink-700 dark:bg-pink-900/40 dark:text-pink-300',
+    eddy:    'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300',
 };
 
 const hexToStyle = (hex = '#9ca3af') => ({ bg: hex + '22', text: hex });
@@ -412,13 +413,6 @@ export function CuentasBancarias() {
                     .eq('id', editing.id);
                 if (error) throw error;
 
-                if (editing.nombre !== payload.nombre) {
-                    await supabase
-                        .from('ventas')
-                        .update({ cuenta_nombre: payload.nombre })
-                        .eq('cuenta_id', editing.id);
-                }
-
                 toast.success('Cuenta actualizada');
             } else {
                 const { error } = await supabase
@@ -480,7 +474,7 @@ export function CuentasBancarias() {
         appUsers.find(u => u.username?.toLowerCase() === name?.toLowerCase())?.color || '#9ca3af';
 
     const getTransfers = (cuenta) => {
-        const all = ventasTransf.filter(v => v.cuenta_id === cuenta.id || v.cuenta_nombre === cuenta.nombre);
+        const all = ventasTransf.filter(v => v.cuenta_id === cuenta.id || v.cuenta_nombre === cuenta.propietario);
         if (!cuenta.reiniciado_at) return all;
         const reinicioDate = cuenta.reiniciado_at.substring(0, 10);
         return all.filter(v => v.fecha >= reinicioDate);

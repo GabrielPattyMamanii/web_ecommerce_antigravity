@@ -641,7 +641,7 @@ export function VentasScanner() {
             monto_efectivo: mEfectivo,
             monto_transferencia: mTransferencia,
             cuenta_id: selectedCuenta?.id || null,
-            cuenta_nombre: selectedCuenta?.nombre || null,
+            cuenta_nombre: selectedCuenta?.propietario || null,
             metodo_registro: metodoRegistroRef.current,
         }]);
 
@@ -691,7 +691,7 @@ export function VentasScanner() {
             const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
             const ventaId = crypto.randomUUID();
             const nombrePedidoTrim = nombrePedido.trim() || null;
-            const records = cart.map(({ dolar_blue, cuenta_id, ...item }) => ({
+            const records = cart.map(({ dolar_blue, ...item }) => ({
                 ...item,
                 fecha: today,
                 dolar_blue,
@@ -795,7 +795,7 @@ export function VentasScanner() {
             monto_efectivo: mEfectivo,
             monto_transferencia: mTransferencia,
             cuenta_id: editCuenta?.id || null,
-            cuenta_nombre: editCuenta?.nombre || null,
+            cuenta_nombre: editCuenta?.propietario || null,
         }));
 
         setEditingIndex(null);

@@ -3,7 +3,11 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\gabri\\\\OneDrive\\\\Desktop\\\\Prueba antigravity\\\\ecommerce-web\" -Recurse -Force)",
       "Bash(Select-Object -First 50)",
-      "Bash(Format-Table FullName)"
+      "Bash(Format-Table FullName)",
+      "Bash(uv tool:*)",
+      "Bash(graphify install:*)",
+      "Bash(/c/Users/gabri/.local/bin/graphify.exe install:*)",
+      "Bash(/c/Users/gabri/AppData/Roaming/uv/tools/graphifyy/Scripts/python.exe:*)"
     ]
   }
 }
