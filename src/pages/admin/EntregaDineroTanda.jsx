@@ -4,10 +4,12 @@ import { supabase } from '../../lib/supabase';
 import {
     Banknote, DollarSign, Package, RefreshCw, Tag, List,
     ChevronDown, ChevronUp, ArrowLeft, FileDown, Layers,
+    ToggleLeft, ToggleRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import { PROPIETARIO_COLORS } from './CuentasBancarias';
 
 function formatARS(n) {
     return Number(n || 0).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
@@ -32,6 +34,20 @@ function formatFecha(iso) {
     return new Date(iso).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' });
 }
 
+/* Resuelve el propietario real de la cuenta destino de una transferencia,
+   con el mismo fallback robusto que usa CruceModal en VentasHistorial.jsx:
+   cuenta_id primero, y si no hay match, cuenta_nombre contra nombre o propietario
+   (algunos registros viejos guardaron el nombre de la cuenta en vez del propietario). */
+function getCuentaProp(cuentaId, cuentaNombre, cuentasInfo) {
+    if (cuentaId) {
+        const byId = cuentasInfo.find(c => c.id === cuentaId);
+        if (byId) return byId.propietario;
+    }
+    return cuentasInfo.find(c => c.nombre === cuentaNombre || c.propietario === cuentaNombre)?.propietario
+        || cuentaNombre
+        || null;
+}
+
 function agruparPorMarca(ventas) {
     const marcaMap = {};
     for (const v of ventas) {
@@ -39,13 +55,14 @@ function agruparPorMarca(ventas) {
         const cod = v.codigo || String(v.id);
         if (!marcaMap[marca]) marcaMap[marca] = {};
         if (!marcaMap[marca][cod]) {
-            marcaMap[marca][cod] = { codigo: cod, titulo: v.producto_titulo || cod, efectivo: 0, transferencia: 0, cuentas: new Set(), usd: 0, precioDocena: 0, dolar_blue: null, ventas: [], totalDocenas: 0 };
+            marcaMap[marca][cod] = { codigo: cod, titulo: v.producto_titulo || cod, efectivo: 0, transferencia: 0, cuentas: new Set(), usdConAjena: 0, usdSinAjena: 0, precioDocena: 0, dolar_blue: null, ventas: [], totalDocenas: 0 };
         }
         const entry = marcaMap[marca][cod];
         entry.efectivo += montoEfectivo(v);
         entry.transferencia += Number(v.monto_transferencia || 0);
         if (Number(v.monto_transferencia) > 0 && v.cuenta_nombre) entry.cuentas.add(v.cuenta_nombre);
-        entry.usd += calcUSD(montoEfectivo(v), v.dolar_blue);
+        entry.usdConAjena += calcUSD(v.montoBaseUSD, v.dolar_blue);
+        entry.usdSinAjena += calcUSD(montoEfectivo(v), v.dolar_blue);
         if (Number(v.precio_docena_ars) > 0) entry.precioDocena = Number(v.precio_docena_ars);
         if (Number(v.dolar_blue) > 0) entry.dolar_blue = v.dolar_blue;
         entry.totalDocenas += Number(v.cantidad_docenas || 1);
@@ -58,7 +75,8 @@ function agruparPorMarca(ventas) {
                 nombre,
                 productos: prods,
                 efectivo: prods.reduce((s, p) => s + p.efectivo, 0),
-                usd: prods.reduce((s, p) => s + p.usd, 0),
+                usdConAjena: prods.reduce((s, p) => s + p.usdConAjena, 0),
+                usdSinAjena: prods.reduce((s, p) => s + p.usdSinAjena, 0),
             };
         })
         .sort((a, b) => a.nombre.localeCompare(b.nombre));
@@ -120,12 +138,15 @@ function exportarPDF(propietario, tandaNombre, marcas, totalEfectivo, totalUSD) 
 }
 
 /* ─── VentaRow ─────────────────────────────────────────────────── */
-function VentaRow({ v }) {
+function VentaRow({ v, propietario, sumarAjena }) {
     const [expandidoDocenas, setExpandidoDocenas] = useState(false);
     const tieneMultiplesDocenas = Number(v.cantidad_docenas) > 1;
     const cantDoc = Number(v.cantidad_docenas || 1);
     const efectivoUnit = montoEfectivo(v) / cantDoc;
     const transferenciaUnit = Number(v.monto_transferencia || 0) / cantDoc;
+    const usdBase = sumarAjena ? v.montoBaseUSD : montoEfectivo(v);
+    const usdBaseUnit = usdBase / cantDoc;
+    const transferenciaPropia = v.transferenciaEsPropia;
 
     return (
         <React.Fragment>
@@ -154,9 +175,9 @@ function VentaRow({ v }) {
                 <td className="px-4 py-1.5 text-right text-green-600 dark:text-green-400 font-medium">
                     {montoEfectivo(v) > 0 ? `$ ${formatARS(montoEfectivo(v))}` : '—'}
                 </td>
-                <td className="px-4 py-1.5 text-right text-purple-600 dark:text-purple-400 font-medium">
+                <td className="px-4 py-1.5 text-right font-medium">
                     {Number(v.monto_transferencia) > 0 ? (
-                        <span className="relative group cursor-default">
+                        <span className={`relative group cursor-default ${transferenciaPropia ? `${PROPIETARIO_COLORS[propietario] || 'bg-muted text-foreground'} rounded-full px-2 py-0.5` : 'text-purple-600 dark:text-purple-400'}`}>
                             $ {formatARS(v.monto_transferencia)}
                             {v.cuenta_nombre && (
                                 <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10">
@@ -170,7 +191,7 @@ function VentaRow({ v }) {
                     {Number(v.dolar_blue) > 0 ? `$ ${Number(v.dolar_blue).toLocaleString('es-AR')}` : '—'}
                 </td>
                 <td className="px-4 py-1.5 text-right text-amber-600 dark:text-amber-400 font-medium">
-                    {calcUSD(montoEfectivo(v), v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(montoEfectivo(v), v.dolar_blue))}` : '—'}
+                    {calcUSD(usdBase, v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(usdBase, v.dolar_blue))}` : '—'}
                 </td>
             </tr>
             {expandidoDocenas && Array.from({ length: cantDoc }).map((_, i) => (
@@ -185,14 +206,14 @@ function VentaRow({ v }) {
                     <td className="px-4 py-1 text-right text-green-600/80 dark:text-green-400/80 text-[11px]">
                         {efectivoUnit > 0 ? `$ ${formatARS(efectivoUnit)}` : '—'}
                     </td>
-                    <td className="px-4 py-1 text-right text-purple-600/80 dark:text-purple-400/80 text-[11px]">
+                    <td className={`px-4 py-1 text-right text-[11px] ${transferenciaPropia ? `${PROPIETARIO_COLORS[propietario] || 'bg-muted text-foreground'} rounded-full` : 'text-purple-600/80 dark:text-purple-400/80'}`}>
                         {transferenciaUnit > 0 ? `$ ${formatARS(transferenciaUnit)}` : '—'}
                     </td>
                     <td className="px-4 py-1 text-right text-blue-600/80 dark:text-blue-400/80 text-[11px]">
                         {Number(v.dolar_blue) > 0 ? `$ ${Number(v.dolar_blue).toLocaleString('es-AR')}` : '—'}
                     </td>
                     <td className="px-4 py-1 text-right text-amber-600/80 dark:text-amber-400/80 text-[11px]">
-                        {calcUSD(efectivoUnit, v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(efectivoUnit, v.dolar_blue))}` : '—'}
+                        {calcUSD(usdBaseUnit, v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(usdBaseUnit, v.dolar_blue))}` : '—'}
                     </td>
                 </tr>
             ))}
@@ -201,13 +222,18 @@ function VentaRow({ v }) {
 }
 
 /* ─── ProductoCard ─────────────────────────────────────────────── */
-function ProductoCard({ p }) {
+function ProductoCard({ p, propietario, onToggleSuma }) {
     const [expandido, setExpandido] = useState(false);
     const tieneMultiples = p.ventas.length > 1;
+    const conTransferencia = p.ventas.filter(v => Number(v.monto_transferencia) > 0);
+    const transferenciaPropia = conTransferencia.length > 0
+        && conTransferencia.every(v => v.transferenciaEsPropia);
+    const sumarAjena = p.sumarAjena;
+    const usd = p.usd;
     return (
         <div className="bg-card border border-border/60 rounded-lg overflow-hidden hover:shadow-md transition-all">
             {/* Header del producto */}
-            <div className="flex items-center justify-between px-4 py-2.5 bg-muted/30 border-b border-border/40">
+            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/40">
                 <div className="flex items-center gap-2 min-w-0">
                     <Package className="w-4 h-4 text-pink-500 shrink-0" />
                     <span className="font-semibold text-foreground text-sm truncate">{p.titulo}</span>
@@ -218,17 +244,33 @@ function ProductoCard({ p }) {
                         </span>
                     )}
                 </div>
-                {tieneMultiples && (
-                    <button
-                        onClick={() => setExpandido(o => !o)}
-                        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                    >
-                        {expandido ? 'Ocultar' : 'Ver detalle'}
-                        {expandido
-                            ? <ChevronUp className="w-3.5 h-3.5" />
-                            : <ChevronDown className="w-3.5 h-3.5" />}
-                    </button>
-                )}
+                <div className="flex items-center gap-2 shrink-0">
+                    {p.transferencia > 0 && (
+                        <button
+                            onClick={onToggleSuma}
+                            title={sumarAjena
+                                ? 'Sumando al USD las transferencias hechas a otras cuentas. Click para dejar de sumarlas.'
+                                : 'Las transferencias a otras cuentas no se están sumando al USD. Click para volver a sumarlas.'}
+                            className="flex items-center gap-1 text-[11px] font-medium px-2 py-1 rounded-md hover:bg-muted transition-colors text-muted-foreground"
+                        >
+                            {sumarAjena
+                                ? <ToggleRight className="w-3.5 h-3.5 text-green-500 shrink-0" />
+                                : <ToggleLeft className="w-3.5 h-3.5 shrink-0" />}
+                            Sumar transf. ajena al USD
+                        </button>
+                    )}
+                    {tieneMultiples && (
+                        <button
+                            onClick={() => setExpandido(o => !o)}
+                            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                        >
+                            {expandido ? 'Ocultar' : 'Ver detalle'}
+                            {expandido
+                                ? <ChevronUp className="w-3.5 h-3.5" />
+                                : <ChevronDown className="w-3.5 h-3.5" />}
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Totales del producto */}
@@ -251,9 +293,9 @@ function ProductoCard({ p }) {
                             <td className="px-4 py-2 text-right text-green-600 dark:text-green-400">
                                 {p.efectivo > 0 ? `$ ${formatARS(p.efectivo)}` : '—'}
                             </td>
-                            <td className="px-4 py-2 text-right text-purple-600 dark:text-purple-400">
+                            <td className="px-4 py-2 text-right">
                                 {p.transferencia > 0 ? (
-                                    <span className="relative group cursor-default">
+                                    <span className={`relative group cursor-default ${transferenciaPropia ? `${PROPIETARIO_COLORS[propietario] || 'bg-muted text-foreground'} rounded-full px-2 py-0.5` : 'text-purple-600 dark:text-purple-400'}`}>
                                         $ {formatARS(p.transferencia)}
                                         {p.cuentas.size > 0 && (
                                             <span className="pointer-events-none absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2.5 py-1.5 rounded-lg bg-foreground text-background text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10">
@@ -267,7 +309,7 @@ function ProductoCard({ p }) {
                                 {p.dolar_blue ? `$ ${Number(p.dolar_blue).toLocaleString('es-AR')}` : '—'}
                             </td>
                             <td className="px-4 py-2 text-right text-amber-600 dark:text-amber-400">
-                                {p.usd > 0 ? `U$D ${formatUSD(p.usd)}` : '—'}
+                                {usd > 0 ? `U$D ${formatUSD(usd)}` : '—'}
                             </td>
                         </tr>
                     </tbody>
@@ -291,7 +333,7 @@ function ProductoCard({ p }) {
                             </thead>
                             <tbody>
                                 {p.ventas.map((v) => (
-                                    <VentaRow key={v.id} v={v} />
+                                    <VentaRow key={v.id} v={v} propietario={propietario} sumarAjena={sumarAjena} />
                                 ))}
                             </tbody>
                         </table>
@@ -303,7 +345,7 @@ function ProductoCard({ p }) {
 }
 
 /* ─── MarcaSection ─────────────────────────────────────────────── */
-function MarcaSection({ marca }) {
+function MarcaSection({ marca, propietario, onToggleSumaProducto }) {
     const [open, setOpen] = useState(true);
     return (
         <div>
@@ -327,7 +369,12 @@ function MarcaSection({ marca }) {
             {open && (
                 <div className="space-y-1.5 mt-1">
                     {marca.productos.map((p) => (
-                        <ProductoCard key={p.codigo} p={p} />
+                        <ProductoCard
+                            key={p.codigo}
+                            p={p}
+                            propietario={propietario}
+                            onToggleSuma={() => onToggleSumaProducto(p.codigo)}
+                        />
                     ))}
                 </div>
             )}
@@ -344,19 +391,50 @@ export function EntregaDineroTanda() {
 
     const [marcas, setMarcas] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [productosSinSuma, setProductosSinSuma] = useState(() => new Set());
+
+    const productoKey = (marcaNombre, codigo) => `${marcaNombre}::${codigo}`;
+
+    const toggleSumaProducto = (marcaNombre, codigo) => {
+        const key = productoKey(marcaNombre, codigo);
+        setProductosSinSuma(prev => {
+            const next = new Set(prev);
+            if (next.has(key)) next.delete(key);
+            else next.add(key);
+            return next;
+        });
+    };
+
+    useEffect(() => { setProductosSinSuma(new Set()); }, [propietario, tandaNombre]);
 
     const fetchVentas = useCallback(async () => {
         if (!propietario || !tandaNombre) return;
         setLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('ventas')
-                .select('id, producto_titulo, codigo, marca, monto_efectivo, monto_transferencia, cuenta_nombre, metodo_pago, total_ars, dolar_blue, created_at, cantidad_docenas, precio_docena_ars')
-                .eq('propietario', propietario)
-                .eq('tanda_nombre', tandaNombre)
-                .order('marca');
+            const [{ data, error }, { data: cuentasData, error: cuentasError }] = await Promise.all([
+                supabase
+                    .from('ventas')
+                    .select('id, producto_titulo, codigo, marca, monto_efectivo, monto_transferencia, cuenta_id, cuenta_nombre, metodo_pago, total_ars, dolar_blue, created_at, cantidad_docenas, precio_docena_ars')
+                    .eq('propietario', propietario)
+                    .eq('tanda_nombre', tandaNombre)
+                    .order('marca'),
+                supabase.from('cuentas_bancarias').select('id, nombre, propietario'),
+            ]);
             if (error) throw error;
-            setMarcas(agruparPorMarca(data || []));
+            if (cuentasError) throw cuentasError;
+            const cuentasInfo = cuentasData || [];
+            const ventasConCuenta = (data || []).map(v => {
+                const cuentaPropietario = getCuentaProp(v.cuenta_id, v.cuenta_nombre, cuentasInfo);
+                const transferencia = Number(v.monto_transferencia || 0);
+                const transferenciaEsPropia = transferencia > 0 && cuentaPropietario?.toLowerCase() === propietario?.toLowerCase();
+                return {
+                    ...v,
+                    cuentaPropietario,
+                    transferenciaEsPropia,
+                    montoBaseUSD: montoEfectivo(v) + (transferencia > 0 && !transferenciaEsPropia ? transferencia : 0),
+                };
+            });
+            setMarcas(agruparPorMarca(ventasConCuenta));
         } catch {
             toast.error('Error al cargar ventas');
         } finally {
@@ -366,9 +444,20 @@ export function EntregaDineroTanda() {
 
     useEffect(() => { fetchVentas(); }, [fetchVentas]);
 
-    const totalEfectivo = marcas.reduce((s, m) => s + m.efectivo, 0);
-    const totalUSD = marcas.reduce((s, m) => s + m.usd, 0);
-    const totalProductos = marcas.reduce((s, m) => s + m.productos.length, 0);
+    /* Resuelve, por producto, si suma o no la transferencia ajena según el
+       toggle individual (productosSinSuma), y arma marca.usd/p.usd ya listos
+       para mostrar en pantalla, totalizar y exportar a PDF. */
+    const marcasResueltas = marcas.map(m => {
+        const productos = m.productos.map(p => {
+            const sumarAjena = !productosSinSuma.has(productoKey(m.nombre, p.codigo));
+            return { ...p, sumarAjena, usd: sumarAjena ? p.usdConAjena : p.usdSinAjena };
+        });
+        return { ...m, productos, usd: productos.reduce((s, p) => s + p.usd, 0) };
+    });
+
+    const totalEfectivo = marcasResueltas.reduce((s, m) => s + m.efectivo, 0);
+    const totalUSD = marcasResueltas.reduce((s, m) => s + m.usd, 0);
+    const totalProductos = marcasResueltas.reduce((s, m) => s + m.productos.length, 0);
 
     return (
         <div className="space-y-6">
@@ -391,7 +480,7 @@ export function EntregaDineroTanda() {
                 <div className="flex items-center gap-2">
                     {!loading && marcas.length > 0 && (
                         <button
-                            onClick={() => exportarPDF(propietario, tandaNombre, marcas, totalEfectivo, totalUSD)}
+                            onClick={() => exportarPDF(propietario, tandaNombre, marcasResueltas, totalEfectivo, totalUSD)}
                             className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-pink-600 text-white text-sm font-medium hover:from-pink-600 hover:to-pink-700 transition-all shadow-sm"
                         >
                             <FileDown className="w-4 h-4" />
@@ -470,8 +559,13 @@ export function EntregaDineroTanda() {
             {/* Listado por marca */}
             {!loading && marcas.length > 0 && (
                 <div className="space-y-4">
-                    {marcas.map((marca) => (
-                        <MarcaSection key={marca.nombre} marca={marca} />
+                    {marcasResueltas.map((marca) => (
+                        <MarcaSection
+                            key={marca.nombre}
+                            marca={marca}
+                            propietario={propietario}
+                            onToggleSumaProducto={(codigo) => toggleSumaProducto(marca.nombre, codigo)}
+                        />
                     ))}
                 </div>
             )}

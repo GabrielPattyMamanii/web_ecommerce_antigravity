@@ -731,6 +731,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
         codigo:          venta.codigo           || '',
         tanda_nombre:    venta.tanda_nombre     || '',
         propietario:     venta.propietario      || '',
+        marca:           venta.marca            || '',
     });
     const setProdField = (k, v) => setProd(prev => ({ ...prev, [k]: v }));
 
@@ -797,6 +798,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             codigo:          entrada.codigo           || '',
             tanda_nombre:    entrada.tanda_nombre     || '',
             propietario:     propietarioEntrada,
+            marca:           entrada.marca            || '',
         });
         setQuery(''); setShowDrop(false); setShowSearch(false);
 
@@ -890,6 +892,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             producto_titulo:   prod.producto_titulo,
             codigo:            prod.codigo       || null,
             tanda_nombre:      prod.tanda_nombre || null,
+            marca:             prod.marca        || null,
             cantidad_docenas:  cantidad,
             precio_docena_ars: precio,
             total_ars,
