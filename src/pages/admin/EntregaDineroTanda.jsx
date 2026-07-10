@@ -103,7 +103,7 @@ function exportarPDF(propietario, tandaNombre, marcas, totalEfectivo, totalUSD) 
         doc.setFontSize(9);
         doc.setFont('helvetica', 'italic');
         doc.setTextColor(120, 120, 120);
-        doc.text(`Marca: ${marca.nombre}`, 18, cursorY + 5);
+        doc.text(`Marca: ${marca.nombre}${marca.boleta ? ` — Boleta: ${marca.boleta}` : ''}`, 18, cursorY + 5);
         doc.setTextColor(0, 0, 0);
         cursorY += 4;
 
@@ -353,10 +353,16 @@ function MarcaSection({ marca, propietario, onToggleSumaProducto }) {
                 onClick={() => setOpen(o => !o)}
                 className="w-full flex items-center justify-between py-2 px-1 hover:bg-muted/30 rounded-lg transition-colors"
             >
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <Tag className="w-3.5 h-3.5 text-pink-500 dark:text-pink-400 shrink-0" />
                     <span className="text-sm font-semibold text-foreground">{marca.nombre}</span>
                     <span className="text-xs text-muted-foreground">({marca.productos.length})</span>
+                    <span className="text-[11px] text-muted-foreground">
+                        Boleta:{' '}
+                        <span className={`font-bold font-mono ${marca.boleta ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/40 italic'}`}>
+                            {marca.boleta || 'sin boleta'}
+                        </span>
+                    </span>
                 </div>
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-bold text-green-600 dark:text-green-400">$ {formatARS(marca.efectivo)}</span>
@@ -392,6 +398,7 @@ export function EntregaDineroTanda() {
     const [marcas, setMarcas] = useState([]);
     const [loading, setLoading] = useState(true);
     const [productosSinSuma, setProductosSinSuma] = useState(() => new Set());
+    const [boletasPorMarca, setBoletasPorMarca] = useState({});
 
     const productoKey = (marcaNombre, codigo) => `${marcaNombre}::${codigo}`;
 
@@ -411,7 +418,7 @@ export function EntregaDineroTanda() {
         if (!propietario || !tandaNombre) return;
         setLoading(true);
         try {
-            const [{ data, error }, { data: cuentasData, error: cuentasError }] = await Promise.all([
+            const [{ data, error }, { data: cuentasData, error: cuentasError }, { data: entradasData, error: entradasError }] = await Promise.all([
                 supabase
                     .from('ventas')
                     .select('id, producto_titulo, codigo, marca, monto_efectivo, monto_transferencia, cuenta_id, cuenta_nombre, metodo_pago, total_ars, dolar_blue, created_at, cantidad_docenas, precio_docena_ars')
@@ -419,9 +426,11 @@ export function EntregaDineroTanda() {
                     .eq('tanda_nombre', tandaNombre)
                     .order('marca'),
                 supabase.from('cuentas_bancarias').select('id, nombre, propietario'),
+                supabase.from('entradas').select('marca, codigo_boleta').eq('tanda_nombre', tandaNombre),
             ]);
             if (error) throw error;
             if (cuentasError) throw cuentasError;
+            if (entradasError) throw entradasError;
             const cuentasInfo = cuentasData || [];
             const ventasConCuenta = (data || []).map(v => {
                 const cuentaPropietario = getCuentaProp(v.cuenta_id, v.cuenta_nombre, cuentasInfo);
@@ -434,6 +443,13 @@ export function EntregaDineroTanda() {
                     montoBaseUSD: montoEfectivo(v) + (transferencia > 0 && !transferenciaEsPropia ? transferencia : 0),
                 };
             });
+            const boletas = {};
+            for (const e of entradasData || []) {
+                if (!e.codigo_boleta) continue;
+                if (!boletas[e.marca]) boletas[e.marca] = new Set();
+                boletas[e.marca].add(e.codigo_boleta);
+            }
+            setBoletasPorMarca(boletas);
             setMarcas(agruparPorMarca(ventasConCuenta));
         } catch {
             toast.error('Error al cargar ventas');
@@ -452,7 +468,8 @@ export function EntregaDineroTanda() {
             const sumarAjena = !productosSinSuma.has(productoKey(m.nombre, p.codigo));
             return { ...p, sumarAjena, usd: sumarAjena ? p.usdConAjena : p.usdSinAjena };
         });
-        return { ...m, productos, usd: productos.reduce((s, p) => s + p.usd, 0) };
+        const boleta = boletasPorMarca[m.nombre] ? [...boletasPorMarca[m.nombre]].join(' / ') : null;
+        return { ...m, productos, usd: productos.reduce((s, p) => s + p.usd, 0), boleta };
     });
 
     const totalEfectivo = marcasResueltas.reduce((s, m) => s + m.efectivo, 0);
