@@ -137,8 +137,8 @@ function exportarPDF(propietario, tandaNombre, marcas, totalEfectivo, totalUSD) 
     toast.success('PDF generado');
 }
 
-/* ─── VentaRow ─────────────────────────────────────────────────── */
-function VentaRow({ v, propietario, sumarAjena }) {
+/* ─── VentaRowDesktop (fila de tabla, solo desktop) ───────────── */
+function VentaRowDesktop({ v, propietario, sumarAjena }) {
     const [expandidoDocenas, setExpandidoDocenas] = useState(false);
     const tieneMultiplesDocenas = Number(v.cantidad_docenas) > 1;
     const cantDoc = Number(v.cantidad_docenas || 1);
@@ -221,6 +221,120 @@ function VentaRow({ v, propietario, sumarAjena }) {
     );
 }
 
+/* ─── VentaCardMobile (card vertical, solo mobile) ────────────── */
+function VentaCardMobile({ v, propietario, sumarAjena }) {
+    const [expandidoDocenas, setExpandidoDocenas] = useState(false);
+    const tieneMultiplesDocenas = Number(v.cantidad_docenas) > 1;
+    const cantDoc = Number(v.cantidad_docenas || 1);
+    const efectivoUnit = montoEfectivo(v) / cantDoc;
+    const transferenciaUnit = Number(v.monto_transferencia || 0) / cantDoc;
+    const usdBase = sumarAjena ? v.montoBaseUSD : montoEfectivo(v);
+    const usdBaseUnit = usdBase / cantDoc;
+    const transferenciaPropia = v.transferenciaEsPropia;
+
+    return (
+        <div className="bg-card border border-border/40 rounded-lg p-3">
+            <div className="flex items-start justify-between gap-2 mb-2">
+                <div className="flex-1 min-w-0">
+                    <p className="text-xs text-muted-foreground font-medium">
+                        {formatFecha(v.created_at)}
+                        {v.cantidad_docenas > 0 && (
+                            <span className="ml-1.5 text-foreground/70 font-semibold">{v.cantidad_docenas} doc.</span>
+                        )}
+                    </p>
+                </div>
+                {tieneMultiplesDocenas && (
+                    <button
+                        onClick={() => setExpandidoDocenas(o => !o)}
+                        className="p-2 -m-2 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0"
+                    >
+                        {expandidoDocenas ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Precio/Doc</p>
+                    <p className="font-semibold text-foreground">
+                        {Number(v.precio_docena_ars) > 0 ? `$ ${formatARS(v.precio_docena_ars)}` : '—'}
+                    </p>
+                </div>
+                <div>
+                    <p className="text-xs text-muted-foreground mb-0.5">Efectivo</p>
+                    <p className="font-semibold text-green-600 dark:text-green-400">
+                        {montoEfectivo(v) > 0 ? `$ ${formatARS(montoEfectivo(v))}` : '—'}
+                    </p>
+                </div>
+                {Number(v.monto_transferencia) > 0 && (
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Transferencia</p>
+                        {transferenciaPropia ? (
+                            <span className={`inline-block font-semibold rounded-md px-1.5 py-0.5 ${PROPIETARIO_COLORS[propietario] || 'text-foreground'}`}>
+                                $ {formatARS(v.monto_transferencia)}
+                            </span>
+                        ) : (
+                            <p className="font-semibold text-purple-600 dark:text-purple-400">
+                                $ {formatARS(v.monto_transferencia)}
+                            </p>
+                        )}
+                        {v.cuenta_nombre && <span className="text-[10px] block mt-0.5 opacity-70">{v.cuenta_nombre}</span>}
+                    </div>
+                )}
+                {Number(v.dolar_blue) > 0 && (
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Dólar Blue</p>
+                        <p className="font-semibold text-blue-600 dark:text-blue-400">
+                            $ {Number(v.dolar_blue).toLocaleString('es-AR')}
+                        </p>
+                    </div>
+                )}
+            </div>
+
+            <div className="mt-2 pt-2 border-t border-border/20">
+                <p className="text-xs text-muted-foreground mb-1">USD</p>
+                <p className="text-lg font-bold text-amber-600 dark:text-amber-400">
+                    {calcUSD(usdBase, v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(usdBase, v.dolar_blue))}` : '—'}
+                </p>
+            </div>
+
+            {expandidoDocenas && Array.from({ length: cantDoc }).map((_, i) => (
+                <div key={i} className="mt-2 pt-2 border-t border-border/10 text-[12px]">
+                    <p className="text-muted-foreground/70 mb-1.5">Doc. {i + 1}/{cantDoc}</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        <div>
+                            <p className="text-xs text-muted-foreground mb-0.5">Efectivo</p>
+                            <p className="font-medium text-green-600/80 dark:text-green-400/80">
+                                {efectivoUnit > 0 ? `$ ${formatARS(efectivoUnit)}` : '—'}
+                            </p>
+                        </div>
+                        {transferenciaUnit > 0 && (
+                            <div>
+                                <p className="text-xs text-muted-foreground mb-0.5">Transf.</p>
+                                {transferenciaPropia ? (
+                                    <span className={`inline-block font-medium rounded px-1 py-0.5 ${PROPIETARIO_COLORS[propietario] || 'text-foreground'}`}>
+                                        $ {formatARS(transferenciaUnit)}
+                                    </span>
+                                ) : (
+                                    <p className="font-medium text-purple-600/80 dark:text-purple-400/80">
+                                        $ {formatARS(transferenciaUnit)}
+                                    </p>
+                                )}
+                            </div>
+                        )}
+                        <div className="col-span-2">
+                            <p className="text-xs text-muted-foreground mb-0.5">USD</p>
+                            <p className="font-medium text-amber-600/80 dark:text-amber-400/80">
+                                {calcUSD(usdBaseUnit, v.dolar_blue) > 0 ? `U$D ${formatUSD(calcUSD(usdBaseUnit, v.dolar_blue))}` : '—'}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /* ─── ProductoCard ─────────────────────────────────────────────── */
 function ProductoCard({ p, propietario, onToggleSuma }) {
     const [expandido, setExpandido] = useState(false);
@@ -233,18 +347,20 @@ function ProductoCard({ p, propietario, onToggleSuma }) {
     return (
         <div className="bg-card border border-border/60 rounded-lg overflow-hidden hover:shadow-md transition-all">
             {/* Header del producto */}
-            <div className="flex items-center justify-between gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/40">
-                <div className="flex items-center gap-2 min-w-0">
-                    <Package className="w-4 h-4 text-pink-500 shrink-0" />
-                    <span className="font-semibold text-foreground text-sm truncate">{p.titulo}</span>
-                    <span className="text-xs text-muted-foreground shrink-0">({p.codigo})</span>
-                    {tieneMultiples && (
-                        <span className="text-xs bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 rounded-full px-1.5 py-0.5 font-semibold shrink-0">
-                            {p.totalDocenas}×
-                        </span>
-                    )}
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-3 px-4 py-2.5 bg-muted/30 border-b border-border/40">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Package className="w-4 h-4 text-pink-500 shrink-0" />
+                        <span className="font-semibold text-foreground text-sm truncate min-w-0 flex-1 sm:flex-initial">{p.titulo}</span>
+                        {tieneMultiples && (
+                            <span className="text-xs bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400 rounded-full px-1.5 py-0.5 font-semibold shrink-0">
+                                {p.totalDocenas}×
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-0.5 pl-6">Cód. {p.codigo}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     {p.transferencia > 0 && (
                         <button
                             onClick={onToggleSuma}
@@ -256,15 +372,21 @@ function ProductoCard({ p, propietario, onToggleSuma }) {
                             {sumarAjena
                                 ? <ToggleRight className="w-3.5 h-3.5 text-green-500 shrink-0" />
                                 : <ToggleLeft className="w-3.5 h-3.5 shrink-0" />}
-                            Sumar transf. ajena al USD
+                            <span className="hidden sm:inline">Sumar transf. ajena al USD</span>
+                            <span className="sm:hidden">Transf. al USD</span>
                         </button>
                     )}
                     {tieneMultiples && (
                         <button
                             onClick={() => setExpandido(o => !o)}
-                            className="flex items-center gap-1 text-xs px-2 py-1 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+                            aria-expanded={expandido}
+                            className={`flex items-center gap-1 text-xs px-2 py-1 rounded-md transition-colors font-medium ${
+                                expandido
+                                    ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-600 dark:text-pink-400'
+                                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                            }`}
                         >
-                            {expandido ? 'Ocultar' : 'Ver detalle'}
+                            {expandido ? 'Ocultar' : 'Detalle'}
                             {expandido
                                 ? <ChevronUp className="w-3.5 h-3.5" />
                                 : <ChevronDown className="w-3.5 h-3.5" />}
@@ -273,8 +395,8 @@ function ProductoCard({ p, propietario, onToggleSuma }) {
                 </div>
             </div>
 
-            {/* Totales del producto */}
-            <div className="overflow-x-auto">
+            {/* Totales del producto - Desktop Table */}
+            <div className="hidden sm:block overflow-x-auto">
                 <table className="w-full text-xs">
                     <thead>
                         <tr className="border-b border-border/30">
@@ -316,9 +438,60 @@ function ProductoCard({ p, propietario, onToggleSuma }) {
                 </table>
             </div>
 
-            {/* Detalle de ventas individuales */}
+            {/* Totales del producto - Mobile Card */}
+            <div className="sm:hidden p-3 border-b border-border/40">
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Precio/Doc</p>
+                        <p className="font-semibold text-foreground">
+                            {p.precioDocena > 0 ? `$ ${formatARS(p.precioDocena)}` : '—'}
+                        </p>
+                    </div>
+                    <div>
+                        <p className="text-xs text-muted-foreground mb-0.5">Efectivo</p>
+                        <p className="font-semibold text-green-600 dark:text-green-400">
+                            {p.efectivo > 0 ? `$ ${formatARS(p.efectivo)}` : '—'}
+                        </p>
+                    </div>
+                    {p.transferencia > 0 && (
+                        <div>
+                            <p className="text-xs text-muted-foreground mb-0.5">Transferencia</p>
+                            {transferenciaPropia ? (
+                                <span className={`inline-block font-semibold rounded-md px-1.5 py-0.5 ${PROPIETARIO_COLORS[propietario] || 'text-foreground'}`}>
+                                    $ {formatARS(p.transferencia)}
+                                </span>
+                            ) : (
+                                <p className="font-semibold text-purple-600 dark:text-purple-400">
+                                    $ {formatARS(p.transferencia)}
+                                </p>
+                            )}
+                            {p.cuentas.size > 0 && <span className="text-[10px] block mt-0.5 opacity-70">{[...p.cuentas].join(', ')}</span>}
+                        </div>
+                    )}
+                    {p.dolar_blue && (
+                        <div>
+                            <p className="text-xs text-muted-foreground mb-0.5">Dólar Blue</p>
+                            <p className="font-semibold text-blue-600 dark:text-blue-400">
+                                $ {Number(p.dolar_blue).toLocaleString('es-AR')}
+                            </p>
+                        </div>
+                    )}
+                </div>
+                <div className="mt-3 pt-3 border-t border-border/20">
+                    <p className="text-xs text-muted-foreground mb-1">USD</p>
+                    <p className="text-xl font-bold text-amber-600 dark:text-amber-400">
+                        {usd > 0 ? `U$D ${formatUSD(usd)}` : '—'}
+                    </p>
+                </div>
+            </div>
+
+            {/* Detalle de ventas individuales - Desktop Table */}
             {expandido && (
-                <div className="border-t border-border/40">
+                <div className="hidden sm:block border-t-2 border-pink-400/40 bg-pink-50/40 dark:bg-pink-950/10">
+                    <div className="flex items-center gap-1.5 px-4 pt-2.5 pb-1 text-[11px] font-semibold text-pink-600 dark:text-pink-400 uppercase tracking-wide">
+                        <List className="w-3 h-3" />
+                        Detalle de {p.ventas.length} venta{p.ventas.length !== 1 ? 's' : ''}
+                    </div>
                     <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
@@ -333,10 +506,25 @@ function ProductoCard({ p, propietario, onToggleSuma }) {
                             </thead>
                             <tbody>
                                 {p.ventas.map((v) => (
-                                    <VentaRow key={v.id} v={v} propietario={propietario} sumarAjena={sumarAjena} />
+                                    <VentaRowDesktop key={v.id} v={v} propietario={propietario} sumarAjena={sumarAjena} />
                                 ))}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Detalle de ventas individuales - Mobile Cards */}
+            {expandido && (
+                <div className="sm:hidden border-t-2 border-pink-400/40 bg-pink-50/40 dark:bg-pink-950/10">
+                    <div className="flex items-center gap-1.5 px-3 pt-3 pb-1 text-[11px] font-semibold text-pink-600 dark:text-pink-400 uppercase tracking-wide">
+                        <List className="w-3 h-3" />
+                        Detalle de {p.ventas.length} venta{p.ventas.length !== 1 ? 's' : ''}
+                    </div>
+                    <div className="p-3 pt-2 space-y-2">
+                        {p.ventas.map((v) => (
+                            <VentaCardMobile key={v.id} v={v} propietario={propietario} sumarAjena={sumarAjena} />
+                        ))}
                     </div>
                 </div>
             )}
@@ -351,29 +539,39 @@ function MarcaSection({ marca, propietario, onToggleSumaProducto }) {
         <div>
             <button
                 onClick={() => setOpen(o => !o)}
-                className="w-full flex items-center justify-between py-2 px-1 hover:bg-muted/30 rounded-lg transition-colors"
+                className="w-full flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0 py-2 px-1 hover:bg-muted/30 rounded-lg transition-colors"
             >
-                <div className="flex items-center gap-2 flex-wrap">
-                    <Tag className="w-3.5 h-3.5 text-pink-500 dark:text-pink-400 shrink-0" />
-                    <span className="text-sm font-semibold text-foreground">{marca.nombre}</span>
-                    <span className="text-xs text-muted-foreground">({marca.productos.length})</span>
-                    <span className="text-[11px] text-muted-foreground">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Tag className="w-3.5 h-3.5 text-pink-500 dark:text-pink-400 shrink-0" />
+                        <span className="text-sm font-semibold text-foreground">{marca.nombre}</span>
+                        <span className="text-xs text-muted-foreground">({marca.productos.length})</span>
+                        <span className="text-[11px] text-muted-foreground hidden sm:inline-block">
+                            Boleta:{' '}
+                            <span className={`font-bold font-mono ${marca.boleta ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/40 italic'}`}>
+                                {marca.boleta || 'sin boleta'}
+                            </span>
+                        </span>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground sm:hidden pl-5 mt-0.5">
                         Boleta:{' '}
                         <span className={`font-bold font-mono ${marca.boleta ? 'text-red-600 dark:text-red-400' : 'text-muted-foreground/40 italic'}`}>
                             {marca.boleta || 'sin boleta'}
                         </span>
-                    </span>
+                    </p>
                 </div>
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-bold text-green-600 dark:text-green-400">$ {formatARS(marca.efectivo)}</span>
-                    <span className="text-xs font-bold text-amber-600 dark:text-amber-400">U$D {formatUSD(marca.usd)}</span>
+                <div className="flex items-center gap-2 justify-between sm:justify-end">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-green-600 dark:text-green-400 font-mono">$ {formatARS(marca.efectivo)}</span>
+                        <span className="text-xs font-bold text-amber-600 dark:text-amber-400 font-mono">U$D {formatUSD(marca.usd)}</span>
+                    </div>
                     {open
-                        ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground" />
-                        : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" />}
+                        ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                        : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
                 </div>
             </button>
             {open && (
-                <div className="space-y-1.5 mt-1">
+                <div className="space-y-1.5 mt-2">
                     {marca.productos.map((p) => (
                         <ProductoCard
                             key={p.codigo}
@@ -477,81 +675,82 @@ export function EntregaDineroTanda() {
     const totalProductos = marcasResueltas.reduce((s, m) => s + m.productos.length, 0);
 
     return (
-        <div className="space-y-6">
+        <div className="p-3 sm:p-4 md:p-0 space-y-4 sm:space-y-6">
             {/* Header */}
-            <div className="flex items-center justify-between flex-wrap gap-3">
-                <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex items-start gap-3 min-w-0">
                     <Link
                         to="/admin/entrega-dinero"
-                        className="p-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors"
+                        className="p-2 rounded-lg border border-border bg-card hover:bg-muted transition-colors shrink-0 mt-0.5"
                     >
                         <ArrowLeft className="w-4 h-4" />
                     </Link>
-                    <div>
-                        <h1 className="text-2xl font-bold text-foreground">{tandaNombre}</h1>
-                        <p className="text-sm text-muted-foreground mt-0.5">
+                    <div className="min-w-0 flex-1">
+                        <h1 className="text-xl sm:text-2xl font-bold text-foreground break-words">{tandaNombre}</h1>
+                        <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
                             Propietario: <span className="font-medium text-foreground">{propietario}</span>
                         </p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0 flex-wrap">
                     {!loading && marcas.length > 0 && (
                         <button
                             onClick={() => exportarPDF(propietario, tandaNombre, marcasResueltas, totalEfectivo, totalUSD)}
-                            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-pink-600 text-white text-sm font-medium hover:from-pink-600 hover:to-pink-700 transition-all shadow-sm"
+                            className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg bg-gradient-to-r from-pink-500 to-pink-600 text-white text-xs sm:text-sm font-medium hover:from-pink-600 hover:to-pink-700 transition-all shadow-sm"
                         >
-                            <FileDown className="w-4 h-4" />
-                            Exportar PDF
+                            <FileDown className="w-4 h-4 shrink-0" />
+                            <span className="hidden sm:inline">Exportar PDF</span>
+                            <span className="sm:hidden">PDF</span>
                         </button>
                     )}
                     <button
                         onClick={fetchVentas}
                         disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors text-sm font-medium disabled:opacity-50"
+                        className="flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border border-border bg-card text-foreground hover:bg-muted transition-colors text-xs sm:text-sm font-medium disabled:opacity-50"
                     >
-                        <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                        Actualizar
+                        <RefreshCw className={`w-4 h-4 shrink-0 ${loading ? 'animate-spin' : ''}`} />
+                        <span className="hidden sm:inline">Actualizar</span>
                     </button>
                 </div>
             </div>
 
             {/* Resumen */}
             {!loading && marcas.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-                    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-green-100 dark:bg-green-900/30">
-                            <Banknote className="w-5 h-5 text-green-600 dark:text-green-400" />
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                    <div className="bg-card border border-border rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <div className="p-2 sm:p-2.5 rounded-lg bg-green-100 dark:bg-green-900/30 shrink-0">
+                            <Banknote className="w-4 sm:w-5 h-4 sm:h-5 text-green-600 dark:text-green-400" />
                         </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Total Efectivo</p>
-                            <p className="text-lg font-bold text-green-600 dark:text-green-400">$ {formatARS(totalEfectivo)}</p>
-                        </div>
-                    </div>
-                    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                            <DollarSign className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Total USD</p>
-                            <p className="text-lg font-bold text-amber-600 dark:text-amber-400">U$D {formatUSD(totalUSD)}</p>
+                        <div className="min-w-0">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground">Total Efectivo</p>
+                            <p className="text-base sm:text-lg font-bold text-green-600 dark:text-green-400 font-mono">$ {formatARS(totalEfectivo)}</p>
                         </div>
                     </div>
-                    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-pink-100 dark:bg-pink-900/30">
-                            <Tag className="w-5 h-5 text-pink-600 dark:text-pink-400" />
+                    <div className="bg-card border border-border rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <div className="p-2 sm:p-2.5 rounded-lg bg-amber-100 dark:bg-amber-900/30 shrink-0">
+                            <DollarSign className="w-4 sm:w-5 h-4 sm:h-5 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Marcas</p>
-                            <p className="text-lg font-bold text-foreground">{marcas.length}</p>
+                        <div className="min-w-0">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground">Total USD</p>
+                            <p className="text-base sm:text-lg font-bold text-amber-600 dark:text-amber-400 font-mono">U$D {formatUSD(totalUSD)}</p>
                         </div>
                     </div>
-                    <div className="bg-card border border-border rounded-xl p-4 flex items-center gap-3">
-                        <div className="p-2.5 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                            <Package className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+                    <div className="bg-card border border-border rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <div className="p-2 sm:p-2.5 rounded-lg bg-pink-100 dark:bg-pink-900/30 shrink-0">
+                            <Tag className="w-4 sm:w-5 h-4 sm:h-5 text-pink-600 dark:text-pink-400" />
                         </div>
-                        <div>
-                            <p className="text-xs text-muted-foreground">Productos</p>
-                            <p className="text-lg font-bold text-foreground">{totalProductos}</p>
+                        <div className="min-w-0">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground">Marcas</p>
+                            <p className="text-base sm:text-lg font-bold text-foreground">{marcas.length}</p>
+                        </div>
+                    </div>
+                    <div className="bg-card border border-border rounded-xl p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                        <div className="p-2 sm:p-2.5 rounded-lg bg-blue-100 dark:bg-blue-900/30 shrink-0">
+                            <Package className="w-4 sm:w-5 h-4 sm:h-5 text-blue-600 dark:text-blue-400" />
+                        </div>
+                        <div className="min-w-0">
+                            <p className="text-[11px] sm:text-xs text-muted-foreground">Productos</p>
+                            <p className="text-base sm:text-lg font-bold text-foreground">{totalProductos}</p>
                         </div>
                     </div>
                 </div>

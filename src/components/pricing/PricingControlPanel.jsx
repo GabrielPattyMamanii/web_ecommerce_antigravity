@@ -1,7 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
-import { Save, DollarSign, TrendingUp, ArrowLeft, RefreshCw, Wifi, WifiOff, AlertTriangle } from 'lucide-react';
+import { Save, DollarSign, TrendingUp, ArrowLeft, RefreshCw, Wifi, WifiOff, AlertTriangle, Package } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { loadDolarConfigLocal, loadDolarConfigFromDB, saveDolarConfig } from '../../lib/dolarConfig';
 
@@ -150,7 +148,7 @@ export function PricingControlPanel({
                     <button
                         type="button"
                         onClick={() => handleToggleDolarBlue(true)}
-                        className="shrink-0 flex items-center gap-2 bg-amber-950 text-amber-100 px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-900 transition-colors"
+                        className="shrink-0 flex items-center gap-2 bg-amber-950 text-amber-100 px-4 py-2 rounded-xl font-bold text-sm hover:bg-amber-900 transition-colors"
                     >
                         <Wifi className="h-4 w-4" />
                         Reactivar API
@@ -158,162 +156,165 @@ export function PricingControlPanel({
                 </div>
             )}
 
-            <div className="sticky top-0 z-10 bg-card/95 backdrop-blur-sm shadow-sm border-b border-border p-4 mb-6">
-                <div className="container mx-auto">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
-                        <Link to="/admin/precio-venta-sugerido" className="text-sm text-primary hover:underline flex items-center">
-                            <ArrowLeft className="h-4 w-4 mr-1" /> Volver al listado
+            <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm shadow-sm border-b border-border">
+                <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 space-y-4">
+
+                    {/* Sub-header nav: volver + tanda + contador */}
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                        <Link
+                            to="/admin/precio-venta-sugerido"
+                            className="inline-flex items-center gap-2 text-xs font-semibold text-muted-foreground hover:text-primary transition-colors group"
+                        >
+                            <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-0.5" />
+                            Volver al listado general
                         </Link>
-                        <div className="flex items-center gap-4">
-                            <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
-                                📦 {tanda?.tanda_nombre || 'Cargando...'}
-                            </h2>
-                            <span className="text-sm text-muted-foreground bg-muted px-2 py-1 rounded border border-border">
-                                {(tanda?.products || []).length} productos
+                        <div className="flex items-center gap-3 flex-wrap">
+                            <span className="inline-flex items-center gap-2 text-sm font-extrabold tracking-tight text-foreground bg-card px-3.5 py-1.5 rounded-xl border border-border shadow-sm">
+                                <Package className="w-4 h-4 text-primary" />
+                                {tanda?.tanda_nombre || 'Cargando...'}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 font-bold text-[11px] border border-emerald-200/60 dark:border-emerald-900/50">
+                                {(tanda?.products || []).length} productos activos
                             </span>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    {/* Pricing Engine Configuration Card */}
+                    <div className="bg-card rounded-2xl border border-border p-5 shadow-sm">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
 
-                        {/* Cotizacion Dolar */}
-                        <div className={`p-3 rounded-lg border shadow-sm ${!useDolarBlue ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' : 'bg-card border-border'}`}>
-                            <div className="flex items-center justify-between mb-1">
-                                <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
-                                    <DollarSign className="h-3 w-3" /> Cotización Dólar
-                                </label>
-
-                                {/* Toggle Dólar Blue */}
-                                <div className="flex items-center gap-2">
-                                    <span className="text-xs text-muted-foreground font-medium">
-                                        {useDolarBlue ? (
-                                            <span className="text-blue-500 font-bold flex items-center gap-1">
-                                                <Wifi className="h-3 w-3" /> Blue API
-                                            </span>
-                                        ) : (
-                                            <span className="text-amber-600 font-bold flex items-center gap-1">
-                                                <WifiOff className="h-3 w-3" /> Manual
-                                            </span>
-                                        )}
+                            {/* Cotización Dólar */}
+                            <div className={`lg:col-span-5 p-4 rounded-xl border ${!useDolarBlue ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50' : 'bg-muted/40 border-border'}`}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                        <DollarSign className="w-3.5 h-3.5 text-primary" />
+                                        Cotización Dólar
                                     </span>
-                                    {/* Toggle switch */}
-                                    <button
-                                        type="button"
-                                        onClick={() => handleToggleDolarBlue(!useDolarBlue)}
-                                        className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${useDolarBlue ? 'bg-blue-500' : 'bg-amber-400'}`}
-                                        aria-label="Usar Dólar Blue"
-                                    >
-                                        <span
-                                            className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ${useDolarBlue ? 'translate-x-4' : 'translate-x-0'}`}
-                                        />
-                                    </button>
-                                    {/* Refresh button when active */}
+                                    <div className="flex items-center gap-2">
+                                        <span className={`text-[11px] font-semibold flex items-center gap-1 ${useDolarBlue ? 'text-sky-600' : 'text-amber-600'}`}>
+                                            {useDolarBlue ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                                            {useDolarBlue ? 'Blue API' : 'Manual'}
+                                        </span>
+                                        <button
+                                            type="button"
+                                            onClick={() => handleToggleDolarBlue(!useDolarBlue)}
+                                            className={`relative inline-flex h-4 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${useDolarBlue ? 'bg-sky-600' : 'bg-amber-500'}`}
+                                            aria-label="Usar Dólar Blue"
+                                        >
+                                            <span
+                                                className={`pointer-events-none inline-block h-3 w-3 transform rounded-full bg-white shadow transition duration-200 ${useDolarBlue ? 'translate-x-4' : 'translate-x-0'}`}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground font-bold text-sm pointer-events-none">$</span>
+                                    <input
+                                        type="number"
+                                        value={effectiveDolar}
+                                        onChange={(e) => !useDolarBlue && handleManualChange(e.target.value)}
+                                        readOnly={useDolarBlue}
+                                        placeholder="Ej: 1050.50"
+                                        className={`block w-full pl-8 pr-10 py-2 text-sm font-extrabold text-foreground bg-card border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20 ${useDolarBlue ? 'border-border opacity-75 cursor-not-allowed' : 'border-amber-400 dark:border-amber-700 focus:ring-amber-400/30'}`}
+                                    />
                                     {useDolarBlue && (
                                         <button
                                             type="button"
                                             onClick={fetchDolarBlue}
                                             disabled={fetchingDolar}
-                                            className="text-blue-500 hover:text-blue-600 disabled:opacity-50 transition-colors"
-                                            title="Actualizar cotización"
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-muted-foreground hover:text-sky-600 disabled:opacity-50 transition-colors"
+                                            title="Sincronizar ahora"
                                         >
-                                            <RefreshCw className={`h-3.5 w-3.5 ${fetchingDolar ? 'animate-spin' : ''}`} />
+                                            <RefreshCw className={`w-4 h-4 ${fetchingDolar ? 'animate-spin' : ''}`} />
                                         </button>
                                     )}
                                 </div>
+
+                                {/* Status messages */}
+                                {useDolarBlue && !fetchingDolar && !fetchError && dolarBlueValue && (
+                                    <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
+                                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                        Dólar Blue oficial: ${dolarBlueValue.toLocaleString('es-AR')} (venta) sincronizado
+                                    </p>
+                                )}
+                                {useDolarBlue && fetchingDolar && (
+                                    <p className="mt-2 text-[11px] text-muted-foreground">Obteniendo cotización...</p>
+                                )}
+                                {useDolarBlue && fetchError && (
+                                    <p className="mt-2 text-[11px] text-destructive">⚠ {fetchError}</p>
+                                )}
+                                {!useDolarBlue && (
+                                    <p className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                                        <AlertTriangle className="w-3 h-3" /> Valor manual — puede estar desactualizado
+                                    </p>
+                                )}
                             </div>
 
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                                <Input
-                                    type="number"
-                                    value={effectiveDolar}
-                                    onChange={(e) => !useDolarBlue && handleManualChange(e.target.value)}
-                                    readOnly={useDolarBlue}
-                                    placeholder="Ej: 1050.50"
-                                    className={`pl-7 font-mono font-bold text-primary bg-background border-input ${useDolarBlue ? 'opacity-75 cursor-not-allowed' : 'border-amber-400 focus:ring-amber-400'}`}
-                                />
-                            </div>
+                            {/* Índice de Ganancia */}
+                            <div className="lg:col-span-5 bg-muted/40 p-4 rounded-xl border border-border">
+                                <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5 mb-2">
+                                    <TrendingUp className="w-3.5 h-3.5 text-orange-600" />
+                                    Índice Multiplicador de Ganancia
+                                </span>
 
-                            {/* Status messages */}
-                            {useDolarBlue && !fetchingDolar && !fetchError && dolarBlueValue && (
-                                <p className="text-xs text-blue-500 mt-1 font-medium">
-                                    ✓ Dólar Blue: ${dolarBlueValue.toLocaleString('es-AR')} (venta)
-                                </p>
-                            )}
-                            {useDolarBlue && fetchingDolar && (
-                                <p className="text-xs text-muted-foreground mt-1">Obteniendo cotización...</p>
-                            )}
-                            {useDolarBlue && fetchError && (
-                                <p className="text-xs text-destructive mt-1">⚠ {fetchError}</p>
-                            )}
-                            {!useDolarBlue && (
-                                <p className="text-xs text-amber-600 mt-1 font-medium flex items-center gap-1">
-                                    <AlertTriangle className="h-3 w-3" /> Valor manual — puede estar desactualizado
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Indice Ganancia */}
-                        <div className="bg-card p-3 rounded-lg border border-border shadow-sm">
-                            <label className="block text-xs font-bold text-muted-foreground uppercase mb-2 flex items-center gap-1">
-                                <TrendingUp className="h-3 w-3" /> Índice de Ganancia
-                            </label>
-
-                            <div className="flex gap-1.5 flex-wrap">
-                                {['1.4', '1.5', '1.6'].map((val) => {
-                                    const isActive = localIndiceTipo === val;
-                                    return (
-                                        <button
-                                            key={val}
-                                            type="button"
-                                            onClick={() => handleIndiceTypeChange(val)}
-                                            className={`flex-1 min-w-[52px] py-2 rounded-md text-sm font-bold transition-all border ${
-                                                isActive
-                                                    ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                                    : 'bg-background text-muted-foreground border-input hover:border-primary/50 hover:text-foreground'
-                                            }`}
-                                        >
-                                            {val}x
-                                        </button>
-                                    );
-                                })}
-                                <button
-                                    type="button"
-                                    onClick={() => handleIndiceTypeChange('personalizado')}
-                                    className={`flex-1 min-w-[80px] py-2 rounded-md text-sm font-bold transition-all border ${
-                                        localIndiceTipo === 'personalizado'
-                                            ? 'bg-primary text-primary-foreground border-primary shadow-sm'
-                                            : 'bg-background text-muted-foreground border-input hover:border-primary/50 hover:text-foreground'
-                                    }`}
-                                >
-                                    Custom
-                                </button>
-                            </div>
-
-                            {localIndiceTipo === 'personalizado' && (
-                                <div className="mt-2">
-                                    <Input
-                                        type="number"
-                                        step="0.01"
-                                        value={localIndiceValor}
-                                        onChange={(e) => handleIndiceValueChange(e.target.value)}
-                                        placeholder="Ej: 1.7"
-                                        className="w-full text-center bg-background border-input text-foreground font-bold"
-                                    />
+                                <div className="grid grid-cols-4 gap-2">
+                                    {['1.4', '1.5', '1.6'].map((val) => {
+                                        const isActive = localIndiceTipo === val;
+                                        return (
+                                            <button
+                                                key={val}
+                                                type="button"
+                                                onClick={() => handleIndiceTypeChange(val)}
+                                                className={`py-1.5 text-xs rounded-lg border shadow-sm transition-colors ${
+                                                    isActive
+                                                        ? 'bg-primary text-primary-foreground border-primary font-bold ring-2 ring-primary/30'
+                                                        : 'bg-card border-border text-muted-foreground font-semibold hover:border-primary/50 hover:text-foreground'
+                                                }`}
+                                            >
+                                                {val}x
+                                            </button>
+                                        );
+                                    })}
+                                    <button
+                                        type="button"
+                                        onClick={() => handleIndiceTypeChange('personalizado')}
+                                        className={`py-1.5 text-xs rounded-lg border shadow-sm transition-colors ${
+                                            localIndiceTipo === 'personalizado'
+                                                ? 'bg-primary text-primary-foreground border-primary font-bold ring-2 ring-primary/30'
+                                                : 'bg-card border-border text-muted-foreground font-semibold hover:border-primary/50 hover:text-foreground'
+                                        }`}
+                                    >
+                                        Custom
+                                    </button>
                                 </div>
-                            )}
-                        </div>
 
-                        {/* Actions */}
-                        <div className="flex items-end justify-end">
-                            <Button
-                                onClick={onSave}
-                                disabled={loading}
-                                className="bg-primary hover:bg-primary/90 text-primary-foreground w-full md:w-auto"
-                            >
-                                <Save className="mr-2 h-4 w-4" />
-                                {loading ? 'Guardando...' : 'Guardar Configuración'}
-                            </Button>
+                                {localIndiceTipo === 'personalizado' && (
+                                    <div className="mt-2">
+                                        <input
+                                            type="number"
+                                            step="0.01"
+                                            value={localIndiceValor}
+                                            onChange={(e) => handleIndiceValueChange(e.target.value)}
+                                            placeholder="Ej: 1.7"
+                                            className="w-full py-1.5 px-3 text-center text-xs font-bold text-foreground bg-card border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Actions */}
+                            <div className="lg:col-span-2 flex flex-col justify-center">
+                                <button
+                                    onClick={onSave}
+                                    disabled={loading}
+                                    className="w-full py-3 px-4 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-xs shadow-md shadow-orange-600/20 flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-60"
+                                >
+                                    <Save className="w-4 h-4" />
+                                    {loading ? 'Guardando...' : 'Guardar Configuración'}
+                                </button>
+                                <span className="text-[10px] text-center text-muted-foreground mt-2">Afecta los valores en tiempo real</span>
+                            </div>
                         </div>
                     </div>
                 </div>

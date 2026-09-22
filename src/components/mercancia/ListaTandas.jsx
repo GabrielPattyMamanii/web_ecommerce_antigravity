@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit, Trash2, X, AlertTriangle, CheckCircle, Settings, ShoppingCart, BarChart, Users } from 'lucide-react';
-import { Button } from '../ui/Button';
-import BuscadorMercancia from './BuscadorMercancia';
+import { Plus, Search, Calendar, Package, ChevronRight, Layers, Edit, Trash2, X, AlertTriangle, CheckCircle, Users } from 'lucide-react';
 
 import { useMobile } from '../../hooks/useMobile';
+import { useDebounce } from '../../hooks/useDebounce';
 export function ListaTandas() {
     const isMobile = useMobile();
     const navigate = useNavigate();
@@ -24,7 +23,17 @@ export function ListaTandas() {
     const [tandaToDelete, setTandaToDelete] = useState(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    // Desktop search input (debounced, alimenta handleSearch/handleClearSearch)
+    const [searchInput, setSearchInput] = useState('');
+    const debouncedSearchInput = useDebounce(searchInput, 300);
 
+    useEffect(() => {
+        if (debouncedSearchInput.trim()) {
+            handleSearch(debouncedSearchInput);
+        } else {
+            handleClearSearch();
+        }
+    }, [debouncedSearchInput]);
 
     useEffect(() => {
         // Initial load
@@ -311,116 +320,178 @@ export function ListaTandas() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            {/* Header: título + acciones */}
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Control de Mercancía</h1>
-                    <p className="text-muted-foreground mt-1">Gestiona tandas, marcas y stock de entrada.</p>
+                    <h1 className="text-2xl font-bold tracking-tight text-foreground">Control de Mercancía</h1>
+                    <p className="text-sm text-muted-foreground mt-0.5">Gestiona tandas, marcas y stock de entrada.</p>
                 </div>
-                <div className="flex gap-3">
-                    <Link to="/admin/mercancia/propietarios">
-                        <Button variant="outline" className="w-full md:w-auto">
-                            <Users className="w-4 h-4 mr-2" /> Por Propietario
-                        </Button>
+                <div className="flex items-center gap-3">
+                    <Link
+                        to="/admin/mercancia/propietarios"
+                        className="inline-flex items-center gap-2 rounded-xl border border-border bg-card px-4 py-2.5 text-sm font-semibold text-foreground shadow-sm hover:bg-muted hover:border-muted-foreground/30 transition-all"
+                    >
+                        <Users className="w-4 h-4 text-muted-foreground" />
+                        <span>Por Propietario</span>
                     </Link>
-                    <Link to="/admin/mercancia/nueva">
-                        <Button className="w-full md:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
-                            <Plus className="w-4 h-4 mr-2" /> Nueva Tanda
-                        </Button>
+                    <Link
+                        to="/admin/mercancia/nueva"
+                        className="inline-flex items-center gap-2 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-orange-600/30 hover:bg-orange-700 active:scale-95 transition-all"
+                    >
+                        <Plus className="w-4 h-4" strokeWidth={2.5} />
+                        <span>Nueva Tanda</span>
                     </Link>
                 </div>
             </div>
 
-            {/* Search */}
-            <div className="mb-6 max-w-lg mx-auto">
-                <BuscadorMercancia onSearch={handleSearch} onClear={handleClearSearch} />
+            {/* Buscador */}
+            <div className="relative">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4">
+                    <Search className="h-5 w-5 text-muted-foreground" />
+                </div>
+                <input
+                    type="text"
+                    value={searchInput}
+                    onChange={(e) => setSearchInput(e.target.value)}
+                    placeholder="Buscar por código de producto o boleta..."
+                    className="block w-full rounded-2xl border border-border bg-card py-3.5 pl-11 pr-11 text-sm text-foreground placeholder-muted-foreground shadow-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all"
+                />
+                {searchInput && (
+                    <button
+                        onClick={() => setSearchInput('')}
+                        className="absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground hover:text-foreground transition-colors"
+                        title="Limpiar búsqueda"
+                    >
+                        <X className="h-4 w-4" />
+                    </button>
+                )}
             </div>
 
-            {/* Grid */}
+            {/* Grid de tandas */}
             {loading ? (
-                <div className="text-center py-12 text-muted-foreground">Cargando tandas...</div>
+                <div className="text-center py-16 text-muted-foreground text-sm">Cargando tandas...</div>
             ) : filteredTandas.length === 0 ? (
-                <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border text-muted-foreground">
+                <div className="text-center py-16 bg-card rounded-2xl border border-dashed border-border text-muted-foreground">
+                    <Package className="w-10 h-10 mx-auto mb-3 text-muted-foreground/50" />
                     No se encontraron tandas.
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredTandas.map((tanda) => (
-                        <div key={tanda.nombre} className="bg-card p-6 rounded-xl border border-border shadow-sm hover:shadow-xl hover:border-primary/20 transition-all duration-200 group relative">
-                            <div className="flex items-start justify-between mb-4">
-                                <div className="p-3 bg-primary/10 text-primary rounded-lg group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                                    <Layers className="w-6 h-6" />
-                                </div>
-                                <span className="text-xs font-medium bg-muted px-2 py-1 rounded-full text-muted-foreground flex items-center gap-1 border border-border">
-                                    <Calendar className="w-3 h-3" /> {new Date(tanda.fecha).toLocaleDateString()}
-                                </span>
-                                <div className="flex gap-1 z-10">
-                                    <Link to={`/admin/mercancia/editar/${encodeURIComponent(tanda.nombre)}`} className="text-muted-foreground hover:text-foreground p-1 transition-colors hover:bg-muted rounded" title="Editar">
-                                        <Edit className="w-4 h-4" />
-                                    </Link>
-                                    <button
-                                        onClick={(e) => { e.preventDefault(); handleDeleteClick(tanda); }}
-                                        className="text-muted-foreground hover:text-destructive p-1 transition-colors hover:bg-destructive/10 rounded"
-                                        title="Eliminar"
-                                    >
-                                        <Trash2 className="w-4 h-4" />
-                                    </button>
-                                </div>
-                            </div>
-
-                            <h3 className="font-bold text-lg mb-2 text-foreground">{tanda.nombre}</h3>
-
-                            <div className="space-y-2 mb-6">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Marcas</span>
-                                    <span className="font-medium text-foreground">{tanda.marcas.size}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Productos</span>
-                                    <span className="font-medium text-foreground">{tanda.totalProductos}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Total Docenas</span>
-                                    <span className="font-bold text-primary">{tanda.totalDocenas}</span>
-                                </div>
-                            </div>
-
-                            {/* Search Matches Overlay/Badge */}
-                            {isSearching && (
-                                <div className="mt-4 pt-4 border-t border-border">
-                                    <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Coincidencias:</p>
-                                    <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
-                                        {searchResults
-                                            .filter(p => p.tanda_nombre === tanda.nombre)
-                                            .map((prod, idx) => (
-                                                <div key={idx} className="flex items-center gap-2 text-sm bg-green-500/10 p-1.5 rounded-md border border-green-500/20">
-                                                    <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400 flex-shrink-0" />
-                                                    <div className="flex flex-col overflow-hidden">
-                                                        <span className="font-medium text-green-700 dark:text-green-300 truncate">{prod.producto_titulo}</span>
-                                                        <span className="text-xs text-muted-foreground truncate">
-                                                            Código: {prod.codigo} {prod.codigo_boleta ? `/ Bol: ${prod.codigo_boleta}` : ''}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))
-                                        }
+                    {filteredTandas.map((tanda, index) => {
+                        const isFeatured = index === 0 && !isSearching;
+                        return (
+                            <article
+                                key={tanda.nombre}
+                                className={`group relative flex flex-col justify-between rounded-2xl border bg-card p-6 shadow-sm hover:shadow-lg transition-all duration-200 ${
+                                    isFeatured
+                                        ? 'border-primary/30 ring-1 ring-primary/15 hover:border-primary/40'
+                                        : 'border-border hover:border-muted-foreground/30'
+                                }`}
+                            >
+                                <div>
+                                    {/* Badge superior + acciones */}
+                                    <div className="flex items-center justify-between gap-2 mb-4">
+                                        <div className={`flex h-10 w-10 items-center justify-center rounded-xl border ${
+                                            isFeatured
+                                                ? 'bg-primary text-primary-foreground border-transparent shadow-sm'
+                                                : 'bg-orange-50 text-orange-600 border-orange-100 dark:bg-orange-950/30 dark:border-orange-900/40'
+                                        }`}>
+                                            <Layers className="h-5 w-5" />
+                                        </div>
+                                        <div className="flex items-center gap-3">
+                                            <span className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-semibold ${
+                                                isFeatured
+                                                    ? 'bg-primary/10 text-primary border border-primary/20'
+                                                    : 'bg-muted text-muted-foreground'
+                                            }`}>
+                                                <Calendar className="h-3.5 w-3.5" />
+                                                {new Date(tanda.fecha).toLocaleDateString()}
+                                            </span>
+                                            <div className="flex gap-1 z-10">
+                                                <Link
+                                                    to={`/admin/mercancia/editar/${encodeURIComponent(tanda.nombre)}`}
+                                                    className="text-muted-foreground hover:text-foreground p-1 transition-colors hover:bg-muted rounded"
+                                                    title="Editar tanda"
+                                                >
+                                                    <Edit className="h-4 w-4" />
+                                                </Link>
+                                                <button
+                                                    onClick={(e) => { e.preventDefault(); handleDeleteClick(tanda); }}
+                                                    className="text-muted-foreground hover:text-destructive p-1 transition-colors hover:bg-destructive/10 rounded"
+                                                    title="Eliminar tanda"
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
+                                            </div>
+                                        </div>
                                     </div>
-                                </div>
-                            )}
 
-                            <Link to={`/admin/mercancia/detalle/${encodeURIComponent(tanda.nombre)}`} className="absolute inset-0" aria-label="Ver detalle" />
-                        </div>
-                    ))}
+                                    {/* Título */}
+                                    <h3 className="text-base font-bold tracking-tight text-foreground group-hover:text-primary transition-colors uppercase">
+                                        {tanda.nombre}
+                                    </h3>
+
+                                    {/* Métricas clave */}
+                                    <dl className="mt-4 divide-y divide-border text-sm">
+                                        <div className="flex justify-between py-2 text-muted-foreground font-medium">
+                                            <dt>Marcas</dt>
+                                            <dd className="text-foreground font-semibold">{tanda.marcas.size}</dd>
+                                        </div>
+                                        <div className="flex justify-between py-2 text-muted-foreground font-medium">
+                                            <dt>Productos</dt>
+                                            <dd className="text-foreground font-semibold">{tanda.totalProductos}</dd>
+                                        </div>
+                                        <div className="flex justify-between py-2 items-center">
+                                            <dt className="text-muted-foreground font-medium">Total Docenas</dt>
+                                            <dd className="text-lg font-bold text-orange-600 dark:text-orange-400">{tanda.totalDocenas}</dd>
+                                        </div>
+                                    </dl>
+
+                                    {/* Coincidencias de búsqueda */}
+                                    {isSearching && (
+                                        <div className="mt-4 pt-4 border-t border-border">
+                                            <p className="text-xs font-semibold text-muted-foreground mb-2 uppercase tracking-wide">Coincidencias:</p>
+                                            <div className="space-y-1 max-h-32 overflow-y-auto custom-scrollbar">
+                                                {searchResults
+                                                    .filter(p => p.tanda_nombre === tanda.nombre)
+                                                    .map((prod, idx) => (
+                                                        <div key={idx} className="flex items-center gap-2 text-sm bg-green-500/10 p-1.5 rounded-md border border-green-500/20">
+                                                            <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400 flex-shrink-0" />
+                                                            <div className="flex flex-col overflow-hidden">
+                                                                <span className="font-medium text-green-700 dark:text-green-300 truncate">{prod.producto_titulo}</span>
+                                                                <span className="text-xs text-muted-foreground truncate">
+                                                                    Código: {prod.codigo} {prod.codigo_boleta ? `/ Bol: ${prod.codigo_boleta}` : ''}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                }
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Link de acción */}
+                                <div className="mt-5 pt-4 border-t border-border flex items-center justify-between text-xs font-semibold text-primary">
+                                    <span className="group-hover:underline">Ver detalles de mercadería</span>
+                                    <ChevronRight className="h-4 w-4 transform group-hover:translate-x-1 transition-transform" />
+                                </div>
+
+                                <Link to={`/admin/mercancia/detalle/${encodeURIComponent(tanda.nombre)}`} className="absolute inset-0 rounded-2xl" aria-label="Ver detalle" />
+                            </article>
+                        );
+                    })}
                 </div>
             )}
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && tandaToDelete && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in duration-200">
-                    <div className="bg-card rounded-xl shadow-xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200 border border-border">
+                    <div className="bg-card rounded-2xl shadow-xl max-w-md w-full overflow-hidden animate-in zoom-in-95 duration-200 border border-border">
                         <div className="p-6">
                             <div className="flex justify-between items-start mb-4">
-                                <div className="p-3 bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 rounded-full">
+                                <div className="p-3 bg-destructive/10 text-destructive rounded-full">
                                     <AlertTriangle className="w-6 h-6" />
                                 </div>
                                 <button
@@ -437,7 +508,7 @@ export function ListaTandas() {
                                 Esta acción eliminará permanentemente todos los registros asociados y no se puede deshacer.
                             </p>
 
-                            <div className="bg-muted/50 rounded-lg p-4 mb-6 text-sm border border-border">
+                            <div className="bg-muted/50 rounded-xl p-4 mb-6 text-sm border border-border">
                                 <div className="flex justify-between mb-2">
                                     <span className="text-muted-foreground">Marcas afectadas:</span>
                                     <span className="font-medium text-foreground">{tandaToDelete.marcas.size}</span>
@@ -449,21 +520,20 @@ export function ListaTandas() {
                             </div>
 
                             <div className="flex gap-3 justify-end">
-                                <Button
-                                    variant="outline"
+                                <button
                                     onClick={() => setShowDeleteModal(false)}
-                                    className="flex-1 border-input hover:bg-muted text-foreground"
                                     disabled={isDeleting}
+                                    className="flex-1 rounded-xl border border-border px-4 py-2.5 text-sm font-semibold text-foreground hover:bg-muted transition-colors disabled:opacity-50"
                                 >
                                     Cancelar
-                                </Button>
-                                <Button
+                                </button>
+                                <button
                                     onClick={confirmDelete}
-                                    className="flex-1 bg-destructive hover:bg-destructive/90 text-destructive-foreground border-transparent"
                                     disabled={isDeleting}
+                                    className="flex-1 rounded-xl bg-destructive px-4 py-2.5 text-sm font-semibold text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
                                 >
                                     {isDeleting ? 'Eliminando...' : 'Eliminar Tanda'}
-                                </Button>
+                                </button>
                             </div>
                         </div>
                     </div>

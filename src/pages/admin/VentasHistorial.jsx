@@ -15,6 +15,21 @@ function formatARS(n) {
     return Number(n).toLocaleString('es-AR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
+/* Formato compacto para montos en badges ($2.1M / $850K) */
+function formatCompact(n) {
+    const num = Number(n) || 0;
+    if (num >= 1_000_000) return `$${(num / 1_000_000).toFixed(1)}M`;
+    if (num >= 1_000) return `$${Math.round(num / 1_000)}K`;
+    return `$${formatARS(num)}`;
+}
+
+/* ¿La fecha (YYYY-MM-DD) es hoy? */
+function isDateToday(dateStr) {
+    const { y, m, d } = parseDateParts(dateStr);
+    const today = new Date();
+    return y === today.getFullYear() && m === today.getMonth() + 1 && d === today.getDate();
+}
+
 const fmtMiles = (str) => {
     const digits = String(str).replace(/[^\d]/g, '');
     if (!digits) return '';
@@ -189,6 +204,13 @@ function DailySummary({ items, getUserColor, showUSD, setShowUSD }) {
     });
     const summary  = buildDaySummary(items);
     const owners   = Object.keys(summary);
+    // Acordeones por propietario — abiertos por defecto, colapsables individualmente
+    const [closedOwners, setClosedOwners] = useState(new Set());
+    const toggleOwner = (owner) => setClosedOwners(prev => {
+        const next = new Set(prev);
+        if (next.has(owner)) next.delete(owner); else next.add(owner);
+        return next;
+    });
     const totalDia = items.reduce((s, v) => s + Number(v.total_ars), 0);
     const totalEf  = items.reduce((s, v) => s + Number(v.monto_efectivo      || (v.metodo_pago === 'efectivo'      ? v.total_ars : 0)), 0);
     const totalTr  = items.reduce((s, v) => s + Number(v.monto_transferencia || (v.metodo_pago === 'transferencia' ? v.total_ars : 0)), 0);
@@ -230,22 +252,45 @@ function DailySummary({ items, getUserColor, showUSD, setShowUSD }) {
                 </p>
             )}
 
-            <div className="space-y-2">
+            <div className="space-y-3">
                 {owners.map(owner => {
                     const { codigos, efectivo, transferencia, total } = summary[owner];
                     const color = getUserColor(owner);
+                    const isClosed = closedOwners.has(owner);
                     return (
-                        <div key={owner} className="rounded-xl border overflow-hidden"
-                            style={{ borderColor: color + '40' }}>
-                            <div className="flex items-center justify-between px-3 py-2"
-                                style={{ backgroundColor: color + '12' }}>
-                                <span className="inline-flex items-center gap-1.5 text-xs font-bold px-2 py-0.5 rounded-full"
-                                    style={{ backgroundColor: color + '20', color, border: `1px solid ${color}40` }}>
-                                    <User className="w-3 h-3" /> {owner}
+                        <div key={owner} className="rounded-2xl border overflow-hidden bg-card shadow-sm"
+                            style={{ borderColor: color + '35', borderLeft: `4px solid ${color}` }}>
+                            {/* Header del acordeón — clickeable */}
+                            <button
+                                onClick={() => toggleOwner(owner)}
+                                className="w-full flex items-center justify-between gap-3 px-3.5 py-3 text-left transition-colors"
+                                style={{ backgroundColor: color + '0d' }}
+                            >
+                                <span className="inline-flex items-center gap-2.5 min-w-0">
+                                    <span className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
+                                        style={{ backgroundColor: color + '22', color }}>
+                                        <User className="w-4 h-4" />
+                                    </span>
+                                    <span className="min-w-0">
+                                        <span className="block text-sm font-extrabold truncate" style={{ color }}>
+                                            {owner}
+                                        </span>
+                                        <span className="block text-[11px] font-medium text-muted-foreground">
+                                            {codigos.length} producto{codigos.length !== 1 ? 's' : ''}
+                                        </span>
+                                    </span>
                                 </span>
-                                <span className="font-bold text-sm text-foreground">{fmt(total)}</span>
-                            </div>
-                            <div className="px-3 py-2 space-y-2">
+                                <span className="flex items-center gap-2 shrink-0">
+                                    <span className="font-bold text-sm text-foreground tabular-nums">{fmt(total)}</span>
+                                    {isClosed
+                                        ? <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                                        : <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                                    }
+                                </span>
+                            </button>
+
+                            {!isClosed && (
+                            <div className="px-3 py-2 space-y-2 animate-in fade-in slide-in-from-top-1 duration-150">
                                 {codigos.map((c, i) => {
                                     const cKey = `${owner}||${c.codigo || c.titulo}-${c.tanda}-${i}`;
                                     const isOpen = expandedCodes.has(cKey);
@@ -405,7 +450,11 @@ function DailySummary({ items, getUserColor, showUSD, setShowUSD }) {
                                     );
                                 })}
                             </div>
-                            <div className="flex flex-wrap items-center gap-2 px-3 pb-2.5">
+                            )}
+
+                            {/* Mini-resumen de pago — siempre visible, incluso colapsado */}
+                            <div className="flex flex-wrap items-center gap-2 px-3.5 pb-3 pt-2 border-t border-border/40"
+                                style={{ borderTopColor: color + '20' }}>
                                 {efectivo > 0 && (
                                     <span className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full"
                                         style={{ backgroundColor: '#16a34a18', color: '#16a34a' }}>
@@ -458,82 +507,105 @@ function DayCard({ fecha, items, isSelected, onClick }) {
     const totalEf  = items.reduce((s, v) => s + Number(v.monto_efectivo      || (v.metodo_pago === 'efectivo'      ? v.total_ars : 0)), 0);
     const totalTr  = items.reduce((s, v) => s + Number(v.monto_transferencia || (v.metodo_pago === 'transferencia' ? v.total_ars : 0)), 0);
     const dolar    = items[0]?.dolar_blue;
-    const accentColor = totalEf >= totalTr ? '#16a34a' : '#2563eb';
+    const today    = isDateToday(fecha);
 
     return (
-        <button
+        <article
             onClick={onClick}
-            /* min-h para que queden parejos aunque el monto sea corto */
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
             className={[
-                'relative flex flex-col rounded-2xl border text-left w-full',
-                'p-2.5 sm:p-3',                         /* menos padding en mobile */
-                'transition-all duration-150',
-                'cursor-pointer select-none',
-                'active:scale-95',                       /* feedback táctil */
+                'group relative flex flex-col text-left w-full rounded-2xl p-5 cursor-pointer select-none',
+                'transition-all duration-200 transform hover:-translate-y-1',
                 isSelected
-                    ? 'border-primary bg-primary/10 ring-2 ring-primary/30 shadow-md'
-                    : 'border-border bg-card',
+                    ? 'bg-card border-2 border-primary shadow-lg shadow-primary/10'
+                    : 'bg-card border border-border shadow-sm hover:shadow-md hover:border-muted-foreground/30',
             ].join(' ')}
-            style={{ minHeight: '9rem' }}
         >
-            {/* Franja de color arriba */}
-            <span
-                className="absolute top-0 left-3 right-3 h-0.5 rounded-full"
-                style={{ backgroundColor: isSelected ? 'hsl(var(--primary))' : accentColor + '70' }}
-            />
+            {/* Fecha + estado */}
+            <div className="flex items-start justify-between mb-3.5 gap-2">
+                <div className="flex items-center gap-2.5 min-w-0">
+                    <div className={[
+                        'w-12 h-12 shrink-0 rounded-xl border flex flex-col items-center justify-center transition-colors',
+                        isSelected
+                            ? 'bg-primary/10 border-primary/20 text-primary'
+                            : 'bg-muted border-border text-foreground group-hover:bg-primary/5 group-hover:text-primary group-hover:border-primary/20',
+                    ].join(' ')}>
+                        <span className="text-2xl font-black leading-none tracking-tight">{day}</span>
+                        <span className="text-[9px] font-extrabold tracking-widest uppercase">{monthName}</span>
+                    </div>
+                    <div className="min-w-0">
+                        <span className="text-xs font-bold text-foreground block capitalize truncate">{weekday}</span>
+                        <span className={`inline-flex items-center gap-1 text-[10px] font-semibold ${today ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${today ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/40'}`} />
+                            {today ? 'En curso' : 'Cerrado'}
+                        </span>
+                    </div>
+                </div>
 
-            {/* Día + mes */}
-            <div className="flex items-baseline gap-1 mt-1">
-                <span className={`text-2xl font-extrabold leading-none ${isSelected ? 'text-primary' : 'text-foreground'}`}>
-                    {day}
-                </span>
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                    {monthName}
-                </span>
+                {isSelected ? (
+                    <span className="shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wide bg-primary text-primary-foreground shadow-sm">
+                        Activo
+                    </span>
+                ) : (
+                    <span className="shrink-0 inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold text-muted-foreground bg-muted border border-border">
+                        {items.length} venta{items.length !== 1 ? 's' : ''}
+                    </span>
+                )}
             </div>
 
-            {/* Día de semana */}
-            <span className="text-[10px] text-muted-foreground capitalize mt-0.5 leading-tight">
-                {weekday}
-            </span>
+            {/* Total del día */}
+            <div className="space-y-1 my-3">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Total del día</span>
+                <div className="flex items-baseline gap-1 text-foreground">
+                    <span className="text-xs font-semibold text-muted-foreground">$</span>
+                    <span className="text-2xl font-black tracking-tight">{formatARS(totalDia)}</span>
+                </div>
+            </div>
 
-            {/* Total — fuente adaptada al espacio */}
-            <p className={[
-                'font-bold mt-2 leading-tight break-all',
-                'text-xs sm:text-sm',
-                isSelected ? 'text-primary' : 'text-foreground',
-            ].join(' ')}>
-                ${formatARS(totalDia)}
-            </p>
-
-            {/* Badges de pago */}
-            <div className="flex flex-wrap gap-1 mt-1.5">
+            {/* Badges de pago — la tarjeta activa muestra montos abreviados */}
+            <div className="flex items-center gap-1.5 my-3.5 flex-wrap">
                 {totalEf > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{ backgroundColor: '#16a34a15', color: '#16a34a' }}>
-                        <Banknote className="w-2.5 h-2.5" /> ef
-                    </span>
+                    isSelected ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/70 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/50">
+                            <Banknote className="w-3 h-3 text-emerald-600 dark:text-emerald-400" /> ef
+                            <span className="text-[10px] text-emerald-600/80 dark:text-emerald-400/80 font-bold">{formatCompact(totalEf)}</span>
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200/60 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900/40">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" /> efectivo (ef)
+                        </span>
+                    )
                 )}
                 {totalTr > 0 && (
-                    <span className="inline-flex items-center gap-0.5 text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                        style={{ backgroundColor: '#2563eb15', color: '#2563eb' }}>
-                        <Building2 className="w-2.5 h-2.5" /> tr
-                    </span>
+                    isSelected ? (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/70 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/50">
+                            <Building2 className="w-3 h-3 text-blue-600 dark:text-blue-400" /> tr
+                            <span className="text-[10px] text-blue-600/80 dark:text-blue-400/80 font-bold">{formatCompact(totalTr)}</span>
+                        </span>
+                    ) : (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200/60 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-900/40">
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-500" /> transf (tr)
+                        </span>
+                    )
                 )}
             </div>
 
-            {/* Footer: ítems + dólar */}
-            <div className="flex items-center justify-between mt-auto pt-1.5 border-t border-border/40">
-                <span className="text-[10px] text-muted-foreground">
-                    {items.length}&nbsp;ítem{items.length !== 1 ? 's' : ''}
-                </span>
+            {/* Footer: ítems + dólar del día */}
+            <div className="pt-3 border-t border-border/60 flex items-center justify-between text-xs mt-auto">
+                <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                    <Package className="w-3.5 h-3.5 text-muted-foreground/70" />
+                    <span><strong className="text-foreground">{items.length}</strong> item{items.length !== 1 ? 's' : ''}</span>
+                </div>
                 {dolar && (
-                    <span className="text-[10px] text-muted-foreground hidden sm:inline">
-                        ${Number(dolar).toLocaleString('es-AR')}&nbsp;USD
-                    </span>
+                    <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-muted-foreground font-bold text-[11px]" title="Cotización registrada para la fecha">
+                        <span className="text-[9px] text-muted-foreground/70 font-medium">USD</span>
+                        ${Number(dolar).toLocaleString('es-AR')}
+                    </div>
                 )}
             </div>
-        </button>
+        </article>
     );
 }
 
@@ -1526,16 +1598,30 @@ function DayDetail({ fecha, items, getUserColor, appUsers, onClose, onDelete, de
 
             {/* Header */}
             <div className={[
-                'flex items-center justify-between border-b border-border',
-                isMobile ? 'px-4 py-3' : 'px-4 py-3 bg-primary/5',
+                'flex items-center justify-between gap-3 border-b border-border',
+                isMobile ? 'px-4 py-3' : 'px-5 py-4 bg-primary/5',
             ].join(' ')}>
-                <div>
-                    <p className="font-bold text-foreground text-sm capitalize">{formatFullDate(fecha)}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        {items.length} venta{items.length !== 1 ? 's' : ''} registrada{items.length !== 1 ? 's' : ''}
-                    </p>
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <p className={`font-extrabold text-foreground capitalize tracking-tight ${isMobile ? 'text-sm' : 'text-lg'}`}>
+                            {formatFullDate(fecha)}
+                        </p>
+                        {!isMobile && (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary/15 text-primary">
+                                {items.length} venta{items.length !== 1 ? 's' : ''}
+                            </span>
+                        )}
+                    </div>
+                    {isMobile && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            {items.length} venta{items.length !== 1 ? 's' : ''} registrada{items.length !== 1 ? 's' : ''}
+                        </p>
+                    )}
+                    {!isMobile && (
+                        <p className="text-xs text-muted-foreground mt-1">Desglose por propietario y producto, con detalle horario</p>
+                    )}
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 shrink-0">
                     <button
                         onClick={() => setShowDeleteDay(true)}
                         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-xs font-bold transition-colors"
@@ -1651,10 +1737,10 @@ function DayDetail({ fecha, items, getUserColor, appUsers, onClose, onDelete, de
         );
     }
 
-    /* ── DESKTOP: panel inline ── */
+    /* ── DESKTOP: panel inline — se despliega hacia abajo al abrir ── */
     return (
         <div ref={panelRef}
-            className="bg-card border border-primary/30 rounded-2xl overflow-hidden shadow-lg">
+            className="bg-card border-2 border-primary/40 rounded-3xl overflow-hidden shadow-lg shadow-primary/10 animate-in fade-in slide-in-from-top-4 duration-300">
             {inner}
         </div>
     );
@@ -2645,70 +2731,73 @@ export function VentasHistorial() {
     }
 
     return (
-        <div className="p-3 sm:p-4 md:p-6 max-w-3xl mx-auto space-y-4">
+        <div className="p-3 sm:p-4 md:p-6 max-w-6xl mx-auto space-y-5">
 
-            {/* ── Título + refresh ── */}
-            <div className="flex items-center justify-between">
+            {/* ── Título + refresh + acciones rápidas ── */}
+            <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-xl sm:text-2xl font-bold text-foreground">Historial de Ventas</h1>
-                    <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                    <div className="flex items-center gap-2.5">
+                        <h1 className="text-xl sm:text-2xl font-bold text-foreground tracking-tight">Historial de Ventas</h1>
+                        <button
+                            onClick={fetchVentas}
+                            className="p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 rounded-lg transition-colors"
+                            title="Actualizar"
+                        >
+                            <RefreshCw className="w-4 h-4" />
+                        </button>
+                    </div>
+                    <p className="text-xs sm:text-sm font-semibold text-muted-foreground mt-0.5 flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
                         {codigoTrim
                             ? `${displayVentas.length} de ${ventas.length} venta${ventas.length !== 1 ? 's' : ''}`
                             : `${ventas.length} venta${ventas.length !== 1 ? 's' : ''} registrada${ventas.length !== 1 ? 's' : ''}`
                         }
                     </p>
                 </div>
-                <button
-                    onClick={fetchVentas}
-                    className="p-2 rounded-xl hover:bg-muted text-muted-foreground transition-colors flex-shrink-0"
-                    title="Actualizar"
-                >
-                    <RefreshCw className="w-5 h-5" />
-                </button>
-            </div>
 
-            {/* ── Botones de acción ── */}
-            <div className="flex items-center gap-2 flex-wrap">
-                <button
-                    onClick={() => setShowCruce(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-500 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
-                    title="Cruce de cuentas"
-                >
-                    <ArrowRight className="w-3.5 h-3.5" />
-                    Cruce
-                </button>
-                <button
-                    onClick={() => setShowCuentas(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-semibold hover:opacity-90 transition-opacity"
-                    title="Transferencias por cuenta"
-                >
-                    <Building2 className="w-3.5 h-3.5" />
-                    Cuentas
-                </button>
-                <button
-                    onClick={() => setShowAccumulator(true)}
-                    className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
-                    title="Acumulado por propietario"
-                >
-                    <TrendingUp className="w-3.5 h-3.5" />
-                    Acumulado
-                </button>
+                {/* ── Botones de acción (pills agrupadas) ── */}
+                <div className="flex items-center gap-1.5 bg-card p-1 rounded-2xl border border-border shadow-sm">
+                    <button
+                        onClick={() => setShowCruce(true)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-orange-500 text-white shadow-sm hover:brightness-105 transition-all"
+                        title="Cruce de cuentas"
+                    >
+                        <ArrowRight className="w-3.5 h-3.5" />
+                        Cruce
+                    </button>
+                    <button
+                        onClick={() => setShowCuentas(true)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-blue-600 text-white shadow-sm hover:brightness-105 transition-all"
+                        title="Transferencias por cuenta"
+                    >
+                        <Building2 className="w-3.5 h-3.5" />
+                        Cuentas
+                    </button>
+                    <button
+                        onClick={() => setShowAccumulator(true)}
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl bg-primary text-primary-foreground shadow-sm hover:brightness-105 transition-all"
+                        title="Acumulado por propietario"
+                    >
+                        <TrendingUp className="w-3.5 h-3.5" />
+                        Acumulado
+                    </button>
+                </div>
             </div>
 
             {/* ── Filtro por código de producto ── */}
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <div className="relative max-w-2xl">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                 <input
                     type="text"
                     value={codigoFilter}
                     onChange={e => { setCodigoFilter(e.target.value); setSelectedDay(null); setPropietarioFilter(null); }}
                     placeholder="Filtrar por código de producto…"
-                    className="w-full pl-9 pr-8 py-2 rounded-xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+                    className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-border bg-card text-sm text-foreground placeholder:text-muted-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
                 />
                 {codigoFilter && (
                     <button
                         onClick={() => { setCodigoFilter(''); setSelectedDay(null); setPropietarioFilter(null); }}
-                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
                     >
                         <X className="w-4 h-4" />
                     </button>
@@ -2783,7 +2872,7 @@ export function VentasHistorial() {
             {days.length > 0 && (
                 <>
                     {/* ── Pestañas de meses — scroll horizontal en mobile ── */}
-                    <div className="flex gap-2 overflow-x-auto pb-1 -mx-3 px-3 sm:-mx-4 sm:px-4"
+                    <div className="flex gap-2.5 overflow-x-auto pb-1 pt-1 -mx-3 px-3 sm:-mx-4 sm:px-4"
                         style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                         {months.map(ym => {
                             const isActive = ym === activeMonth;
@@ -2797,36 +2886,43 @@ export function VentasHistorial() {
                                     key={ym}
                                     onClick={() => { setSelectedMonth(ym); setSelectedDay(null); }}
                                     className={[
-                                        'flex-shrink-0 flex flex-col items-center px-3 py-2 rounded-xl border',
-                                        'text-center transition-all duration-150 min-w-[70px]',
+                                        'shrink-0 flex items-center gap-3 text-left px-4 py-2 rounded-2xl border',
+                                        'transition-all duration-150',
                                         isActive
-                                            ? 'border-primary bg-primary text-primary-foreground shadow-sm'
-                                            : 'border-border bg-card text-foreground',
+                                            ? 'border-primary bg-primary text-primary-foreground shadow-sm shadow-primary/20'
+                                            : 'border-border bg-card text-foreground hover:bg-muted/60',
                                     ].join(' ')}
                                 >
-                                    {/* Mes abreviado en mobile / completo en sm+ */}
-                                    <span className="text-xs font-bold capitalize leading-tight">{short}</span>
-                                    <span className={`text-[10px] ${isActive ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                                        {year}
-                                    </span>
-                                    <span className={`text-[10px] font-semibold mt-0.5 ${isActive ? 'text-primary-foreground/90' : 'text-muted-foreground'}`}>
-                                        ${formatARS(mTotal)}
-                                    </span>
+                                    <div>
+                                        <div className={`text-[11px] font-extrabold uppercase tracking-wide capitalize ${isActive ? 'opacity-90' : 'text-muted-foreground'}`}>
+                                            {short} {year}
+                                        </div>
+                                        <div className="text-xs font-bold leading-tight">${formatARS(mTotal)}</div>
+                                    </div>
+                                    {isActive && <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse shrink-0" />}
                                 </button>
                             );
                         })}
                     </div>
 
                     {/* ── Resumen del mes activo ── */}
-                    <div className="flex items-center justify-between text-sm text-muted-foreground px-0.5">
-                        <span className="capitalize font-medium">{formatMonthTab(activeMonth)}</span>
-                        <span className="font-bold text-foreground">${formatARS(monthTotal)}&nbsp;ARS</span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/60">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Período en curso:</span>
+                            <span className="text-sm font-extrabold text-foreground capitalize">{formatMonthTab(activeMonth)}</span>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <span className="text-xs font-medium text-muted-foreground">Recaudación Total:</span>
+                            <span className="text-lg font-black text-foreground tracking-tight">
+                                ${formatARS(monthTotal)} <span className="text-xs font-semibold text-muted-foreground">ARS</span>
+                            </span>
+                        </div>
                     </div>
 
-                    {/* ── Grilla de cuadros ──
-                        2 columnas en mobile, 3 en sm, 4 en md
+                    {/* ── Grilla de tarjetas diarias ──
+                        1 columna en mobile, 2 en sm, 4 en xl (diseño Rediseño de Tarjetas Diarias)
                     ── */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 sm:gap-2.5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
                         {filteredDays.map(fecha => (
                             <DayCard
                                 key={fecha}

@@ -1,11 +1,14 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import DOMPurify from 'dompurify';
 import { useNavigate, useParams } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import Toast from '../../components/ui/Toast';
 import { convertToWebP, validateImageFile } from '../../lib/imageUtils';
-import './ProductFormImages.css';
+import {
+    ArrowLeft, ChevronRight, FileEdit, Ruler, Images, DollarSign, Package,
+    SlidersHorizontal, Star, Trash2, Plus, Camera, Eye, Archive, CloudUpload,
+    Code, TrendingUp, X, Check
+} from 'lucide-react';
 
 export function ProductForm() {
     const { id } = useParams();
@@ -27,8 +30,10 @@ export function ProductForm() {
         sizes: [],
         published: true,
         featured: false,
-        notify_clients: false,
-        applyWatermark: true
+        applyWatermark: true,
+        // Solo lectura — llenados desde la fila real al editar, nunca inventados
+        code: '',
+        created_at: null,
     });
 
     // Toggle "A Consultar" - oculta el precio en el catálogo público
@@ -48,20 +53,10 @@ export function ProductForm() {
     // Validation visual states
     const [validations, setValidations] = useState({
         name: { valid: null, message: '' }, // null = dirty/untouched state logic handled visually
-        price: { valid: null }
     });
 
     const [applyDiscount, setApplyDiscount] = useState(false);
     const [discountPercent, setDiscountPercent] = useState(20);
-
-    const AVAILABLE_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL'];
-    // For colors, maybe we just allow free text or some presets? Prompt shows specifics.
-    const PRESET_COLORS = [
-        { name: 'Rojo', hex: '#ef4444' },
-        { name: 'Azul', hex: '#3b82f6' },
-        { name: 'Negro', hex: '#000000' },
-        { name: 'Blanco', hex: '#ffffff' }
-    ];
 
     useEffect(() => {
         if ('scrollRestoration' in history) history.scrollRestoration = 'manual';
@@ -102,16 +97,13 @@ export function ProductForm() {
                 retail_price: data.retail_price || '',
                 wholesale_price: data.wholesale_price || '',
                 stock: data.stock || 0,
-                // Handle array vs string if schema changed. Previous code used comma string. 
-                // Let's stick to array in state, convert on save/load if needed.
-                // Assuming schema is text[] or similar, or we just split/join. Reviewing old code: `data.sizes.join(', ')`. 
-                // So it stores arrays in supabase (jsonb or arrays).
                 sizes: data.sizes || [],
-                colors: data.colors || [],
                 image_url: (data.images && data.images[0]) || '',
                 published: data.published === true, // Ensure boolean
-                featured: false, // Column might not exist
-                notify_clients: false
+                featured: false, // Columna aún no persistida en el backend — se preserva el comportamiento existente
+                applyWatermark: true,
+                code: data.code || '',
+                created_at: data.created_at || null,
             });
 
             if (data.images && data.images.length > 0) {
@@ -270,15 +262,6 @@ export function ProductForm() {
         }
     };
 
-    // Helper for array toggles
-    const toggleArrayItem = (field, item) => {
-        setFormData(prev => {
-            const list = prev[field];
-            if (list.includes(item)) return { ...prev, [field]: list.filter(i => i !== item) };
-            return { ...prev, [field]: [...list, item] };
-        });
-    };
-
     const addSize = () => {
         const val = sizeInput.trim().toUpperCase();
         if (!val) return;
@@ -299,64 +282,141 @@ export function ProductForm() {
         setToast({ mensaje: msg, tipo: type });
     };
 
+    const goBack = () => { window.scrollTo(0, 0); navigate('/admin/products'); };
+
+    const categoryName = categories.find(c => c.id === formData.category_id)?.name;
+
+    const stockStatus = formData.stock === 0
+        ? { label: 'Agotado', cls: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400' }
+        : formData.stock < 10
+            ? { label: `Stock Bajo (${formData.stock})`, cls: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400' }
+            : { label: `En Stock (${formData.stock})`, cls: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400' };
+
+    const inputCls = 'w-full bg-background text-foreground text-sm px-3.5 py-2.5 rounded-lg border border-input shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all';
+    const labelCls = 'text-sm font-semibold text-foreground';
+
     return (
-        <div className="new-product-page">
-            <div className="product-form-header">
-                <div className="header-left">
-                    <button onClick={() => { window.scrollTo(0, 0); navigate('/admin/products'); }} className="back-button">
-                        ← Volver a Productos
-                    </button>
-                    <div className="header-title-group">
-                        <h1>{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</h1>
-                        <span className="header-subtitle">Completa la información del producto</span>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pb-32">
+
+            {/* Breadcrumb */}
+            <nav className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-3">
+                <button onClick={goBack} className="inline-flex items-center gap-1 hover:text-primary transition-colors">
+                    <ArrowLeft className="w-3.5 h-3.5" /> Productos
+                </button>
+                {categoryName && (
+                    <>
+                        <ChevronRight className="w-3.5 h-3.5" />
+                        <span>{categoryName}</span>
+                    </>
+                )}
+                <ChevronRight className="w-3.5 h-3.5" />
+                <span className="text-foreground font-semibold">{isEdit ? 'Editar Producto' : 'Nuevo Producto'}</span>
+            </nav>
+
+            {/* Título + estado + acciones rápidas */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 mb-6">
+                <div>
+                    <div className="flex items-center gap-2.5 flex-wrap">
+                        <h1 className="text-2xl font-bold text-foreground tracking-tight">
+                            {isEdit ? 'Editar Producto' : 'Nuevo Producto'}
+                        </h1>
+                        {isEdit && (
+                            <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold ${formData.published ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400' : 'bg-muted text-muted-foreground'}`}>
+                                <span className={`w-1.5 h-1.5 rounded-full ${formData.published ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/50'}`} />
+                                {formData.published ? 'En Catálogo (Activo)' : 'Oculto del catálogo'}
+                            </span>
+                        )}
+                        {formData.code && (
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground font-mono">
+                                <Code className="w-3 h-3" /> {formData.code}
+                            </span>
+                        )}
                     </div>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        {isEdit ? (
+                            <>
+                                Editando: <strong className="text-foreground font-semibold">{formData.name || '…'}</strong>
+                                {formData.created_at && ` • Creado el ${new Date(formData.created_at).toLocaleDateString('es-AR')}`}
+                            </>
+                        ) : 'Completá la información para publicar un nuevo producto en el catálogo'}
+                    </p>
                 </div>
-                <div className="header-actions">
-                    <button className="btn-preview" type="button">
-                        👁️ Vista Previa
+
+                <div className="flex items-center gap-2 flex-wrap">
+                    <button
+                        type="button"
+                        disabled={!isEdit}
+                        onClick={() => window.open(`/catalog/${id}`, '_blank', 'noopener,noreferrer')}
+                        title={isEdit ? 'Ver en la tienda' : 'Guardá el producto para poder verlo'}
+                        className="inline-flex items-center gap-1.5 bg-card text-foreground px-4 py-2 rounded-lg text-sm font-semibold shadow-sm border border-border hover:bg-muted transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+                    >
+                        <Eye className="w-4 h-4 text-muted-foreground" />
+                        Vista Previa
                     </button>
                     <button
-                        className="btn-save-draft"
                         type="button"
-                        onClick={handleSubmit} // Just save
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1.5 bg-card text-foreground px-4 py-2 rounded-lg text-sm font-semibold shadow-sm border border-border hover:bg-muted transition-all disabled:opacity-50"
                     >
+                        <Archive className="w-4 h-4 text-muted-foreground" />
                         Guardar Borrador
+                    </button>
+                    <button
+                        type="button"
+                        onClick={handleSubmit}
+                        disabled={loading}
+                        className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground px-5 py-2 rounded-lg text-sm font-semibold shadow-md hover:bg-primary/90 transition-all disabled:opacity-50"
+                    >
+                        <Check className="w-4 h-4" />
+                        {loading ? 'Guardando…' : isEdit ? 'Publicar Cambios' : 'Publicar Producto'}
                     </button>
                 </div>
             </div>
 
-            <form className="product-form" onSubmit={handleSubmit}>
-                {/* 1. INFO BASICA */}
-                <div className="form-section">
-                    <div className="section-header">
-                        <div className="section-icon">📝</div>
-                        <h2 className="section-title">Información Básica</h2>
-                    </div>
+            <form onSubmit={handleSubmit}>
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-                    <div className="info-basica-grid">
-                        <div className="product-name-group">
-                            <label className="price-label">Nombre del Producto *</label>
-                            <input
-                                type="text"
-                                className={`product-name-input ${validations.name.valid === true ? 'valid' : validations.name.valid === false ? 'error' : ''}`}
-                                placeholder="Ej: Remera Básica Cotton Premium"
-                                value={formData.name}
-                                onChange={(e) => handleInputChange('name', e.target.value)}
-                            />
-                            {validations.name.valid === true && (
-                                <span className="availability-badge show">✓ Disponible</span>
-                            )}
-                            {validations.name.valid === false && (
-                                <span style={{ color: 'red', fontSize: 12, marginTop: 4 }}>{validations.name.message}</span>
-                            )}
-                        </div>
+                    {/* ══════════════ COLUMNA IZQUIERDA (8/12) ══════════════ */}
+                    <div className="lg:col-span-8 flex flex-col gap-6">
 
-                        <div className="category-brand-grid">
-                            <div>
-                                <label className="price-label">Categoría *</label>
-                                <div className="category-select-wrapper">
+                        {/* 1. Información Básica */}
+                        <section className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col gap-5">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-primary shrink-0">
+                                    <FileEdit className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold text-foreground">Información Básica</h2>
+                                    <p className="text-xs text-muted-foreground">Identificadores principales del producto</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between">
+                                    <label className={labelCls}>Nombre del Producto <span className="text-primary">*</span></label>
+                                    <span className="text-xs text-muted-foreground">{formData.name.length}/120</span>
+                                </div>
+                                <input
+                                    type="text"
+                                    className={`${inputCls} ${validations.name.valid === true ? 'border-emerald-500' : validations.name.valid === false ? 'border-destructive' : ''}`}
+                                    placeholder="Ej: Remera Básica Cotton Premium"
+                                    value={formData.name}
+                                    onChange={(e) => handleInputChange('name', e.target.value)}
+                                />
+                                {validations.name.valid === true && (
+                                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">✓ {validations.name.message}</span>
+                                )}
+                                {validations.name.valid === false && (
+                                    <span className="text-xs font-medium text-destructive">{validations.name.message}</span>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={labelCls}>Categoría <span className="text-primary">*</span></label>
                                     <select
-                                        className="category-select"
+                                        className={`${inputCls} cursor-pointer`}
                                         value={formData.category_id}
                                         onChange={(e) => handleInputChange('category_id', e.target.value)}
                                     >
@@ -366,375 +426,436 @@ export function ProductForm() {
                                         ))}
                                     </select>
                                 </div>
-                            </div>
-                            <div>
-                                <label className="price-label">Marca (opcional)</label>
-                                <input
-                                    type="text"
-                                    className="product-name-input"
-                                    placeholder="Ej: Nike, Adidas"
-                                    value={formData.marca}
-                                    onChange={(e) => handleInputChange('marca', e.target.value)}
-                                />
-                            </div>
-                        </div>
-
-                        <div>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-                                <label className="price-label" style={{ marginBottom: 0 }}>Descripción</label>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                                    <span style={{ fontSize: 11, color: '#888' }}>Acepta HTML + clases Tailwind</span>
-                                    <button
-                                        type="button"
-                                        onClick={() => setDescPreview(v => !v)}
-                                        style={{
-                                            fontSize: 12,
-                                            fontWeight: 600,
-                                            padding: '4px 12px',
-                                            borderRadius: 6,
-                                            border: '1px solid #d1d5db',
-                                            background: descPreview ? '#6366f1' : '#fff',
-                                            color: descPreview ? '#fff' : '#374151',
-                                            cursor: 'pointer',
-                                            transition: 'all 0.15s'
-                                        }}
-                                    >
-                                        {descPreview ? '✏️ Editar' : '👁️ Vista previa'}
-                                    </button>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={labelCls}>Marca <span className="font-normal text-muted-foreground">(opcional)</span></label>
+                                    <input
+                                        type="text"
+                                        className={inputCls}
+                                        placeholder="Ej: Nike, Adidas"
+                                        value={formData.marca}
+                                        onChange={(e) => handleInputChange('marca', e.target.value)}
+                                    />
                                 </div>
                             </div>
 
-                            {descPreview ? (
-                                <div
-                                    style={{
-                                        minHeight: 120,
-                                        padding: '12px 14px',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: 8,
-                                        background: '#fafafa',
-                                        fontSize: 14,
-                                        lineHeight: 1.6,
-                                        color: '#374151'
-                                    }}
-                                    dangerouslySetInnerHTML={{
-                                        __html: DOMPurify.sanitize(formData.description || '<span style="color:#aaa">Sin descripción...</span>')
-                                    }}
-                                />
-                            ) : (
-                                <textarea
-                                    className="description-textarea"
-                                    placeholder={`Texto plano o HTML con Tailwind:\n<p class="font-bold text-lg">Título</p>\n<ul class="list-disc pl-4"><li>Material 100% algodón</li></ul>`}
-                                    value={formData.description}
-                                    onChange={(e) => handleInputChange('description', e.target.value)}
-                                    style={{ fontFamily: 'monospace', fontSize: 13 }}
-                                />
-                            )}
-
-                            {!descPreview && (
-                                <div className="char-counter">
-                                    {formData.description.length} caracteres
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-
-                {/* 4. TALLES */}
-                <div className="form-section">
-                    <div className="section-header">
-                        <div className="section-icon">📐</div>
-                        <h2 className="section-title">Talles</h2>
-                    </div>
-
-                    {/* Atajos predefinidos */}
-                    <div className="size-presets-wrapper">
-                        <span className="size-presets-label">Predefinidos:</span>
-                        <div className="size-presets-grid">
-                            {['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Único'].map(preset => (
-                                <button
-                                    key={preset}
-                                    type="button"
-                                    className={`size-preset-btn${formData.sizes.includes(preset) ? ' active' : ''}`}
-                                    onClick={() => {
-                                        if (formData.sizes.includes(preset)) {
-                                            removeSize(preset);
-                                        } else {
-                                            setFormData(prev => ({ ...prev, sizes: [...prev.sizes, preset] }));
-                                        }
-                                    }}
-                                >
-                                    {preset}
-                                    {formData.sizes.includes(preset) && <span className="size-preset-check">✓</span>}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Chips de talles agregados */}
-                    <div className="size-chips-container">
-                        {formData.sizes.length === 0 && (
-                            <span className="size-chips-empty">Sin talles agregados</span>
-                        )}
-                        {formData.sizes.map(size => (
-                            <span key={size} className="size-chip">
-                                {size}
-                                <button
-                                    type="button"
-                                    className="size-chip-remove"
-                                    onClick={() => removeSize(size)}
-                                >
-                                    ×
-                                </button>
-                            </span>
-                        ))}
-                    </div>
-
-                    {/* Input para talle personalizado */}
-                    <div className="size-add-container">
-                        <input
-                            ref={sizeInputRef}
-                            type="text"
-                            className="size-custom-input"
-                            value={sizeInput}
-                            onChange={e => setSizeInput(e.target.value)}
-                            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSize(); } }}
-                            placeholder="Ej: 38, 40, S/M, 2XL..."
-                        />
-                        <button
-                            type="button"
-                            className="size-add-btn"
-                            onClick={addSize}
-                        >
-                            + Agregar
-                        </button>
-                    </div>
-                </div>
-
-                {/* 2. IMAGEN */}
-                <div className="form-section">
-                    <div className="section-header">
-                        <div className="section-icon">🖼️</div>
-                        <h2 className="section-title">Imagen del Producto</h2>
-                    </div>
-
-                    <div className="multi-image-container">
-                        <div className="images-list">
-                            {images.map((img, index) => (
-                                <div key={index} className={`image-item ${index === 0 ? 'main-image' : ''}`}>
-                                    {index === 0 && <span className="main-badge">⭐ Principal (Catálogo)</span>}
-                                    <img src={img.preview} alt={`Preview ${index}`} className="item-img" />
-                                    <div className="item-actions">
-                                        {index !== 0 && (
-                                            <button
-                                                type="button"
-                                                onClick={(e) => { e.stopPropagation(); makeMainImage(index); }}
-                                                className="btn-make-main"
-                                            >
-                                                ↑ Hacer Principal
-                                            </button>
-                                        )}
+                            <div className="flex flex-col gap-1.5">
+                                <div className="flex items-center justify-between flex-wrap gap-2">
+                                    <label className={labelCls}>Descripción</label>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">Acepta HTML + clases Tailwind</span>
                                         <button
                                             type="button"
-                                            onClick={(e) => { e.stopPropagation(); removeImage(index); }}
-                                            className="btn-delete-img"
+                                            onClick={() => setDescPreview(v => !v)}
+                                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-colors ${descPreview ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground'}`}
                                         >
-                                            🗑️ Eliminar
+                                            {descPreview ? <FileEdit className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                                            {descPreview ? 'Editar' : 'Vista previa'}
                                         </button>
                                     </div>
                                 </div>
-                            ))}
 
-                            {images.length < 5 && (
-                                <div
-                                    className={`image-dropzone compact ${isDragging ? 'dragover' : ''}`}
-                                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-                                    onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
-                                    onDrop={(e) => {
-                                        e.preventDefault();
-                                        setIsDragging(false);
-                                        if (e.dataTransfer.files?.length) handleImageFiles(e.dataTransfer.files);
-                                    }}
-                                    onClick={() => fileInputRef.current?.click()}
+                                {descPreview ? (
+                                    <div
+                                        className="min-h-[120px] px-3.5 py-3 rounded-lg border border-input bg-muted/30 text-sm leading-relaxed text-foreground"
+                                        dangerouslySetInnerHTML={{
+                                            __html: DOMPurify.sanitize(formData.description || '<span class="text-muted-foreground">Sin descripción…</span>')
+                                        }}
+                                    />
+                                ) : (
+                                    <textarea
+                                        className={`${inputCls} font-mono text-xs resize-y min-h-[120px]`}
+                                        placeholder={`Texto plano o HTML con Tailwind:\n<p class="font-bold text-lg">Título</p>\n<ul class="list-disc pl-4"><li>Material 100% algodón</li></ul>`}
+                                        value={formData.description}
+                                        onChange={(e) => handleInputChange('description', e.target.value)}
+                                        rows={4}
+                                    />
+                                )}
+
+                                {!descPreview && (
+                                    <span className="text-xs text-muted-foreground text-right">{formData.description.length} caracteres</span>
+                                )}
+                            </div>
+                        </section>
+
+                        {/* 2. Talles */}
+                        <section className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col gap-4">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-primary shrink-0">
+                                        <Ruler className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-bold text-foreground">Talles</h2>
+                                        <p className="text-xs text-muted-foreground">Variantes de talle disponibles para este producto</p>
+                                    </div>
+                                </div>
+                                <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground">
+                                    {formData.sizes.length} talle{formData.sizes.length !== 1 ? 's' : ''} activo{formData.sizes.length !== 1 ? 's' : ''}
+                                </span>
+                            </div>
+
+                            {/* Atajos predefinidos */}
+                            <div className="flex flex-col gap-2">
+                                <span className="text-xs font-semibold text-muted-foreground">Predefinidos:</span>
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    {['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Único'].map(preset => {
+                                        const active = formData.sizes.includes(preset);
+                                        return (
+                                            <button
+                                                key={preset}
+                                                type="button"
+                                                onClick={() => active ? removeSize(preset) : setFormData(prev => ({ ...prev, sizes: [...prev.sizes, preset] }))}
+                                                className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                                                    active ? 'bg-primary text-primary-foreground shadow-sm' : 'bg-muted text-muted-foreground hover:bg-muted/70'
+                                                }`}
+                                            >
+                                                {preset}
+                                                {active && <Check className="w-3 h-3" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {/* Chips de talles agregados */}
+                            <div className="flex flex-wrap items-center gap-2 min-h-[2rem]">
+                                {formData.sizes.length === 0 && (
+                                    <span className="text-xs text-muted-foreground italic">Sin talles agregados</span>
+                                )}
+                                {formData.sizes.map(size => (
+                                    <span key={size} className="inline-flex items-center gap-1.5 pl-3 pr-1.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                                        {size}
+                                        <button
+                                            type="button"
+                                            onClick={() => removeSize(size)}
+                                            className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-primary/20 transition-colors"
+                                        >
+                                            <X className="w-3 h-3" />
+                                        </button>
+                                    </span>
+                                ))}
+                            </div>
+
+                            {/* Input para talle personalizado */}
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <input
+                                    ref={sizeInputRef}
+                                    type="text"
+                                    className={`${inputCls} flex-1`}
+                                    value={sizeInput}
+                                    onChange={e => setSizeInput(e.target.value)}
+                                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addSize(); } }}
+                                    placeholder="Ej: 38, 40, S/M, 2XL…"
+                                />
+                                <button
+                                    type="button"
+                                    onClick={addSize}
+                                    className="inline-flex items-center justify-center gap-1.5 bg-muted text-foreground px-4 py-2.5 rounded-lg text-sm font-semibold hover:bg-muted/70 transition-colors shrink-0"
                                 >
-                                    <div className="dropzone-icon">📸</div>
-                                    <p className="dropzone-subtitle">Añadir foto ({images.length}/5)</p>
-                                    <input
-                                        ref={fileInputRef}
-                                        type="file"
-                                        multiple
-                                        className="file-input"
-                                        accept="image/*"
-                                        onChange={(e) => handleImageFiles(e.target.files)}
-                                        style={{ display: 'none' }}
-                                    />
+                                    <Plus className="w-4 h-4" />
+                                    Agregar
+                                </button>
+                            </div>
+                        </section>
+
+                        {/* 3. Galería de imágenes */}
+                        <section className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col gap-4">
+                            <div className="flex items-center justify-between flex-wrap gap-2">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-primary shrink-0">
+                                        <Images className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-bold text-foreground">Galería de Imágenes</h2>
+                                        <p className="text-xs text-muted-foreground">JPG, PNG o WebP — hasta 5 fotos, proporción 1:1 recomendada</p>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                        {images.length === 0 && (
-                            <div className="no-images-hint">No has subido ninguna imagen todavía. Agrega hasta 5 imágenes del producto.</div>
-                        )}
-                    </div>
-                </div>
-
-                {/* 3. PRECIOS Y STOCK */}
-                <div className="form-section">
-                    <div className="section-header">
-                        <div className="section-icon">💰</div>
-                        <h2 className="section-title">Precios y Stock</h2>
-                    </div>
-
-                    {/* Toggle: A Consultar */}
-                    <div
-                        className={`config-option ${priceOnRequest ? 'active' : ''}`}
-                        onClick={() => setPriceOnRequest(v => !v)}
-                        style={{ marginBottom: 20, cursor: 'pointer' }}
-                    >
-                        <div className="config-checkbox"></div>
-                        <div className="config-label">
-                            <div className="config-title">Precio "A Consultar"</div>
-                            <div className="config-description">En lugar del precio se mostrará "A consultar" en el catálogo público</div>
-                        </div>
-                    </div>
-
-                    <div className="pricing-grid" style={{ opacity: priceOnRequest ? 0.4 : 1, pointerEvents: priceOnRequest ? 'none' : 'auto', transition: 'opacity 0.2s' }}>
-                        <div className="price-input-group">
-                            <label className="price-label">Precio Minorista ($) *</label>
-                            <span className="currency-symbol">$</span>
-                            <input
-                                type="number"
-                                className="price-input"
-                                placeholder="0.00"
-                                value={formData.retail_price}
-                                onChange={(e) => handleInputChange('retail_price', e.target.value)}
-                            />
-                        </div>
-                        <div className="price-input-group">
-                            <label className="price-label">Precio Mayorista ($)</label>
-                            <span className="currency-symbol">$</span>
-                            <input
-                                type="number"
-                                className="price-input"
-                                placeholder="0.00"
-                                value={formData.wholesale_price}
-                                onChange={(e) => handleInputChange('wholesale_price', e.target.value)}
-                                readOnly={applyDiscount}
-                            />
-                        </div>
-                        <div className="price-input-group">
-                            <label className="price-label">Stock *</label>
-                            <input
-                                type="number"
-                                className="stock-input"
-                                placeholder="0"
-                                value={formData.stock}
-                                onChange={(e) => handleInputChange('stock', e.target.value)}
-                            />
-                        </div>
-                    </div>
-
-                    <div className={`discount-option ${applyDiscount ? 'active' : ''}`}>
-                        <div
-                            className="discount-checkbox-wrapper"
-                            onClick={() => setApplyDiscount(!applyDiscount)}
-                        >
-                            <input
-                                type="checkbox"
-                                className="discount-checkbox"
-                                checked={applyDiscount}
-                                readOnly
-                            />
-                        </div>
-                        <div className="discount-content">
-                            <div className="discount-label" onClick={() => setApplyDiscount(!applyDiscount)}>
-                                Aplicar descuento automático en mayorista
+                                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground">
+                                    <CloudUpload className="w-3.5 h-3.5" />
+                                    {images.length} de 5 fotos
+                                </span>
                             </div>
-                            {applyDiscount && (
-                                <div className="discount-input-wrapper">
-                                    <input
-                                        type="number"
-                                        className="discount-input"
-                                        value={discountPercent}
-                                        onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
-                                    />
-                                    <span>% de descuento</span>
+
+                            <div
+                                className={`grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-lg transition-colors ${isDragging ? 'ring-2 ring-primary/40 bg-primary/5' : ''}`}
+                                onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                                onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+                                onDrop={(e) => {
+                                    e.preventDefault();
+                                    setIsDragging(false);
+                                    if (e.dataTransfer.files?.length) handleImageFiles(e.dataTransfer.files);
+                                }}
+                            >
+                                {images.map((img, index) => (
+                                    <div key={index} className="relative group rounded-xl overflow-hidden shadow-sm aspect-square bg-muted">
+                                        <img src={img.preview} alt={`Vista previa ${index + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                                        {index === 0 && (
+                                            <div className="absolute top-2 left-2 inline-flex items-center gap-1 bg-amber-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-md shadow-md">
+                                                <Star className="w-2.5 h-2.5" fill="currentColor" />
+                                                Principal
+                                            </div>
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                                            {index !== 0 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={(e) => { e.stopPropagation(); makeMainImage(index); }}
+                                                    title="Hacer principal"
+                                                    className="w-8 h-8 rounded-full bg-card text-foreground flex items-center justify-center shadow-md hover:text-primary transition-colors"
+                                                >
+                                                    <Star className="w-4 h-4" />
+                                                </button>
+                                            )}
+                                            <button
+                                                type="button"
+                                                onClick={(e) => { e.stopPropagation(); removeImage(index); }}
+                                                title="Eliminar"
+                                                className="w-8 h-8 rounded-full bg-card text-destructive flex items-center justify-center shadow-md hover:bg-destructive/10 transition-colors"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+
+                                {images.length < 5 && (
+                                    <button
+                                        type="button"
+                                        onClick={() => fileInputRef.current?.click()}
+                                        className="rounded-xl bg-muted/60 hover:bg-muted transition-colors cursor-pointer aspect-square flex flex-col items-center justify-center gap-2 p-3 text-center group border-2 border-dashed border-border"
+                                    >
+                                        <div className="w-9 h-9 rounded-full bg-card text-primary flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform">
+                                            <Camera className="w-5 h-5" />
+                                        </div>
+                                        <span className="text-xs font-semibold text-foreground">Añadir foto</span>
+                                        <span className="text-[11px] text-muted-foreground">{images.length}/5 usados</span>
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            multiple
+                                            className="hidden"
+                                            accept="image/*"
+                                            onChange={(e) => handleImageFiles(e.target.files)}
+                                        />
+                                    </button>
+                                )}
+                            </div>
+
+                            {images.length === 0 && (
+                                <p className="text-xs text-muted-foreground text-center">No subiste ninguna imagen todavía. Agregá hasta 5 fotos del producto.</p>
+                            )}
+
+                            {/* Marca de agua */}
+                            <div className="flex items-center justify-between gap-3 p-4 rounded-lg bg-muted/40">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-8 h-8 rounded-full bg-card text-muted-foreground flex items-center justify-center shadow-sm shrink-0">
+                                        <Images className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-semibold text-foreground">Aplicar Marca de Agua</p>
+                                        <p className="text-xs text-muted-foreground">Superpone el logo centrado en las imágenes nuevas</p>
+                                    </div>
                                 </div>
-                            )}
-                        </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleInputChange('applyWatermark', !formData.applyWatermark)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${formData.applyWatermark ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${formData.applyWatermark ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+
+                    {/* ══════════════ COLUMNA DERECHA — SIDEBAR FIJO (4/12) ══════════════ */}
+                    <div className="lg:col-span-4 flex flex-col gap-6 lg:sticky lg:top-6">
+
+                        {/* 4. Precios */}
+                        <section className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col gap-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-primary shrink-0">
+                                    <DollarSign className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h2 className="text-base font-bold text-foreground">Precios</h2>
+                                    <p className="text-xs text-muted-foreground">Esquema minorista y mayorista</p>
+                                </div>
+                            </div>
+
+                            {/* Precio "A Consultar" */}
+                            <div className="p-3.5 rounded-lg bg-muted/40 flex items-start justify-between gap-3">
+                                <div>
+                                    <span className="block text-sm font-semibold text-foreground">Precio "A Consultar"</span>
+                                    <span className="text-xs text-muted-foreground">Muestra "A consultar" en vez de un precio fijo</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => setPriceOnRequest(v => !v)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors mt-0.5 ${priceOnRequest ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${priceOnRequest ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
+
+                            <div className={`flex flex-col gap-4 transition-opacity ${priceOnRequest ? 'opacity-40 pointer-events-none' : ''}`}>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={labelCls}>Precio Minorista ($) <span className="text-primary">*</span></label>
+                                    <div className="relative">
+                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-sm">$</span>
+                                        <input
+                                            type="number"
+                                            className={`${inputCls} pl-7 text-lg font-bold`}
+                                            placeholder="0.00"
+                                            value={formData.retail_price}
+                                            onChange={(e) => handleInputChange('retail_price', e.target.value)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex flex-col gap-1.5">
+                                    <label className={labelCls}>Precio Mayorista ($)</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-muted-foreground font-semibold text-sm">$</span>
+                                        <input
+                                            type="number"
+                                            className={`${inputCls} pl-7 text-lg font-bold disabled:opacity-60`}
+                                            placeholder="0.00"
+                                            value={formData.wholesale_price}
+                                            onChange={(e) => handleInputChange('wholesale_price', e.target.value)}
+                                            readOnly={applyDiscount}
+                                        />
+                                    </div>
+                                </div>
+
+                                {/* Descuento automático */}
+                                <div className={`rounded-lg p-3.5 transition-colors ${applyDiscount ? 'bg-primary/5 border border-primary/20' : 'bg-muted/40'}`}>
+                                    <label className="flex items-start gap-2.5 cursor-pointer select-none">
+                                        <div
+                                            className="w-4 h-4 mt-0.5 rounded border-2 flex items-center justify-center shrink-0 transition-colors"
+                                            style={applyDiscount ? { backgroundColor: 'var(--primary)', borderColor: 'var(--primary)' } : { borderColor: 'var(--border)' }}
+                                            onClick={() => setApplyDiscount(!applyDiscount)}
+                                        >
+                                            {applyDiscount && <Check className="w-3 h-3 text-white" />}
+                                        </div>
+                                        <span className="text-xs text-foreground leading-tight" onClick={() => setApplyDiscount(!applyDiscount)}>
+                                            Calcular el mayorista automáticamente aplicando un descuento sobre el minorista
+                                        </span>
+                                    </label>
+                                    {applyDiscount && (
+                                        <div className="flex items-center gap-2 mt-2.5">
+                                            <input
+                                                type="number"
+                                                className="w-16 px-2 py-1.5 rounded-md border border-input bg-background text-center text-sm font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+                                                value={discountPercent}
+                                                onChange={(e) => setDiscountPercent(parseFloat(e.target.value) || 0)}
+                                            />
+                                            <span className="text-xs text-muted-foreground">% de descuento sobre el minorista</span>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 5. Inventario */}
+                        <section className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col gap-4">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-3">
+                                    <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-primary shrink-0">
+                                        <Package className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                        <h2 className="text-base font-bold text-foreground">Inventario</h2>
+                                        <p className="text-xs text-muted-foreground">Stock disponible del producto</p>
+                                    </div>
+                                </div>
+                                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold ${stockStatus.cls}`}>
+                                    {stockStatus.label}
+                                </span>
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className={labelCls}>Stock <span className="text-primary">*</span></label>
+                                <input
+                                    type="number"
+                                    className={`${inputCls} text-lg font-bold`}
+                                    placeholder="0"
+                                    value={formData.stock}
+                                    onChange={(e) => handleInputChange('stock', e.target.value)}
+                                />
+                            </div>
+                        </section>
+
+                        {/* 6. Visibilidad */}
+                        <section className="bg-card border border-border rounded-xl shadow-sm p-6 flex flex-col gap-1">
+                            <div className="flex items-center gap-3 pb-3">
+                                <div className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-primary shrink-0">
+                                    <SlidersHorizontal className="w-5 h-5" />
+                                </div>
+                                <h2 className="text-base font-bold text-foreground">Visibilidad</h2>
+                            </div>
+
+                            <div className="flex items-center justify-between py-2.5 border-t border-border">
+                                <div className="pr-2">
+                                    <p className="text-sm font-semibold text-foreground">Publicar en catálogo</p>
+                                    <p className="text-xs text-muted-foreground">Visible de inmediato para los clientes</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleInputChange('published', !formData.published)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${formData.published ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${formData.published ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
+
+                            <div className="flex items-center justify-between py-2.5 border-t border-border">
+                                <div className="pr-2">
+                                    <p className="text-sm font-semibold text-foreground">Producto Destacado</p>
+                                    <p className="text-xs text-muted-foreground">Aparece primero en los listados</p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleInputChange('featured', !formData.featured)}
+                                    className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${formData.featured ? 'bg-primary' : 'bg-muted-foreground/30'}`}
+                                >
+                                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${formData.featured ? 'translate-x-4' : 'translate-x-0.5'}`} />
+                                </button>
+                            </div>
+                        </section>
                     </div>
                 </div>
+            </form>
 
-                {/* 5. CONFIGURACION */}
-                <div className="form-section">
-                    <div className="section-header">
-                        <div className="section-icon">⚙️</div>
-                        <h2 className="section-title">Configuración Adicional</h2>
-                    </div>
-
-                    <div className="config-options">
-                        <div
-                            className={`config-option ${formData.applyWatermark ? 'active' : ''}`}
-                            onClick={() => handleInputChange('applyWatermark', !formData.applyWatermark)}
-                        >
-                            <div className="config-checkbox"></div>
-                            <div className="config-label">
-                                <div className="config-title">Aplicar Marca de Agua</div>
-                                <div className="config-description">Añadir automáticamente el logo centrado a las imágenes nuevas</div>
-                            </div>
-                        </div>
-
-                        <div
-                            className={`config-option ${formData.published ? 'active' : ''}`}
-                            onClick={() => handleInputChange('published', !formData.published)}
-                        >
-                            <div className="config-checkbox"></div>
-                            <div className="config-label">
-                                <div className="config-title">Publicar en catálogo inmediatamente</div>
-                                <div className="config-description">El producto será visible para todos los clientes</div>
-                            </div>
-                        </div>
-
-                        {/* Additional mockup options */}
-                        <div
-                            className={`config-option ${formData.featured ? 'active' : ''}`}
-                            onClick={() => handleInputChange('featured', !formData.featured)}
-                        >
-                            <div className="config-checkbox"></div>
-                            <div className="config-label">
-                                <div className="config-title">Producto destacado</div>
-                                <div className="config-description">Aparecerá primero en los listados</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* FOOTER */}
-                <div className="form-footer">
+            {/* Barra de acciones fija inferior */}
+            <div className="fixed bottom-0 left-0 lg:left-64 right-0 px-4 sm:px-6 lg:px-8 pb-4 pointer-events-none z-30">
+                <div className="max-w-5xl mx-auto bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-xl px-5 py-3 flex items-center justify-between pointer-events-auto">
                     <button
                         type="button"
-                        className="btn-cancel"
-                        onClick={() => { window.scrollTo(0, 0); navigate('/admin/products'); }}
+                        onClick={goBack}
+                        className="px-4 py-2 rounded-lg text-sm font-semibold text-muted-foreground hover:bg-muted transition-colors"
                     >
                         Cancelar
                     </button>
-
-                    <div className="footer-actions">
+                    <div className="flex items-center gap-2">
                         <button
                             type="button"
-                            className="btn-save-draft"
-                            onClick={() => { /* Save as draft logic, maybe set published=false */ }}
+                            onClick={handleSubmit}
+                            disabled={loading}
+                            className="px-4 py-2 rounded-lg text-sm font-semibold bg-muted text-foreground hover:bg-muted/70 transition-colors disabled:opacity-50"
                         >
                             Guardar como Borrador
                         </button>
                         <button
-                            type="submit"
-                            className="btn-submit"
+                            type="button"
+                            onClick={handleSubmit}
                             disabled={loading}
+                            className="inline-flex items-center gap-1.5 px-5 py-2 rounded-lg text-sm font-semibold bg-primary text-primary-foreground shadow-md hover:bg-primary/90 transition-all disabled:opacity-50"
                         >
-                            {loading ? 'Guardando...' : 'Publicar Producto'}
+                            <Check className="w-4 h-4" />
+                            {loading ? 'Guardando…' : isEdit ? 'Actualizar Producto' : 'Publicar Producto'}
                         </button>
                     </div>
                 </div>
-            </form>
+            </div>
 
             {toast && (
                 <Toast

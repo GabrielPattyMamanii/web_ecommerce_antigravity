@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     Plus, X, Eye, EyeOff, Trash2, Edit2, User, ArrowRight,
-    ShieldCheck, Loader2, Wrench, AlertTriangle, Check, RefreshCw,
+    ShieldCheck, Loader2,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useNavigate } from 'react-router-dom';
@@ -20,9 +20,6 @@ export function Usuarios() {
                 </p>
             </header>
             <AppUsuarios />
-            <div className="mt-10">
-                <ReparadorAliases />
-            </div>
         </div>
     );
 }
@@ -374,150 +371,6 @@ function EditAppUserModal({ user, onClose, onSave }) {
                 </button>
             </form>
         </ModalShell>
-    );
-}
-
-// ─── Reparador de aliases huérfanos ──────────────────────────────────────────
-
-function ReparadorAliases() {
-    const [loading,    setLoading]    = useState(false);
-    const [scanning,   setScanning]   = useState(false);
-    const [huerfanos,  setHuerfanos]  = useState(null); // null = sin escanear
-    const [mappings,   setMappings]   = useState({});   // { oldAlias: targetUsername }
-    const [applying,   setApplying]   = useState(false);
-    const [appUsers,   setAppUsers]   = useState([]);
-
-    useEffect(() => {
-        supabase.from('app_users').select('username').order('username').then(({ data }) => {
-            setAppUsers((data || []).map(u => u.username));
-        });
-    }, []);
-
-    const handleScan = async () => {
-        setScanning(true);
-        try {
-            // Obtener todos los alias distintos usados en ventas, entradas y cuentas
-            const [ventasRes, entradasRes, entradasPropRes] = await Promise.all([
-                supabase.from('ventas').select('propietario').not('propietario', 'is', null),
-                supabase.from('entradas').select('propietario').not('propietario', 'is', null),
-                supabase.from('entradas').select('propietario_producto').not('propietario_producto', 'is', null),
-            ]);
-
-            const usadosSet = new Set();
-            (ventasRes.data  || []).forEach(r => r.propietario         && usadosSet.add(r.propietario.trim()));
-            (entradasRes.data || []).forEach(r => r.propietario        && usadosSet.add(r.propietario.trim()));
-            (entradasPropRes.data || []).forEach(r => r.propietario_producto && usadosSet.add(r.propietario_producto.trim()));
-
-            const conocidos = new Set(appUsers.map(u => u.toLowerCase()));
-            const orphans = [...usadosSet].filter(a => !conocidos.has(a.toLowerCase()));
-            setHuerfanos(orphans);
-            setMappings(Object.fromEntries(orphans.map(a => [a, ''])));
-        } finally {
-            setScanning(false);
-        }
-    };
-
-    const handleApply = async () => {
-        const toFix = Object.entries(mappings).filter(([, target]) => target);
-        if (toFix.length === 0) {
-            toast.error('Asigná al menos un alias a un usuario');
-            return;
-        }
-        setApplying(true);
-        try {
-            for (const [oldAlias, newUsername] of toFix) {
-                await Promise.all([
-                    supabase.from('ventas').update({ propietario: newUsername }).eq('propietario', oldAlias),
-                    supabase.from('cuentas_bancarias').update({ propietario: newUsername }).eq('propietario', oldAlias),
-                    supabase.from('entradas').update({ propietario: newUsername }).eq('propietario', oldAlias),
-                    supabase.from('entradas').update({ propietario_producto: newUsername }).eq('propietario_producto', oldAlias),
-                ]);
-            }
-            toast.success(`${toFix.length} alias reparado${toFix.length !== 1 ? 's' : ''} correctamente`);
-            // Re-escanear para confirmar que ya no hay huérfanos
-            setHuerfanos(null);
-            setMappings({});
-        } catch (err) {
-            toast.error('Error al reparar: ' + err.message);
-        } finally {
-            setApplying(false);
-        }
-    };
-
-    return (
-        <div className="border border-border rounded-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 bg-muted/40 border-b border-border">
-                <div className="flex items-center gap-2">
-                    <Wrench className="w-4 h-4 text-muted-foreground" />
-                    <h2 className="font-bold text-foreground text-sm">Reparar aliases duplicados</h2>
-                </div>
-                <button
-                    onClick={handleScan}
-                    disabled={scanning || appUsers.length === 0}
-                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 bg-card border border-border rounded-xl hover:bg-accent transition disabled:opacity-50"
-                >
-                    {scanning
-                        ? <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Escaneando…</>
-                        : <><RefreshCw className="w-3.5 h-3.5" /> Escanear</>
-                    }
-                </button>
-            </div>
-
-            <div className="px-5 py-4">
-                {huerfanos === null ? (
-                    <p className="text-sm text-muted-foreground">
-                        Hace clic en <strong>Escanear</strong> para detectar aliases en ventas e inventario que no corresponden a ningún usuario actual.
-                    </p>
-                ) : huerfanos.length === 0 ? (
-                    <div className="flex items-center gap-2 text-green-600 text-sm font-medium">
-                        <Check className="w-4 h-4" />
-                        No hay aliases huérfanos. Todo está sincronizado.
-                    </div>
-                ) : (
-                    <div className="space-y-4">
-                        <div className="flex items-start gap-2 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800/40 rounded-xl px-4 py-3">
-                            <AlertTriangle className="w-4 h-4 text-yellow-600 flex-shrink-0 mt-0.5" />
-                            <p className="text-xs text-yellow-800 dark:text-yellow-300">
-                                Se encontraron <strong>{huerfanos.length}</strong> alias que no coinciden con ningún usuario actual.
-                                Asignalos al propietario correcto y hacé clic en <strong>Aplicar</strong>.
-                            </p>
-                        </div>
-
-                        <div className="space-y-2">
-                            {huerfanos.map(alias => (
-                                <div key={alias} className="flex items-center gap-3">
-                                    <span className="text-sm font-mono bg-muted px-3 py-2 rounded-lg text-foreground flex-shrink-0 min-w-[8rem] text-center">
-                                        {alias}
-                                    </span>
-                                    <ArrowRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                                    <select
-                                        value={mappings[alias] || ''}
-                                        onChange={e => setMappings(prev => ({ ...prev, [alias]: e.target.value }))}
-                                        className="flex-1 bg-background border border-input rounded-xl px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[#D13180]/40"
-                                    >
-                                        <option value="">— Seleccionar usuario —</option>
-                                        {appUsers.map(u => (
-                                            <option key={u} value={u}>{u}</option>
-                                        ))}
-                                    </select>
-                                </div>
-                            ))}
-                        </div>
-
-                        <button
-                            onClick={handleApply}
-                            disabled={applying || Object.values(mappings).every(v => !v)}
-                            className="flex items-center justify-center gap-2 w-full py-3 bg-[#D13180] hover:bg-[#b52a6e] text-white font-bold rounded-xl transition disabled:opacity-50 text-sm"
-                        >
-                            {applying
-                                ? <><RefreshCw className="w-4 h-4 animate-spin" /> Aplicando…</>
-                                : <><Check className="w-4 h-4" /> Aplicar reparación</>
-                            }
-                        </button>
-                    </div>
-                )}
-            </div>
-        </div>
     );
 }
 

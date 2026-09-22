@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
 export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor, products, allProductsForK, settings, isOldEntrada = false, bultosPersonalizados = 0, isMobile = false, users = [] }) {
-    const [isOpen, setIsOpen] = useState(false);
+    // Desktop: abierto por defecto (diseño Acordeones Modulares). Mobile: colapsado, como antes.
+    const [isOpen, setIsOpen] = useState(!isMobile);
 
     // Usa allProductsForK si se provee, de lo contrario cae en products (para compatibilidad)
     const baseProducts = allProductsForK || products;
@@ -92,6 +93,9 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
         return { precioVentaAlCosto, precioDeVenta, precioVentaArg };
     };
 
+    // Subtotal ARS del grupo (suma de precio de venta en pesos de todos los productos)
+    const subtotalArs = products.reduce((sum, item) => sum + calcProductPrices(item).precioVentaArg, 0);
+
     if (isMobile) {
         return (
             <div
@@ -178,22 +182,25 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
     }
 
     return (
-        <div
-            className="border border-border rounded-lg bg-card overflow-hidden shadow-sm mb-4"
+        <article
+            className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden transition-all duration-200"
             style={borderStyle}
         >
-            {/* Header */}
+            {/* Header (trigger) */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 to-primary/5 hover:from-primary/20 hover:to-primary/10 transition-all text-left"
+                className="w-full px-6 py-4 flex flex-wrap items-center justify-between gap-3 bg-muted/40 hover:bg-muted/60 border-b border-border transition-colors text-left"
             >
-                <div className="flex items-center gap-4 flex-wrap">
-                    <span className="font-bold text-foreground uppercase text-lg">{brandName}</span>
-                    {boletaCode && (
-                        <span className="text-sm font-mono text-muted-foreground bg-card px-2 py-0.5 rounded border border-border">
+                <div className="flex items-center gap-3 flex-wrap">
+                    <span className="text-sm font-extrabold tracking-wide text-foreground uppercase">{brandName}</span>
+                    {boletaCode && boletaCode !== '-' && (
+                        <span className="font-mono text-[11px] font-semibold text-muted-foreground bg-card border border-border px-2.5 py-0.5 rounded-md shadow-sm">
                             Boleta: {boletaCode}
                         </span>
                     )}
+                    <span className="text-xs font-semibold text-muted-foreground">
+                        {products.length} {products.length === 1 ? 'artículo' : 'artículos'}
+                    </span>
                     {isMultiOwner ? (
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {Object.entries(ownerTotals).map(([name, amt]) => {
@@ -201,7 +208,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                                 const total = Object.values(ownerTotals).reduce((s, v) => s + v, 0);
                                 const pct = total > 0 ? ((amt / total) * 100).toFixed(0) : 0;
                                 return (
-                                    <div key={name} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border text-xs font-bold" style={{ borderColor: color }}>
+                                    <div key={name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold bg-pink-50 dark:bg-pink-950/30" style={{ borderColor: color }}>
                                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                                         <span className="text-foreground">{name}</span>
                                         <span className="text-muted-foreground text-[10px]">({pct}%)</span>
@@ -210,37 +217,44 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                             })}
                         </div>
                     ) : effectivePropietario ? (
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background border border-border shadow-sm">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-pink-50 dark:bg-pink-950/30 border border-pink-200/70 dark:border-pink-900">
                             <div
-                                className="w-2.5 h-2.5 rounded-full"
+                                className="w-2 h-2 rounded-full"
                                 style={{ backgroundColor: effectiveOwnerColor || '#9ca3af' }}
                             />
-                            <span className="text-xs font-bold text-muted-foreground uppercase">
+                            <span className="text-xs font-bold text-pink-700 dark:text-pink-300 uppercase">
                                 {effectivePropietario}
                             </span>
                         </div>
                     ) : null}
                 </div>
-                <div>
-                    {isOpen ? <ChevronUp className="h-5 w-5 text-muted-foreground" /> : <ChevronDown className="h-5 w-5 text-muted-foreground" />}
+
+                <div className="flex items-center gap-4">
+                    <div className="hidden sm:flex items-center gap-2 text-xs font-bold text-foreground bg-card px-3 py-1 rounded-lg border border-border shadow-sm">
+                        <span className="text-muted-foreground font-normal">Subtotal ARS:</span>
+                        {formatCurrency(subtotalArs, 'ARS')}
+                    </div>
+                    <div className="w-7 h-7 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground shrink-0">
+                        {isOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </div>
                 </div>
             </button>
 
             {/* Content */}
             {isOpen && (
                 <div className="overflow-x-auto">
-                    <table className="w-full text-sm text-left">
-                        <thead className="bg-muted/30 text-foreground font-semibold border-b border-border">
-                            <tr>
-                                <th className="px-6 py-3">Producto</th>
-                                <th className="px-6 py-3">Código</th>
-                                {isMultiOwner && <th className="px-6 py-3">Propietario</th>}
-                                <th className="px-6 py-3 text-right">Precio Venta al Costo</th>
-                                <th className="px-6 py-3 text-right">Precio de Venta</th>
-                                <th className="px-6 py-3 text-right bg-primary/5 text-primary">Precio de Venta (PESOS)</th>
+                    <table className="w-full text-left border-collapse">
+                        <thead>
+                            <tr className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider border-b border-border bg-muted/20">
+                                <th className="py-3 px-6">Producto</th>
+                                <th className="py-3 px-4 text-center">Código</th>
+                                {isMultiOwner && <th className="py-3 px-4">Propietario</th>}
+                                <th className="py-3 px-4 text-right">Precio Venta al Costo</th>
+                                <th className="py-3 px-4 text-right">Precio de Venta (USD)</th>
+                                <th className="py-3 px-6 text-right text-primary font-extrabold">Precio de Venta (PESOS)</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-border bg-card">
+                        <tbody className="divide-y divide-border text-xs font-medium text-foreground">
                             {products.map((item) => {
                                 const { precioVentaAlCosto, precioDeVenta, precioVentaArg } = calcProductPrices(item);
                                 const prodOwner = item.propietario_producto?.trim() || item.propietario?.trim() || '';
@@ -248,13 +262,15 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                                 return (
                                     <tr
                                         key={item.id}
-                                        className="hover:bg-muted/10 transition-colors"
+                                        className="hover:bg-primary/5 transition-colors"
                                         style={isMultiOwner && prodOwnerColor ? { borderLeft: `3px solid ${prodOwnerColor}` } : {}}
                                     >
-                                        <td className="px-6 py-4 font-medium text-foreground">{item.producto_titulo}</td>
-                                        <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{item.codigo || '-'}</td>
+                                        <td className="py-3 px-6 font-bold text-foreground">{item.producto_titulo}</td>
+                                        <td className="py-3 px-4 text-center font-mono">
+                                            <span className="bg-muted text-muted-foreground px-2 py-0.5 rounded text-[11px]">{item.codigo || '-'}</span>
+                                        </td>
                                         {isMultiOwner && (
-                                            <td className="px-6 py-4">
+                                            <td className="py-3 px-4">
                                                 {prodOwner ? (
                                                     <span className="flex items-center gap-1.5 text-xs font-semibold">
                                                         <span className="w-2 h-2 rounded-full" style={{ backgroundColor: prodOwnerColor || '#9ca3af' }} />
@@ -265,13 +281,13 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                                                 )}
                                             </td>
                                         )}
-                                        <td className="px-6 py-4 text-right text-muted-foreground">
+                                        <td className="py-3 px-4 text-right text-muted-foreground font-mono">
                                             {formatCurrency(precioVentaAlCosto, 'USD')}
                                         </td>
-                                        <td className="px-6 py-4 text-right font-medium text-foreground">
+                                        <td className="py-3 px-4 text-right font-bold text-foreground font-mono">
                                             {formatCurrency(precioDeVenta, 'USD')}
                                         </td>
-                                        <td className="px-6 py-4 text-right font-bold text-primary bg-primary/5">
+                                        <td className="py-3 px-6 text-right font-extrabold text-primary font-mono text-sm tracking-tight">
                                             {formatCurrency(precioVentaArg, 'ARS')}
                                         </td>
                                     </tr>
@@ -281,7 +297,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                     </table>
                 </div>
             )}
-        </div>
+        </article>
     );
 }
 

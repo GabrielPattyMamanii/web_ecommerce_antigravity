@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, Edit, Trash2, ExternalLink, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { getStockBadgeClass, getStockLabel, getProductImage as getImage } from './productHelpers';
 
 const ProductsTable = ({
     productos,
@@ -19,19 +20,6 @@ const ProductsTable = ({
         }
         return () => { document.body.style.overflow = ''; };
     }, [selectedImage]);
-    const getStockBadgeClass = (stock) => {
-        if (stock === 0) return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-        if (stock < 10) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400';
-        if (stock < 50) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-    };
-
-    const getStockLabel = (stock) => {
-        if (stock === 0) return 'Agotado';
-        if (stock < 10) return `${stock} (Bajo)`;
-        if (stock < 50) return `${stock} (Medio)`;
-        return `${stock}`;
-    };
 
     const verProductoEnTienda = (producto) => {
         const url = `/catalog/${producto.id}`;
@@ -44,14 +32,6 @@ const ProductsTable = ({
             </div>,
             { duration: 2000, position: 'bottom-right' }
         );
-    };
-
-    const getImage = (producto) => {
-        // catalog_products use image_url; products use images[]
-        if (producto._source === 'catalog_products') {
-            return producto.image_url || '/placeholder.png';
-        }
-        return (producto.images && producto.images[0]) || '/placeholder.png';
     };
 
     return (

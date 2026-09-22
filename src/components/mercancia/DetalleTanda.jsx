@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { ArrowLeft, Layers, Calendar, Package, X, ChevronLeft, ChevronRight, Image as ImageIcon, Download, QrCode, ClipboardList, ShoppingCart, BarChart, Settings, ChevronDown, Filter } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { ArrowLeft, Layers, Calendar, Package, X, ChevronUp, ChevronDown, Image as ImageIcon, Download, ClipboardList, Filter } from 'lucide-react';
 
 import { useMobile } from '../../hooks/useMobile';
 export function DetalleTanda() {
@@ -387,94 +386,85 @@ export function DetalleTanda() {
     }
 
     return (
-        <div className="container mx-auto px-4 py-8 max-w-6xl">
-            <div className="flex items-center justify-between mb-8">
-                <Button variant="ghost" className="pl-0 gap-2 text-muted-foreground hover:text-foreground" onClick={() => navigate('/admin/mercancia')}>
-                    <ArrowLeft className="w-4 h-4" /> Volver al Listado
-                </Button>
-            </div>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+            {/* Volver al listado */}
+            <button
+                onClick={() => navigate('/admin/mercancia')}
+                className="inline-flex items-center gap-2 text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors group"
+            >
+                <ArrowLeft className="w-4 h-4 transition-transform group-hover:-translate-x-1" />
+                Volver al Listado
+            </button>
 
             {loading ? (
                 <div className="text-center py-12 text-muted-foreground">Cargando detalles...</div>
             ) : products.length === 0 ? (
-                <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border text-muted-foreground">
+                <div className="text-center py-12 bg-card rounded-2xl border border-dashed border-border text-muted-foreground">
                     No se encontraron productos para esta tanda.
                 </div>
             ) : (
                 <div className="space-y-6">
-                    {/* Header Card */}
-                    <div className="bg-card p-6 rounded-xl border border-border shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-primary text-primary-foreground rounded-lg">
-                                <Layers className="w-6 h-6" />
+                    {/* Header Card: KPIs de la tanda */}
+                    <section className="bg-card rounded-2xl border border-border p-6 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6">
+                        <div className="flex items-center gap-5">
+                            <div className="w-14 h-14 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-orange-600 shadow-sm shrink-0 dark:bg-orange-950/30 dark:border-orange-900/40">
+                                <Layers className="w-7 h-7" />
                             </div>
                             <div>
-                                <h1 className="text-2xl font-bold text-foreground">{tandaName}</h1>
-                                <div className="flex items-center gap-4 text-sm text-muted-foreground mt-1">
-                                    <span className="flex items-center gap-1">
-                                        <Calendar className="w-4 h-4" /> {tandaInfo.date ? new Date(tandaInfo.date).toLocaleDateString() : '-'}
+                                <h1 className="text-2xl font-black text-foreground tracking-tight">{tandaName}</h1>
+                                <div className="flex items-center gap-4 mt-1.5 text-sm text-muted-foreground font-medium">
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Calendar className="w-4 h-4 text-muted-foreground/70" />
+                                        {tandaInfo.date ? new Date(tandaInfo.date).toLocaleDateString() : '-'}
                                     </span>
-                                    <span className="flex items-center gap-1">
-                                        <Package className="w-4 h-4" /> {products.length} productos
+                                    <span className="w-1 h-1 rounded-full bg-border" />
+                                    <span className="inline-flex items-center gap-1.5">
+                                        <Package className="w-4 h-4 text-muted-foreground/70" />
+                                        {products.length} productos
                                     </span>
                                 </div>
                             </div>
                         </div>
 
-                        {/* Middle Info: Gastos Only */}
-                        <div className="flex flex-col md:flex-row gap-6 md:px-12 items-center flex-1 justify-center border-t border-b md:border-t-0 md:border-b-0 md:border-l md:border-r border-border py-4 md:py-0">
-                            <div>
-                                <p className="text-xs uppercase text-muted-foreground font-semibold mb-1 text-center">Gastos Totales</p>
-                                <p className="font-mono font-medium text-foreground text-center text-lg">
+                        <div className="flex items-center gap-8 divide-x divide-border">
+                            <div className="text-left md:text-right">
+                                <span className="block text-xs font-bold uppercase tracking-wider text-muted-foreground">Gastos Totales</span>
+                                <span className="text-xl font-extrabold text-foreground tabular-nums mt-0.5 block">
                                     ${Number(tandaInfo.gastos || 0).toLocaleString()}
-                                </p>
+                                </span>
+                            </div>
+                            <div className="pl-8 text-left md:text-right">
+                                <span className="block text-xs font-semibold text-muted-foreground">Valor Total Estimado</span>
+                                <span className="text-3xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight tabular-nums block">
+                                    ${totalMoney.toLocaleString('es-AR')}
+                                </span>
+                                <span className="text-xs font-medium text-muted-foreground mt-0.5 block">{totalDocenas} docenas en total</span>
                             </div>
                         </div>
-
-                        <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Valor Total Estimado</p>
-                            <p className="text-3xl font-bold text-green-600 dark:text-green-400">${totalMoney.toLocaleString('es-AR')}</p>
-                            <p className="text-xs text-muted-foreground">{totalDocenas} docenas en total</p>
-                        </div>
-                    </div>
-
+                    </section>
 
                     {/* Photo Modal */}
                     {photoModalOpen && selectedPhoto && (
                         <div
-                            className="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4"
+                            className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
                             onClick={closeLightbox}
                         >
                             {/* Floating Buttons - Fixed Position Top Right */}
                             <div className="fixed top-5 right-5 flex flex-col gap-3 z-[9999]">
-                                {/* Close Button */}
                                 <button
                                     onClick={closeLightbox}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-md text-white font-medium shadow-md transition-colors"
-                                    style={{
-                                        backgroundColor: '#dc3545',
-                                        fontSize: '15px'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#c82333'}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#dc3545'}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-destructive text-destructive-foreground font-semibold shadow-md hover:bg-destructive/90 transition-colors"
                                 >
                                     <X className="w-4 h-4" />
                                     <span>Salir</span>
                                 </button>
 
-                                {/* Download Button */}
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         downloadImage(selectedPhoto);
                                     }}
-                                    className="flex items-center gap-2 px-5 py-2.5 rounded-md text-white font-medium shadow-md transition-colors"
-                                    style={{
-                                        backgroundColor: '#28a745',
-                                        fontSize: '15px'
-                                    }}
-                                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#218838'}
-                                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#28a745'}
+                                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-emerald-600 text-white font-semibold shadow-md hover:bg-emerald-700 transition-colors"
                                 >
                                     <Download className="w-4 h-4" />
                                     <span>Descargar</span>
@@ -489,65 +479,67 @@ export function DetalleTanda() {
                                 <img
                                     src={selectedPhoto}
                                     alt="Vista previa"
-                                    className="max-w-full max-h-[90vh] object-contain rounded-lg shadow-2xl"
+                                    className="max-w-full max-h-[90vh] object-contain rounded-xl shadow-2xl"
                                 />
                             </div>
                         </div>
                     )}
 
-
                     {/* Filters Section */}
-                    <div className="flex gap-4 mb-4 bg-muted/20 p-4 rounded-xl border border-border flex-wrap">
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Marca</label>
-                            <select
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                value={filterBrand}
-                                onChange={(e) => setFilterBrand(e.target.value)}
-                            >
-                                <option value="">Todas las Marcas</option>
-                                {uniqueBrands.map(b => (
-                                    <option key={b} value={b}>{b}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Propietario</label>
-                            <select
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                value={filterOwner}
-                                onChange={(e) => setFilterOwner(e.target.value)}
-                            >
-                                <option value="">Todos los Propietarios</option>
-                                {uniqueOwners.map(o => (
-                                    <option key={o} value={o}>{o}</option>
-                                ))}
-                            </select>
-                        </div>
-                        <div className="flex-1 min-w-[200px]">
-                            <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">N° Boleta</label>
-                            <select
-                                className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                                value={filterCode}
-                                onChange={(e) => setFilterCode(e.target.value)}
-                            >
-                                <option value="">Todas las Boletas</option>
-                                {uniqueCodes.map(c => (
-                                    <option key={c} value={c}>{c}</option>
-                                ))}
-                            </select>
-                        </div>
+                    <section className="space-y-2">
                         {(filterBrand || filterOwner || filterCode) && (
-                            <div className="flex items-end">
+                            <div className="flex justify-end">
                                 <button
                                     onClick={() => { setFilterBrand(''); setFilterOwner(''); setFilterCode(''); }}
-                                    className="px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-md text-sm font-medium transition-colors"
+                                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
                                 >
-                                    Limpiar Filtros
+                                    <Filter className="w-3.5 h-3.5" />
+                                    Limpiar filtros
                                 </button>
                             </div>
                         )}
-                    </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                            <div className="bg-card p-3 px-4 rounded-xl border border-border shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-colors">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Marca</label>
+                                <select
+                                    className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-foreground focus:ring-0 cursor-pointer"
+                                    value={filterBrand}
+                                    onChange={(e) => setFilterBrand(e.target.value)}
+                                >
+                                    <option value="">Todas las Marcas</option>
+                                    {uniqueBrands.map(b => (
+                                        <option key={b} value={b}>{b}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="bg-card p-3 px-4 rounded-xl border border-border shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-colors">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">Propietario</label>
+                                <select
+                                    className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-foreground focus:ring-0 cursor-pointer"
+                                    value={filterOwner}
+                                    onChange={(e) => setFilterOwner(e.target.value)}
+                                >
+                                    <option value="">Todos los Propietarios</option>
+                                    {uniqueOwners.map(o => (
+                                        <option key={o} value={o}>{o}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div className="bg-card p-3 px-4 rounded-xl border border-border shadow-sm focus-within:ring-2 focus-within:ring-primary/20 focus-within:border-primary transition-colors">
+                                <label className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">N° Boleta</label>
+                                <select
+                                    className="w-full bg-transparent border-0 p-0 text-sm font-semibold text-foreground focus:ring-0 cursor-pointer"
+                                    value={filterCode}
+                                    onChange={(e) => setFilterCode(e.target.value)}
+                                >
+                                    <option value="">Todas las Boletas</option>
+                                    {uniqueCodes.map(c => (
+                                        <option key={c} value={c}>{c}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        </div>
+                    </section>
 
                     {/* Products Grouped by Brand */}
                     <div className="space-y-6">
@@ -790,7 +782,7 @@ function BrandSectionMobile({ brandGroup, ownerColor, ownerTotals = {}, isMultiO
 
 // Collapsible Subcomponent for Brand Section (Desktop)
 function BrandSection({ brandGroup, onPhotoClick, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [] }) {
-    const [isExpanded, setIsExpanded] = useState(false);
+    const [isExpanded, setIsExpanded] = useState(true);
 
     const getColor = (name) => users.find(u => u.username === name)?.color || '#9ca3af';
 
@@ -817,33 +809,22 @@ function BrandSection({ brandGroup, onPhotoClick, ownerColor, ownerTotals = {}, 
     }, 0);
 
     return (
-        <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden"
+        <article className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden transition-shadow hover:shadow-md"
             style={borderStyle}>
             {/* Brand Header */}
-            <div
-                className="bg-muted/30 px-6 py-4 border-b border-border flex justify-between items-center cursor-pointer hover:bg-muted/50 transition-colors"
-                onClick={() => setIsExpanded(!isExpanded)}
-            >
-                <div className="flex items-center gap-4">
-                    <h3 className="text-lg font-bold text-foreground uppercase tracking-wide flex items-center gap-3">
-                        {brandGroup.name}
-                        {!isExpanded && (
-                            <span className="text-xs font-normal text-muted-foreground bg-card border border-border px-2 py-0.5 rounded-full">
-                                {brandGroup.items.length} productos
-                            </span>
-                        )}
-                    </h3>
+            <div className="p-6 border-b border-border flex flex-wrap items-center justify-between gap-4 bg-muted/30">
+                <div className="flex items-center gap-3 flex-wrap">
+                    <h2 className="text-lg font-black tracking-tight text-foreground">{brandGroup.name}</h2>
 
                     {/* Propietario Badge(s) */}
                     {isMultiOwner ? (
-                        // Multi-owner: show chips for each owner
                         <div className="flex items-center gap-1.5 flex-wrap">
                             {Object.entries(ownerTotals).map(([name, amt]) => {
                                 const color = getColor(name);
                                 const total = Object.values(ownerTotals).reduce((s, v) => s + v, 0);
                                 const pct = total > 0 ? ((amt / total) * 100).toFixed(0) : 0;
                                 return (
-                                    <div key={name} className="flex items-center gap-1.5 px-2 py-0.5 rounded-full border border-border text-xs font-bold" style={{ borderColor: color }}>
+                                    <div key={name} className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-bold" style={{ borderColor: color }}>
                                         <div className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
                                         <span className="text-foreground">{name}</span>
                                         <span className="text-muted-foreground text-[10px]">({pct}%)</span>
@@ -852,15 +833,9 @@ function BrandSection({ brandGroup, onPhotoClick, ownerColor, ownerTotals = {}, 
                             })}
                         </div>
                     ) : brandGroup.propietario ? (
-                        // Single owner
-                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-background border border-border shadow-sm">
-                            <div
-                                className="w-2.5 h-2.5 rounded-full"
-                                style={{ backgroundColor: ownerColor || '#9ca3af' }}
-                            />
-                            <span className="text-xs font-bold text-muted-foreground uppercase">
-                                {brandGroup.propietario}
-                            </span>
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-card border border-border shadow-sm">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: ownerColor || '#9ca3af' }} />
+                            <span className="text-xs font-bold text-muted-foreground uppercase">{brandGroup.propietario}</span>
                         </div>
                     ) : null}
 
@@ -873,124 +848,119 @@ function BrandSection({ brandGroup, onPhotoClick, ownerColor, ownerTotals = {}, 
 
                         if (customBultos !== null) {
                             return (
-                                <div className="text-sm font-medium px-3 py-1 rounded-md border bg-pink-50 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-300 dark:border-pink-800">
-                                    <span className="flex items-center gap-1.5">
-                                        <Package className="w-4 h-4" />
-                                        {customBultos} Bultos
-                                    </span>
-                                </div>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-pink-50 text-pink-700 border border-pink-200 dark:bg-pink-950/30 dark:text-pink-300 dark:border-pink-900">
+                                    <Package className="w-3.5 h-3.5" />
+                                    {customBultos} Bultos
+                                </span>
                             );
                         } else if (sumBultos > 0) {
                             return (
-                                <div className="text-sm font-medium px-3 py-1 rounded-md border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800">
-                                    <span className="flex items-center gap-1.5">
-                                        <Package className="w-4 h-4" />
-                                        {sumBultos} Bultos
-                                    </span>
-                                </div>
+                                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/30 dark:text-blue-300 dark:border-blue-900">
+                                    <Package className="w-3.5 h-3.5" />
+                                    {sumBultos} Bultos
+                                </span>
                             );
                         } else {
                             return (
-                                <div className="text-sm font-medium px-3 py-1 rounded-md border bg-muted/50 text-muted-foreground border-transparent italic">
-                                    <span>Sin bultos agregados</span>
-                                </div>
+                                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-muted text-muted-foreground border border-border">
+                                    Sin bultos agregados
+                                </span>
                             );
                         }
                     })()}
 
                     {/* Brand Total Amount */}
-                    <div className="text-sm font-bold px-3 py-1 rounded-md border bg-green-50 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800">
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-300 dark:border-emerald-900 tabular-nums">
                         ${brandTotal.toLocaleString('es-AR')}
-                    </div>
+                    </span>
                 </div>
 
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2">
-                        <span className="text-xs font-semibold text-muted-foreground uppercase">Boleta:</span>
-                        <span className={`font-mono text-sm font-medium ${brandGroup.boleta ? 'text-foreground' : 'text-destructive italic'}`}>
-                            {brandGroup.boleta || 'NO INGRESADA'}
-                        </span>
-                    </div>
-                    <div className="text-muted-foreground">
-                        {isExpanded ? (
-                            <ChevronLeft className="w-5 h-5 -rotate-90 transition-transform" />
-                        ) : (
-                            <ChevronLeft className="w-5 h-5 rotate-90 transition-transform" />
-                        )}
-                    </div>
+                <div className="flex items-center gap-3">
+                    <span className="text-xs font-semibold text-muted-foreground">
+                        BOLETA: <span className={`font-mono font-bold ${brandGroup.boleta ? 'text-foreground' : 'text-destructive italic'}`}>{brandGroup.boleta || 'NO INGRESADA'}</span>
+                    </span>
+                    <button
+                        onClick={() => setIsExpanded(!isExpanded)}
+                        className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+                        aria-label={isExpanded ? 'Colapsar' : 'Expandir'}
+                    >
+                        {isExpanded ? <ChevronUp className="w-5 h-5" /> : <ChevronDown className="w-5 h-5" />}
+                    </button>
                 </div>
             </div>
 
             {/* Collapsible Content */}
             {isExpanded && (
-                <div>
+                <div className="p-6 space-y-6">
                     {/* Brand Photos Gallery */}
-                    {brandGroup.photos && brandGroup.photos.length > 0 && (
-                        <div className="px-6 py-4 bg-muted/10 border-b border-border">
-                            <div className="flex items-center gap-2 mb-3">
-                                <ImageIcon className="w-4 h-4 text-muted-foreground" />
-                                <span className="text-sm font-semibold text-foreground">
-                                    Fotos de la marca ({brandGroup.photos.length})
-                                </span>
-                            </div>
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-xs font-bold text-muted-foreground">
+                            <ImageIcon className="w-4 h-4" />
+                            Fotos de la marca ({brandGroup.photos.length})
+                        </div>
+                        {brandGroup.photos.length > 0 ? (
                             <div className="flex gap-3 flex-wrap">
                                 {brandGroup.photos.map((photoUrl, index) => (
-                                    <div
+                                    <button
                                         key={index}
                                         onClick={() => onPhotoClick(photoUrl)}
-                                        className="cursor-pointer group relative"
+                                        className="relative group rounded-xl overflow-hidden border border-border shadow-sm hover:ring-2 hover:ring-primary/40 transition-all"
                                     >
                                         <img
                                             src={photoUrl}
                                             alt={`${brandGroup.name} - Foto ${index + 1}`}
-                                            className="h-24 w-24 object-cover rounded-lg border-2 border-border group-hover:border-primary transition-all shadow-sm group-hover:shadow-md"
+                                            className="h-24 w-24 object-cover"
                                         />
-                                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 rounded-lg transition-all flex items-center justify-center">
-                                            <ImageIcon className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 flex items-center justify-center transition-colors">
+                                            <ImageIcon className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                                         </div>
-                                    </div>
+                                    </button>
                                 ))}
                             </div>
-                        </div>
-                    )}
+                        ) : (
+                            <div className="w-24 h-24 rounded-xl border border-dashed border-border flex items-center justify-center text-muted-foreground/60 text-[10px] font-bold uppercase text-center px-1">
+                                Sin fotos
+                            </div>
+                        )}
+                    </div>
 
                     {/* Products Table */}
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-sm text-left">
-                            <thead className="bg-muted/20 border-b border-border text-xs uppercase text-muted-foreground">
+                    <div className="overflow-x-auto rounded-xl border border-border">
+                        <table className="w-full text-left text-sm">
+                            <thead className="bg-muted text-[11px] font-bold uppercase tracking-wider text-muted-foreground border-b border-border">
                                 <tr>
-                                    <th className="px-6 py-3">Producto</th>
-                                    <th className="px-6 py-3">Código</th>
-                                    <th className="px-6 py-3 text-center">Docenas</th>
-                                    <th className="px-6 py-3 text-right">Precio Doc.</th>
-                                    <th className="px-6 py-3 text-right">Total</th>
-                                    <th className="px-6 py-3">Observaciones</th>
-                                    {isMultiOwner && <th className="px-6 py-3">Propietario</th>}
+                                    <th className="py-3 px-4">Producto</th>
+                                    <th className="py-3 px-4">Código</th>
+                                    <th className="py-3 px-4 text-center">Docenas</th>
+                                    <th className="py-3 px-4 text-right">Precio Doc.</th>
+                                    <th className="py-3 px-4 text-right">Total</th>
+                                    <th className="py-3 px-4 text-center">Observaciones</th>
+                                    {isMultiOwner && <th className="py-3 px-4">Propietario</th>}
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-border bg-card">
+                            <tbody className="divide-y divide-border font-medium text-foreground">
                                 {brandGroup.items.map((prod) => {
-                                        const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
-                                        const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
-                                        return (
+                                    const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
+                                    const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
+                                    return (
                                         <tr key={prod.id}
-                                            className="hover:bg-muted/10 transition-colors"
+                                            className="hover:bg-muted/40 transition-colors"
                                             style={isMultiOwner && prodOwnerColor ? { borderLeft: `3px solid ${prodOwnerColor}` } : {}}
                                         >
-                                            <td className="px-6 py-4 font-medium text-foreground">{prod.producto_titulo}</td>
-                                            <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
-                                            <td className="px-6 py-4 text-center font-bold text-foreground">{prod.cantidad_docenas}</td>
-                                            <td className="px-6 py-4 text-right text-muted-foreground">
+                                            <td className="py-3 px-4 font-semibold text-foreground">{prod.producto_titulo}</td>
+                                            <td className="py-3 px-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
+                                            <td className="py-3 px-4 text-center font-bold text-foreground">{prod.cantidad_docenas}</td>
+                                            <td className="py-3 px-4 text-right tabular-nums text-muted-foreground">
                                                 ${Number(prod.precio_docena || 0).toLocaleString('es-AR')}
                                             </td>
-                                            <td className="px-6 py-4 text-right font-bold text-green-600 dark:text-green-400">
+                                            <td className="py-3 px-4 text-right font-extrabold text-emerald-600 dark:text-emerald-400 tabular-nums">
                                                 ${(prod.cantidad_docenas * (Number(prod.precio_docena) || 0)).toLocaleString('es-AR')}
                                             </td>
-                                            <td className="px-6 py-4 text-muted-foreground italic">
+                                            <td className="py-3 px-4 text-center text-muted-foreground italic">
                                                 {prod.observaciones || '-'}
                                             </td>
                                             {isMultiOwner && (
-                                                <td className="px-6 py-4">
+                                                <td className="py-3 px-4">
                                                     {prodOwner ? (
                                                         <span className="flex items-center gap-1.5 text-xs font-semibold">
                                                             <span className="w-2 h-2 rounded-full" style={{ backgroundColor: prodOwnerColor || '#9ca3af' }} />
@@ -1002,13 +972,13 @@ function BrandSection({ brandGroup, onPhotoClick, ownerColor, ownerTotals = {}, 
                                                 </td>
                                             )}
                                         </tr>
-                                        );
-                                    })}
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
                 </div>
             )}
-        </div>
+        </article>
     );
 }

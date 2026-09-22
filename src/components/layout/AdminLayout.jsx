@@ -103,8 +103,8 @@ const isActive = (path, exact = false) => {
     // Todos los ítems del menú con su section key
     const ALL_MENU_ITEMS = [
         { to: '/admin/dashboard',              icon: LayoutDashboard,  label: 'Dashboard',              section: 'dashboard' },
-        { to: '/admin/products',               icon: Heart,            label: 'Products',               section: 'products' },
-        { to: '/admin/categories',             icon: Folder,           label: 'Categories',             section: 'categories' },
+        { to: '/admin/products',               icon: Heart,            label: 'Productos',               section: 'products' },
+        { to: '/admin/categories',             icon: Folder,           label: 'Categorías',             section: 'categories' },
         { to: '/admin/coupons',                icon: Ticket,           label: 'Cupones',                section: 'coupons' },
         { to: '/admin/senas',                  icon: HandCoins,        label: 'Señas',                  section: 'senas' },
         { to: '/admin/debts',                  icon: CircleDollarSign, label: 'Deudas',                 section: 'debts' },
@@ -118,7 +118,7 @@ const isActive = (path, exact = false) => {
         { to: '/admin/ventas/historial',       icon: History,          label: 'Historial Ventas',       section: 'ventas-historial' },
         { to: '/admin/cuentas-bancarias',      icon: Building2,        label: 'Cuentas Bancarias',      section: 'cuentas-bancarias' },
         { to: '/admin/entrega-dinero',         icon: Wallet,           label: 'Entrega Dinero',         section: 'entrega-dinero' },
-        { to: '/admin/settings',               icon: Settings,         label: 'Settings',               section: 'settings' },
+        { to: '/admin/settings',               icon: Settings,         label: 'Configuración',               section: 'settings' },
     ];
 
     const visibleItems = ALL_MENU_ITEMS.filter(item => {
@@ -193,35 +193,43 @@ const isActive = (path, exact = false) => {
     // VISTA DESKTOP
     return (
         <div className="flex h-screen bg-background font-sans">
-            <aside className="w-64 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border shadow-lg">
-                <div className="p-6">
-                    <h1 className="text-2xl font-bold text-sidebar-primary-foreground tracking-wider">DASHBOARD</h1>
+            <aside className="admin-sidebar-nav w-64 bg-sidebar text-sidebar-foreground flex flex-col justify-between border-r border-sidebar-border overflow-y-auto px-4 py-5">
+                <div>
+                    <div className="flex items-center gap-3 px-2 pb-5 mb-2 border-b border-sidebar-border">
+                        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm shadow-primary/20">
+                            <Layers className="h-5 w-5" strokeWidth={2} />
+                        </div>
+                        <span className="text-lg font-extrabold tracking-tight text-sidebar-foreground">DASHBOARD</span>
+                    </div>
+
+                    <nav className="space-y-1 text-sm font-medium">
+                        {visibleItems.map((item) => {
+                            const active = isActive(item.to, item.exact);
+                            return (
+                                <Link
+                                    key={item.to}
+                                    to={item.to}
+                                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors duration-150 ${
+                                        active
+                                            ? 'bg-primary text-white shadow-md shadow-primary/25 font-semibold'
+                                            : 'text-sidebar-foreground/80 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                                    }`}
+                                >
+                                    <item.icon className={`h-5 w-5 ${active ? 'text-white' : 'text-sidebar-foreground/40'}`} strokeWidth={1.75} />
+                                    <span>{item.label}</span>
+                                </Link>
+                            );
+                        })}
+                    </nav>
                 </div>
 
-                <nav className="flex-1 px-4 space-y-2 mt-8 overflow-y-auto">
-                    {visibleItems.map((item) => (
-                        <Link
-                            key={item.to}
-                            to={item.to}
-                            className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                                isActive(item.to, item.exact)
-                                    ? 'bg-gradient-to-r from-pink-500 to-pink-600 text-white shadow-lg shadow-pink-500/30 font-semibold'
-                                    : 'text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                            }`}
-                        >
-                            <item.icon className="w-5 h-5" />
-                            <span className="font-medium">{item.label}</span>
-                        </Link>
-                    ))}
-                </nav>
-
-                <div className="p-4 border-t border-sidebar-border">
+                <div className="pt-6 mt-6 border-t border-sidebar-border">
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-3 px-4 py-3 w-full rounded-lg text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-colors"
+                        className="w-full flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground/80 hover:bg-destructive/10 hover:text-destructive transition-colors"
                     >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium">Sign Out</span>
+                        <LogOut className="h-5 w-5 text-sidebar-foreground/40" strokeWidth={1.75} />
+                        <span>Cerrar Sesión</span>
                     </button>
                 </div>
             </aside>

@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { pricingService } from '../../services/pricingService';
 import { TandaCard } from '../../components/pricing/TandaCard';
 import { supabase } from '../../lib/supabase';
-import { PackageX, Package, ShoppingBag, Archive, Search, ChevronRight, Tag, DollarSign, TrendingUp, Wifi, WifiOff, RefreshCw, AlertTriangle } from 'lucide-react';
-import BuscadorMercancia from '../../components/mercancia/BuscadorMercancia';
+import { PackageX, Package, ShoppingBag, Archive, Search, ChevronRight, Tag, DollarSign, TrendingUp, Wifi, WifiOff, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { useMobile } from '../../hooks/useMobile';
+import { useDebounce } from '../../hooks/useDebounce';
 import { formatARS, formatUSD } from '../../utils/pricingUtils';
 import { loadDolarConfigLocal, loadDolarConfigFromDB, saveDolarConfig } from '../../lib/dolarConfig';
 
@@ -33,6 +33,10 @@ export function PrecioVentaListado() {
     const [indiceTipo, setIndiceTipo] = useState('1.5');
     const [customIndiceValue, setCustomIndiceValue] = useState('');
     const lastSearchTermRef = useRef('');
+
+    // Desktop search input (debounced, alimenta handleSearch/handleClear)
+    const [searchInput, setSearchInput] = useState('');
+    const debouncedSearchInput = useDebounce(searchInput, 300);
 
     const isMobile = useMobile();
     const navigate = useNavigate();
@@ -117,6 +121,15 @@ export function PrecioVentaListado() {
     useEffect(() => {
         fetchTandas();
     }, []);
+
+    useEffect(() => {
+        if (debouncedSearchInput.trim()) {
+            handleSearch(debouncedSearchInput);
+        } else {
+            handleClear();
+        }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [debouncedSearchInput]);
 
     const getUserColor = (username) => users.find(u => u.username === username)?.color || '#9ca3af';
 
@@ -622,17 +635,17 @@ export function PrecioVentaListado() {
 
     // ─── Desktop Layout ───────────────────────────────────────────────────────
     return (
-        <div className="container mx-auto px-4 py-8">
-            <div className="mb-8 text-center">
-                <h1 className="text-3xl font-extrabold text-foreground mb-2">Precio de Venta Sugerido</h1>
-                <p className="text-muted-foreground max-w-2xl mx-auto">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
+            <div className="text-center max-w-2xl mx-auto space-y-1.5">
+                <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Precio de Venta Sugerido</h1>
+                <p className="text-muted-foreground text-sm">
                     Gestiona los precios de venta, configura el índice de ganancia y publica productos al catálogo oficial.
                 </p>
             </div>
 
             {/* ── Warning banner (desktop) ── */}
             {!useDolarBlue && (
-                <div className="mb-6 max-w-3xl mx-auto bg-amber-400 text-amber-950 rounded-xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
+                <div className="max-w-3xl mx-auto bg-amber-400 text-amber-950 rounded-2xl px-5 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-md">
                     <div className="flex items-start gap-3">
                         <AlertTriangle className="h-6 w-6 shrink-0 mt-0.5" />
                         <div>
@@ -649,7 +662,7 @@ export function PrecioVentaListado() {
                     <button
                         type="button"
                         onClick={() => handleToggleDolar(true)}
-                        className="shrink-0 flex items-center gap-2 bg-amber-950 text-amber-100 px-4 py-2 rounded-lg font-bold text-sm hover:bg-amber-900 transition-colors"
+                        className="shrink-0 flex items-center gap-2 bg-amber-950 text-amber-100 px-4 py-2 rounded-xl font-bold text-sm hover:bg-amber-900 transition-colors"
                     >
                         <Wifi className="h-4 w-4" />
                         Reactivar API
@@ -658,99 +671,162 @@ export function PrecioVentaListado() {
             )}
 
             {/* ── Settings Panel (desktop) ── */}
-            <div className="mb-4 flex items-center gap-3 max-w-3xl mx-auto">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Configuración de precios</span>
-                <div className="h-px flex-1 bg-border" />
-            </div>
-            <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-5 max-w-3xl mx-auto">
+            <section className="max-w-4xl mx-auto space-y-3">
+                <div className="flex items-center justify-center gap-3">
+                    <span className="h-px w-16 bg-border" />
+                    <span className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase">Configuración de Precios</span>
+                    <span className="h-px w-16 bg-border" />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-                {/* Cotización Dólar */}
-                <div className={`p-4 rounded-xl border shadow-sm ${!useDolarBlue ? 'bg-amber-50 border-amber-300 dark:bg-amber-950/30 dark:border-amber-700' : 'bg-card border-border'}`}>
-                    <div className="flex items-center justify-between mb-2">
-                        <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1">
-                            <DollarSign className="h-3 w-3" /> Cotización Dólar
-                        </label>
-                        <div className="flex items-center gap-2">
-                            <span className={`text-xs font-bold flex items-center gap-1 ${useDolarBlue ? 'text-blue-500' : 'text-amber-600'}`}>
-                                {useDolarBlue ? <Wifi className="h-3 w-3" /> : <WifiOff className="h-3 w-3" />}
-                                {useDolarBlue ? 'Blue API' : 'Manual'}
-                            </span>
-                            <button
-                                type="button"
-                                onClick={() => handleToggleDolar(!useDolarBlue)}
-                                className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${useDolarBlue ? 'bg-blue-500' : 'bg-amber-400'}`}
-                            >
-                                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transform transition-transform ${useDolarBlue ? 'translate-x-4' : 'translate-x-0'}`} />
-                            </button>
-                            {useDolarBlue && (
-                                <button onClick={fetchDolarBlue} disabled={fetchingDolar} className="text-blue-400 hover:text-blue-600 disabled:opacity-40">
-                                    <RefreshCw className={`h-3.5 w-3.5 ${fetchingDolar ? 'animate-spin' : ''}`} />
-                                </button>
-                            )}
-                        </div>
-                    </div>
-                    {useDolarBlue ? (
-                        <div className="relative">
-                            <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                            <input readOnly value={dolarBlueValue ?? ''} placeholder={fetchingDolar ? 'Obteniendo...' : '—'}
-                                className="w-full pl-7 py-2 rounded-md border border-input bg-muted/30 text-sm font-bold font-mono text-primary opacity-75 cursor-not-allowed"
-                            />
-                            {dolarBlueValue && <p className="text-xs text-blue-500 mt-1 font-medium">✓ Dólar Blue: ${dolarBlueValue.toLocaleString('es-AR')} (venta)</p>}
-                            {fetchError && <p className="text-xs text-destructive mt-1">{fetchError}</p>}
-                        </div>
-                    ) : (
-                        <div>
-                            <div className="relative">
-                                <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                                <input type="number" value={manualDolar} onChange={e => handleManualDolarChange(e.target.value)}
-                                    placeholder="Ej: 1390" className="w-full pl-7 py-2 rounded-md border border-amber-300 bg-background text-sm font-bold font-mono focus:ring-amber-400"
-                                />
+                    {/* Cotización Dólar */}
+                    <div className={`rounded-2xl p-5 border shadow-sm flex flex-col justify-between transition-colors ${
+                        !useDolarBlue ? 'bg-amber-50 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/50' : 'bg-card border-border hover:border-muted-foreground/30'
+                    }`}>
+                        <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                            <div className="flex items-center gap-2">
+                                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">Cotización Dólar</span>
                             </div>
-                            <p className="text-xs text-amber-600 mt-1 font-medium flex items-center gap-1">
-                                <AlertTriangle className="h-3 w-3" /> Valor manual — puede estar desactualizado
-                            </p>
+                            <div className={`flex items-center gap-2 px-2.5 py-1 rounded-lg border ${
+                                useDolarBlue ? 'bg-sky-50 border-sky-100 dark:bg-sky-950/30 dark:border-sky-900/50' : 'bg-amber-100/70 border-amber-200 dark:bg-amber-900/30 dark:border-amber-800'
+                            }`}>
+                                {useDolarBlue ? <Wifi className="w-3.5 h-3.5 text-sky-600" /> : <WifiOff className="w-3.5 h-3.5 text-amber-600" />}
+                                <span className={`text-[11px] font-bold ${useDolarBlue ? 'text-sky-700 dark:text-sky-400' : 'text-amber-700 dark:text-amber-400'}`}>
+                                    {useDolarBlue ? 'Blue API' : 'Manual'}
+                                </span>
+                                <button
+                                    type="button"
+                                    aria-label="Alternar API de dólar"
+                                    onClick={() => handleToggleDolar(!useDolarBlue)}
+                                    className={`relative inline-flex h-4 w-7 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${useDolarBlue ? 'bg-sky-600' : 'bg-amber-500'}`}
+                                >
+                                    <span className={`pointer-events-none inline-block h-3 w-3 rounded-full bg-white shadow transform transition-transform ${useDolarBlue ? 'translate-x-3' : 'translate-x-0'}`} />
+                                </button>
+                            </div>
                         </div>
-                    )}
-                </div>
 
-                {/* Índice de Ganancia */}
-                <div className="bg-card p-4 rounded-xl border border-border shadow-sm">
-                    <label className="text-xs font-bold text-muted-foreground uppercase flex items-center gap-1 mb-3">
-                        <TrendingUp className="h-3 w-3" /> Índice de Ganancia
-                    </label>
-                    <div className="grid grid-cols-4 gap-2">
-                        {['1.4', '1.5', '1.6', 'custom'].map(tipo => (
-                            <button key={tipo} onClick={() => handleIndice(tipo)}
-                                className={`py-2 rounded-lg text-sm font-black transition-all ${
-                                    indiceTipo === tipo ? 'bg-[#FF5C39] text-white' : 'bg-muted text-muted-foreground hover:bg-muted/60'
-                                }`}>
-                                {tipo === 'custom' ? 'Custom' : `${tipo}x`}
-                            </button>
-                        ))}
+                        {useDolarBlue ? (
+                            <div className="mt-4">
+                                <div className="flex items-center gap-3">
+                                    <div className="relative flex-1">
+                                        <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground font-semibold text-sm">$</span>
+                                        <input
+                                            readOnly
+                                            value={dolarBlueValue ?? ''}
+                                            placeholder={fetchingDolar ? 'Obteniendo...' : '—'}
+                                            className="w-full pl-7 pr-3 py-2 text-base font-bold text-orange-600 bg-muted/40 border border-border rounded-xl cursor-not-allowed"
+                                        />
+                                    </div>
+                                    <button
+                                        type="button"
+                                        onClick={fetchDolarBlue}
+                                        disabled={fetchingDolar}
+                                        aria-label="Refrescar cotización"
+                                        className="p-2.5 rounded-xl border border-border hover:bg-muted text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+                                    >
+                                        <RefreshCw className={`w-4 h-4 ${fetchingDolar ? 'animate-spin' : ''}`} />
+                                    </button>
+                                </div>
+                                {dolarBlueValue && (
+                                    <div className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"><path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                        <span>Dólar Blue: ${dolarBlueValue.toLocaleString('es-AR')} (venta)</span>
+                                    </div>
+                                )}
+                                {fetchError && <p className="text-xs text-destructive mt-2">{fetchError}</p>}
+                            </div>
+                        ) : (
+                            <div className="mt-4">
+                                <div className="relative">
+                                    <span className="absolute inset-y-0 left-0 pl-3 flex items-center text-muted-foreground font-semibold text-sm">$</span>
+                                    <input
+                                        type="number"
+                                        value={manualDolar}
+                                        onChange={e => handleManualDolarChange(e.target.value)}
+                                        placeholder="Ej: 1390"
+                                        className="w-full pl-7 pr-3 py-2 text-base font-bold text-foreground bg-background border border-amber-300 dark:border-amber-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-400/40"
+                                    />
+                                </div>
+                                <p className="mt-3 flex items-center gap-1.5 text-xs font-semibold text-amber-600 dark:text-amber-400">
+                                    <AlertTriangle className="w-3.5 h-3.5" /> Valor manual — puede estar desactualizado
+                                </p>
+                            </div>
+                        )}
                     </div>
-                    {indiceTipo === 'custom' ? (
-                        <input type="number" step="0.01" value={customIndiceValue}
-                            onChange={e => { setCustomIndiceValue(e.target.value); const n = parseFloat(e.target.value); if (!isNaN(n) && n > 0) setIndiceValor(n); }}
-                            placeholder="Ej: 1.7" className="mt-3 w-full bg-muted border-input rounded-md py-2 px-3 text-sm font-bold text-center focus:ring-2 focus:ring-ring"
-                        />
-                    ) : (
-                        <p className="text-center text-sm font-bold text-muted-foreground mt-3">{indiceValor.toFixed(1)}</p>
+
+                    {/* Índice de Ganancia */}
+                    <div className="bg-card rounded-2xl p-5 border border-border shadow-sm flex flex-col justify-between hover:border-muted-foreground/30 transition-colors">
+                        <div className="flex items-center justify-between pb-3 border-b border-border/70">
+                            <div className="flex items-center gap-2">
+                                <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-xs font-bold uppercase tracking-wider text-foreground">Índice de Ganancia</span>
+                            </div>
+                            <span className="text-xs font-semibold text-muted-foreground">Multiplicador</span>
+                        </div>
+
+                        <div className="mt-4 flex items-center bg-muted/60 p-1 rounded-xl gap-1">
+                            {['1.4', '1.5', '1.6', 'custom'].map(tipo => (
+                                <button
+                                    key={tipo}
+                                    onClick={() => handleIndice(tipo)}
+                                    className={`flex-1 py-1.5 text-xs rounded-lg transition-colors ${
+                                        indiceTipo === tipo
+                                            ? 'bg-orange-600 text-white font-extrabold shadow-sm'
+                                            : 'text-muted-foreground hover:text-foreground font-bold'
+                                    }`}
+                                >
+                                    {tipo === 'custom' ? 'Custom' : `${tipo}x`}
+                                </button>
+                            ))}
+                        </div>
+
+                        {indiceTipo === 'custom' ? (
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={customIndiceValue}
+                                onChange={e => { setCustomIndiceValue(e.target.value); const n = parseFloat(e.target.value); if (!isNaN(n) && n > 0) setIndiceValor(n); }}
+                                placeholder="Ej: 1.7"
+                                className="mt-3 w-full bg-muted/60 border border-border rounded-xl py-2 px-3 text-sm font-bold text-center focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            />
+                        ) : (
+                            <div className="mt-3 flex items-center justify-between">
+                                <span className="text-xs text-muted-foreground font-medium">Margen aplicado:</span>
+                                <span className="text-xs font-extrabold text-foreground bg-muted px-2.5 py-0.5 rounded-md border border-border">{indiceValor.toFixed(1)}</span>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            </section>
+
+            {/* ── Search (desktop) ── */}
+            <section className="max-w-4xl mx-auto space-y-3">
+                <div className="flex items-center justify-center gap-3">
+                    <span className="h-px w-16 bg-border" />
+                    <span className="text-[11px] font-bold tracking-widest text-muted-foreground uppercase">Buscar Producto</span>
+                    <span className="h-px w-16 bg-border" />
+                </div>
+                <div className="relative">
+                    <Search className="absolute inset-y-0 left-4 my-auto w-4 h-4 text-muted-foreground pointer-events-none" />
+                    <input
+                        type="text"
+                        value={searchInput}
+                        onChange={(e) => setSearchInput(e.target.value)}
+                        placeholder="Buscar por código de producto o boleta..."
+                        className="w-full pl-11 pr-11 py-3 bg-card border border-border rounded-2xl text-sm font-medium text-foreground placeholder-muted-foreground shadow-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                    />
+                    {searchInput && (
+                        <button
+                            onClick={() => setSearchInput('')}
+                            className="absolute inset-y-0 right-0 flex items-center pr-4 text-muted-foreground hover:text-foreground transition-colors"
+                            title="Limpiar búsqueda"
+                        >
+                            <X className="h-4 w-4" />
+                        </button>
                     )}
                 </div>
-            </div>
-
-            {/* ── Search separator (desktop) ── */}
-            <div className="mb-4 flex items-center gap-3 max-w-3xl mx-auto">
-                <div className="h-px flex-1 bg-border" />
-                <span className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Buscar producto</span>
-                <div className="h-px flex-1 bg-border" />
-            </div>
-
-            {/* Search Input */}
-            <div className="mb-8 max-w-lg mx-auto">
-                <BuscadorMercancia onSearch={handleSearch} onClear={handleClear} />
-            </div>
+            </section>
 
             {/* ── Price Results Panel (desktop) ── */}
             {searchLoading && (
@@ -760,8 +836,8 @@ export function PrecioVentaListado() {
             )}
 
             {priceResults && priceResults.length > 0 && !searchLoading && (
-                <div className="mb-10">
-                    <div className="flex items-center justify-between mb-4">
+                <section className="max-w-6xl mx-auto">
+                    <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                         <div className="flex items-center gap-2">
                             <Tag className="h-4 w-4 text-primary" />
                             <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
@@ -774,8 +850,8 @@ export function PrecioVentaListado() {
                                 Dólar: <strong className="text-emerald-600">${efectiveDolar > 0 ? efectiveDolar.toLocaleString('es-AR') : 'No configurado'}</strong>
                             </span>
                             <span className="flex items-center gap-1">
-                                <span className="w-1.5 h-1.5 rounded-full bg-indigo-500"></span>
-                                Índice: <strong className="text-indigo-600">{indiceValor}x</strong>
+                                <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                                Índice: <strong className="text-orange-600">{indiceValor}x</strong>
                             </span>
                         </div>
                     </div>
@@ -786,17 +862,17 @@ export function PrecioVentaListado() {
                             return (
                             <div
                                 key={idx}
-                                className="group relative bg-card rounded-2xl border border-border shadow-sm hover:shadow-xl hover:border-indigo-500/30 transition-all duration-300 overflow-hidden cursor-pointer"
+                                className="group relative bg-card rounded-2xl border border-border shadow-sm hover:shadow-xl hover:border-primary/30 transition-all duration-300 overflow-hidden cursor-pointer"
                                 style={prodOwner ? { borderLeft: `4px solid ${getUserColor(prodOwner)}` } : {}}
                                 onClick={() => navigate(`/admin/precio-venta-sugerido/${encodeURIComponent(prod.tanda_nombre)}?q=${encodeURIComponent(prod.codigo || prod.producto_titulo || '')}`)}
                             >
-                                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                                
+                                <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-primary to-orange-500 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
                                 {/* Brand + boleta + tanda header */}
-                                <div className="flex items-start justify-between px-6 py-4 border-b border-border bg-muted/10 group-hover:bg-indigo-50/50 dark:group-hover:bg-indigo-950/20 transition-colors">
+                                <div className="flex items-start justify-between px-6 py-4 border-b border-border bg-muted/10 group-hover:bg-primary/5 transition-colors">
                                     <div className="flex flex-col">
                                         <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                                            <span className="text-[10px] font-black tracking-widest text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 dark:text-indigo-400 px-2.5 py-0.5 rounded-full uppercase">
+                                            <span className="text-[10px] font-black tracking-widest text-primary bg-primary/10 px-2.5 py-0.5 rounded-full uppercase">
                                                 {prod.tanda_nombre}
                                             </span>
                                             {prod.codigo_boleta && (
@@ -817,14 +893,14 @@ export function PrecioVentaListado() {
                                             )}
                                         </div>
                                     </div>
-                                    <div className="bg-background border border-border rounded-full p-2 group-hover:bg-indigo-500 group-hover:text-white group-hover:border-indigo-500 transition-all duration-300 text-muted-foreground shadow-sm">
+                                    <div className="bg-background border border-border rounded-full p-2 group-hover:bg-primary group-hover:text-primary-foreground group-hover:border-primary transition-all duration-300 text-muted-foreground shadow-sm">
                                         <ChevronRight className="w-4 h-4" />
                                     </div>
                                 </div>
 
                                 {/* Product name + code + prices */}
                                 <div className="px-6 py-5">
-                                    <p className="font-bold text-foreground text-[15px] leading-tight mb-1 group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">
+                                    <p className="font-bold text-foreground text-[15px] leading-tight mb-1 group-hover:text-primary transition-colors">
                                         {prod.producto_titulo || '—'}
                                     </p>
                                     {prod.codigo && (
@@ -839,9 +915,9 @@ export function PrecioVentaListado() {
                                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Costo</p>
                                             <p className="text-[14px] font-bold text-muted-foreground">{formatUSD(prod.prices.precioVentaAlCosto)}</p>
                                         </div>
-                                        <div className="bg-indigo-50/50 dark:bg-indigo-500/5 rounded-xl p-3 flex flex-col items-center justify-center border border-indigo-100/50 dark:border-indigo-500/10">
-                                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest mb-1.5">Venta USD</p>
-                                            <p className="text-[14px] font-black text-indigo-600 dark:text-indigo-400">{formatUSD(prod.prices.precioDeVenta)}</p>
+                                        <div className="bg-primary/5 rounded-xl p-3 flex flex-col items-center justify-center border border-primary/10">
+                                            <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5">Venta USD</p>
+                                            <p className="text-[14px] font-black text-primary">{formatUSD(prod.prices.precioDeVenta)}</p>
                                         </div>
                                         <div className={`rounded-xl p-3 flex flex-col items-center justify-center shadow-sm border ${prod.prices.precioVentaArg !== null ? 'bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-100 dark:border-emerald-900/50' : 'bg-muted/30 border-transparent'}`}>
                                             <p className={`text-[10px] font-black uppercase tracking-widest mb-1.5 ${prod.prices.precioVentaArg !== null ? 'text-emerald-600 dark:text-emerald-500' : 'text-muted-foreground'}`}>
@@ -857,54 +933,53 @@ export function PrecioVentaListado() {
                             );
                         })}
                     </div>
-                </div>
+                </section>
             )}
 
             {priceResults && priceResults.length === 0 && !searchLoading && (
-                <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border mb-8">
+                <div className="max-w-4xl mx-auto text-center py-12 bg-card rounded-2xl border border-dashed border-border">
                     <PackageX className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
                     <p className="text-muted-foreground font-medium">No se encontraron resultados</p>
                     <p className="text-sm text-muted-foreground mt-1">Intentá con otro código de producto o boleta.</p>
                 </div>
             )}
 
-            {/* ── Tanda Cards (shown always, filtered when searching) ── */}
+            {/* ── Tandas Executive Grid (shown always, filtered when searching) ── */}
             {!priceResults && (
                 filteredTandas.length === 0 ? (
-                    <div className="text-center py-12 bg-card rounded-xl border border-dashed border-border">
+                    <div className="max-w-4xl mx-auto text-center py-12 bg-card rounded-2xl border border-dashed border-border">
                         <PackageX className="mx-auto h-12 w-12 text-muted-foreground mb-2" />
                         <p className="text-muted-foreground font-medium">No se encontraron resultados</p>
                         <p className="text-sm text-muted-foreground mt-1">Intentá con otro código de producto o boleta.</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                        {filteredTandas.map((tanda) => (
-                            <div key={tanda.tanda_nombre} className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-                                <TandaCard tanda={tanda} />
-                                {searchResults && (
-                                    <div className="px-6 pb-6 -mt-2">
-                                        <div className="space-y-1 pt-4 border-t border-border">
-                                            {searchResults
-                                                .filter(p => p.tanda_nombre === tanda.tanda_nombre)
-                                                .slice(0, 3)
-                                                .map((prod, idx) => (
-                                                    <div key={idx} className="flex items-center gap-2 text-xs bg-green-500/10 text-green-700 dark:text-green-400 px-2 py-1 rounded border border-green-500/20">
+                    <section className="max-w-6xl mx-auto pb-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                            {filteredTandas.map((tanda) => {
+                                const matches = searchResults ? searchResults.filter(p => p.tanda_nombre === tanda.tanda_nombre) : [];
+                                return (
+                                    <div key={tanda.tanda_nombre} className="flex flex-col gap-2">
+                                        <TandaCard tanda={tanda} />
+                                        {searchResults && matches.length > 0 && (
+                                            <div className="space-y-1 px-1">
+                                                {matches.slice(0, 3).map((prod, idx) => (
+                                                    <div key={idx} className="flex items-center gap-2 text-xs bg-green-500/10 text-green-700 dark:text-green-400 px-2.5 py-1 rounded-lg border border-green-500/20">
                                                         <span className="font-bold">✓ {prod.producto_titulo}</span>
                                                         <span className="opacity-75">({prod.codigo})</span>
                                                     </div>
-                                                ))
-                                            }
-                                            {searchResults.filter(p => p.tanda_nombre === tanda.tanda_nombre).length > 3 && (
-                                                <p className="text-xs text-center text-muted-foreground mt-1">
-                                                    +{searchResults.filter(p => p.tanda_nombre === tanda.tanda_nombre).length - 3} coincidencias más
-                                                </p>
-                                            )}
-                                        </div>
+                                                ))}
+                                                {matches.length > 3 && (
+                                                    <p className="text-xs text-center text-muted-foreground">
+                                                        +{matches.length - 3} coincidencias más
+                                                    </p>
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
-                                )}
-                            </div>
-                        ))}
-                    </div>
+                                );
+                            })}
+                        </div>
+                    </section>
                 )
             )}
         </div>

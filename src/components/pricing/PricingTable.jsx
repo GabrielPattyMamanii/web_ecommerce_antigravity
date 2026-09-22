@@ -264,89 +264,94 @@ export function PricingTable({ products, settings, users = [], isOldEntrada = fa
     }
 
     return (
-        <div className="pb-12">
-            <div className="mb-6 flex flex-col sm:flex-row justify-between items-start sm:items-center px-1">
-                <h3 className="text-xl font-bold text-foreground mb-2 sm:mb-0">Listado de Marcas y Precios</h3>
-                <div className="text-sm text-foreground bg-card shadow-sm border border-border px-4 py-2 rounded-lg flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-yellow-400"></span>
-                    Gastos Totales Tanda: <span className="font-bold">${totalTandaExpense.toLocaleString('es-AR')}</span>
-                    <span className="text-muted-foreground mx-2">|</span>
-                    <span className="text-muted-foreground">Aplicado a cada producto en el cálculo</span>
+        <div className="pb-12 space-y-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <h3 className="text-base font-extrabold text-foreground tracking-tight flex items-center gap-2">
+                    Listado de Marcas y Precios
+                    <span className="w-2 h-2 rounded-full bg-primary"></span>
+                </h3>
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-amber-50/80 dark:bg-amber-950/20 border border-amber-200/80 dark:border-amber-900/40 rounded-full text-xs text-amber-900 dark:text-amber-200 shadow-sm">
+                    <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+                    <span className="font-bold">Gastos Totales Tanda: ${totalTandaExpense.toLocaleString('es-AR')} USD</span>
+                    <span className="text-amber-300 dark:text-amber-700">|</span>
+                    <span className="text-amber-700 dark:text-amber-400 font-medium">Distribuido uniformemente en el costo por producto</span>
                 </div>
             </div>
 
             {/* Filters */}
-            <div className="flex gap-4 mb-6 bg-muted/20 p-4 rounded-xl border border-border flex-wrap">
+            <div className="bg-card rounded-2xl border border-border p-4 shadow-sm">
+                <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
 
-                {/* Text search — código or nombre */}
-                <div className="w-full">
-                    <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Buscar por Código o Nombre</label>
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                        <input
-                            type="text"
-                            value={filterSearch}
-                            onChange={e => setFilterSearch(e.target.value)}
-                            placeholder="Buscar producto en TODO el sistema..."
-                            className="w-full pl-9 pr-9 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring font-medium"
-                        />
-                        {filterSearch && (
-                            <button
-                                onClick={() => setFilterSearch('')}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                            >
-                                <X className="h-3.5 w-3.5" />
-                            </button>
-                        )}
+                    {/* Text search — código or nombre */}
+                    <div className="md:col-span-4">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Buscar por Código o Nombre</label>
+                        <div className="relative">
+                            <Search className="absolute inset-y-0 left-0 pl-3 my-auto h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="text"
+                                value={filterSearch}
+                                onChange={e => setFilterSearch(e.target.value)}
+                                placeholder="Buscar producto en TODO el sistema..."
+                                className="w-full pl-8 pr-8 py-2 bg-muted/40 border border-border rounded-xl text-xs focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20 font-medium text-foreground"
+                            />
+                            {filterSearch && (
+                                <button
+                                    onClick={() => setFilterSearch('')}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="md:col-span-3">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Marca</label>
+                        <select
+                            className="w-full py-2 px-3 bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            value={filterBrand}
+                            onChange={e => setFilterBrand(e.target.value)}
+                        >
+                            <option value="">Todas las Marcas ({uniqueBrands.length})</option>
+                            {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
+                    </div>
+                    <div className="md:col-span-3">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Propietario</label>
+                        <select
+                            className="w-full py-2 px-3 bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            value={filterOwner}
+                            onChange={e => setFilterOwner(e.target.value)}
+                        >
+                            <option value="">Todos los Propietarios</option>
+                            {uniqueOwners.map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                    </div>
+                    <div className="md:col-span-2">
+                        <label className="block text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-1">Nº Boleta</label>
+                        <select
+                            className="w-full py-2 px-3 bg-muted/40 border border-border rounded-xl text-xs font-semibold text-foreground focus:bg-card focus:outline-none focus:ring-2 focus:ring-primary/20"
+                            value={filterBoleta}
+                            onChange={e => setFilterBoleta(e.target.value)}
+                        >
+                            <option value="">Todas las Boletas</option>
+                            {uniqueBoletas.map(b => <option key={b} value={b}>{b}</option>)}
+                        </select>
                     </div>
                 </div>
-
-                <div className="flex-1 min-w-[180px]">
-                    <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Marca</label>
-                    <select
-                        className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        value={filterBrand}
-                        onChange={e => setFilterBrand(e.target.value)}
-                    >
-                        <option value="">Todas las Marcas</option>
-                        {uniqueBrands.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                </div>
-                <div className="flex-1 min-w-[180px]">
-                    <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">Propietario</label>
-                    <select
-                        className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        value={filterOwner}
-                        onChange={e => setFilterOwner(e.target.value)}
-                    >
-                        <option value="">Todos los Propietarios</option>
-                        {uniqueOwners.map(o => <option key={o} value={o}>{o}</option>)}
-                    </select>
-                </div>
-                <div className="flex-1 min-w-[180px]">
-                    <label className="text-xs font-bold text-muted-foreground uppercase mb-1 block">N° Boleta</label>
-                    <select
-                        className="w-full px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-                        value={filterBoleta}
-                        onChange={e => setFilterBoleta(e.target.value)}
-                    >
-                        <option value="">Todas las Boletas</option>
-                        {uniqueBoletas.map(b => <option key={b} value={b}>{b}</option>)}
-                    </select>
-                </div>
                 {hasFilters && (
-                    <div className="flex items-end">
+                    <div className="flex justify-end mt-3">
                         <button
                             onClick={clearAll}
-                            className="px-4 py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-md text-sm font-medium transition-colors"
+                            className="text-xs font-semibold text-primary hover:underline"
                         >
-                            Limpiar Filtros
+                            Limpiar filtros
                         </button>
                     </div>
                 )}
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
                 {filteredGroups.sort((a, b) => a.name.localeCompare(b.name)).map((group, idx) => {
                     const owner = users.find(u => u.username === group.propietario);
                     const ownerColor = owner ? owner.color : null;
@@ -375,7 +380,7 @@ export function PricingTable({ products, settings, users = [], isOldEntrada = fa
                 />
 
                 {filteredGroups.length === 0 && (!filterSearch || filterSearch.trim().length < 2) && (
-                    <div className="text-center py-10 bg-card rounded-xl border border-dashed border-border text-muted-foreground text-sm">
+                    <div className="text-center py-10 bg-card rounded-2xl border border-dashed border-border text-muted-foreground text-sm">
                         {hasFilters
                             ? 'No se encontraron productos en esta tanda con esos filtros.'
                             : 'No se encontraron marcas con los filtros aplicados.'

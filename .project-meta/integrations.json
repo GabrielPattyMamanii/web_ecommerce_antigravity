@@ -1,0 +1,49 @@
+{
+  "project_name": "ecommerce-web",
+  "created_at": "2026-09-09",
+  "last_updated": "2026-09-09",
+  "integrations": {
+    "stitch": {
+      "name": "Stitch",
+      "type": "Design System / UI Component Library",
+      "project_id": "1234888852551236141",
+      "project_name": "ecommerce-luriel",
+      "mcp_enabled": true,
+      "mcp_config": {
+        "command": "npx",
+        "args": ["stitch-mcp-server"],
+        "location": "~/.claude/settings.json"
+      },
+      "components_exported": [
+        "admin_coupons_stitch.html",
+        "navbar_stitch.html"
+      ],
+      "notes": "Connected via MCP (Model Context Protocol) for design-to-code collaboration"
+    },
+    "supabase": {
+      "name": "Supabase",
+      "type": "Backend / Database",
+      "status": "Active",
+      "notes": "Primary database and auth provider"
+    },
+    "mercado_pago": {
+      "name": "Mercado Pago",
+      "type": "Payment Processing",
+      "product": "Checkout PRO",
+      "status": "Active"
+    }
+  },
+  "related_projects": [
+    {
+      "name": "ecommerce-mobile",
+      "path": "c:\\Users\\gabri\\OneDrive\\Desktop\\Prueba antigravity\\ecommerce-mobile\\app\\(admin)",
+      "type": "React Native + Expo"
+    }
+  ],
+  "tech_stack": {
+    "frontend": "React + Vite",
+    "database": "Supabase",
+    "payment": "Mercado Pago Checkout PRO",
+    "special_features": "Sistema de señas implementado"
+  }
+}

@@ -1,14 +1,19 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { supabase } from '../../lib/supabase';
 import Toast from '../../components/ui/Toast';
+import {
+    Folder, Tag, Search, X, Plus, Trash2, Sparkles, AlertTriangle, Info,
+    FolderOpen, ClipboardList, MousePointerClick, CornerDownRight, ChevronRight,
+    ChevronDown, ArrowUpDown
+} from 'lucide-react';
 
 // ─── Category Skeleton ─────────────────────────────────────────────
 const CategorySkeleton = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderRadius: 12, background: 'var(--muted)', opacity: 0.5 }}>
-        <div style={{ width: 36, height: 36, borderRadius: 8, background: 'var(--border)' }} />
-        <div style={{ flex: 1 }}>
-            <div style={{ width: '55%', height: 14, background: 'var(--border)', borderRadius: 4, marginBottom: 6 }} />
-            <div style={{ width: '30%', height: 11, background: 'var(--border)', borderRadius: 4 }} />
+    <div className="flex items-center gap-3 p-3 px-4 rounded-xl bg-muted/50 animate-pulse">
+        <div className="w-9 h-9 rounded-lg bg-border shrink-0" />
+        <div className="flex-1 space-y-1.5">
+            <div className="w-1/2 h-3.5 bg-border rounded" />
+            <div className="w-1/3 h-2.5 bg-border rounded" />
         </div>
     </div>
 );
@@ -18,93 +23,56 @@ const DeleteConfirmModal = ({ info, onConfirm, onCancel, loading }) => {
     if (!info) return null;
     const isCategory = info.type !== 'subcategoria';
     return (
-        <div style={{
-            position: 'fixed', inset: 0, zIndex: 9999,
-            background: 'rgba(0,0,0,0.55)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            backdropFilter: 'blur(4px)',
-            animation: 'fadeIn 0.15s ease',
-        }}>
-            <div style={{
-                background: 'var(--card)', borderRadius: 18,
-                border: '1.5px solid var(--border)',
-                boxShadow: '0 20px 60px rgba(0,0,0,0.25)',
-                padding: 28, width: 420, maxWidth: '92vw',
-            }}>
+        <div className="fixed inset-0 z-[9999] bg-black/55 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-150">
+            <div className="bg-card border border-border rounded-2xl shadow-2xl p-7 w-[420px] max-w-[92vw] animate-in zoom-in-95 duration-150">
                 {/* Icon */}
-                <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                    <div style={{
-                        width: 56, height: 56, borderRadius: 16, margin: '0 auto 12px',
-                        background: 'color-mix(in srgb, var(--destructive) 12%, transparent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28,
-                    }}>🗑️</div>
-                    <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--foreground)', margin: 0 }}>
+                <div className="text-center mb-4">
+                    <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-destructive/12 flex items-center justify-center">
+                        <Trash2 className="w-6 h-6 text-destructive" />
+                    </div>
+                    <h3 className="text-lg font-extrabold text-foreground">
                         ¿Eliminar {isCategory ? 'categoría' : 'subcategoría'}?
                     </h3>
                 </div>
 
                 {/* Name */}
-                <div style={{
-                    background: 'var(--muted)', borderRadius: 10, padding: '10px 14px',
-                    marginBottom: 16, textAlign: 'center',
-                }}>
-                    <span style={{ fontWeight: 700, fontSize: 15, color: 'var(--foreground)' }}>"{info.nombre}"</span>
+                <div className="bg-muted rounded-lg px-3.5 py-2.5 mb-4 text-center">
+                    <span className="font-bold text-[15px] text-foreground">"{info.nombre}"</span>
                 </div>
 
                 {/* Warnings */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 22 }}>
+                <div className="flex flex-col gap-2 mb-5">
                     {isCategory && info.subCount > 0 && (
-                        <div style={{
-                            display: 'flex', gap: 10, alignItems: 'flex-start',
-                            padding: '10px 12px', borderRadius: 10,
-                            background: 'color-mix(in srgb, #f59e0b 10%, transparent)',
-                            border: '1px solid color-mix(in srgb, #f59e0b 30%, transparent)',
-                        }}>
-                            <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
-                            <p style={{ margin: 0, fontSize: 13, color: 'var(--foreground)', lineHeight: 1.5 }}>
+                        <div className="flex gap-2.5 items-start p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                            <p className="text-sm text-foreground leading-relaxed">
                                 También se eliminarán <strong>{info.subCount} {info.subCount === 1 ? 'subcategoría' : 'subcategorías'}</strong> que contiene.
                             </p>
                         </div>
                     )}
-                    <div style={{
-                        display: 'flex', gap: 10, alignItems: 'flex-start',
-                        padding: '10px 12px', borderRadius: 10,
-                        background: 'color-mix(in srgb, #3b82f6 10%, transparent)',
-                        border: '1px solid color-mix(in srgb, #3b82f6 25%, transparent)',
-                    }}>
-                        <span style={{ fontSize: 16, flexShrink: 0 }}>ℹ️</span>
-                        <p style={{ margin: 0, fontSize: 13, color: 'var(--foreground)', lineHeight: 1.5 }}>
+                    <div className="flex gap-2.5 items-start p-3 rounded-lg bg-blue-500/10 border border-blue-500/25">
+                        <Info className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+                        <p className="text-sm text-foreground leading-relaxed">
                             Los productos con esta categoría <strong>no se eliminarán</strong>; simplemente quedarán sin categoría asignada.
                         </p>
                     </div>
                 </div>
 
                 {/* Buttons */}
-                <div style={{ display: 'flex', gap: 10 }}>
+                <div className="flex gap-2.5">
                     <button
                         onClick={onCancel}
                         disabled={loading}
-                        style={{
-                            flex: 1, padding: '11px 0', borderRadius: 11, cursor: 'pointer',
-                            border: '1.5px solid var(--border)', background: 'var(--card)',
-                            color: 'var(--foreground)', fontWeight: 600, fontSize: 14,
-                        }}
+                        className="flex-1 py-2.5 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-muted transition-colors disabled:opacity-50"
                     >
                         Cancelar
                     </button>
                     <button
                         onClick={onConfirm}
                         disabled={loading}
-                        style={{
-                            flex: 1, padding: '11px 0', borderRadius: 11, cursor: loading ? 'not-allowed' : 'pointer',
-                            border: 'none',
-                            background: loading ? 'var(--muted)' : 'var(--destructive)',
-                            color: loading ? 'var(--muted-foreground)' : 'white',
-                            fontWeight: 700, fontSize: 14,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                        }}
+                        className="flex-1 py-2.5 rounded-xl bg-destructive text-white font-bold text-sm hover:bg-destructive/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
                     >
-                        {loading ? 'Eliminando...' : '🗑️ Eliminar'}
+                        {loading ? 'Eliminando…' : (<><Trash2 className="w-4 h-4" /> Eliminar</>)}
                     </button>
                 </div>
             </div>
@@ -119,7 +87,7 @@ export function CategoryList() {
     const [searchTerm, setSearchTerm] = useState('');
     const [selectedCategory, setSelectedCategory] = useState(null);
 
-    const [formData, setFormData] = useState({ nombre: '', tipo: 'categoria' });
+    const [formData, setFormData] = useState({ nombre: '', tipo: 'categoria', parentId: '' });
     const [errors, setErrors] = useState({});
     const [toast, setToast] = useState(null);
 
@@ -127,9 +95,8 @@ export function CategoryList() {
     const [deleteModal, setDeleteModal] = useState(null); // { id, nombre, type, subCount }
     const [deleteLoading, setDeleteLoading] = useState(false);
 
-    // Drag state
-    const [draggedId, setDraggedId] = useState(null);
-    const [dragOverId, setDragOverId] = useState(null);
+    // Parent reassignment state (row currently showing its "mover a" select as busy)
+    const [movingId, setMovingId] = useState(null);
 
     useEffect(() => { fetchCategorias(); }, []);
 
@@ -173,6 +140,12 @@ export function CategoryList() {
         return { topCategories: topCats, subcategsByParent: subsByParent, orphanSubs: orphans };
     }, [categorias, searchTerm]);
 
+    // Lista completa de categorías principales (sin filtrar por búsqueda), para los selects de asignación
+    const allTopCategories = useMemo(
+        () => categorias.filter(c => c.type !== 'subcategoria'),
+        [categorias]
+    );
+
     // ─── Validation ─────────────────────────────────────────────────
     const validateForm = () => {
         const newErrors = {};
@@ -201,7 +174,7 @@ export function CategoryList() {
                 name: formData.nombre,
                 slug,
                 type: formData.tipo,
-                parent_id: null,
+                parent_id: formData.tipo === 'subcategoria' && formData.parentId ? formData.parentId : null,
             };
             const { data, error } = await supabase
                 .from('categories')
@@ -209,9 +182,11 @@ export function CategoryList() {
                 .select();
             if (error) throw error;
             showToast(
-                formData.tipo === 'subcategoria'
-                    ? '✅ Subcategoría creada. Arrástrala bajo una categoría.'
-                    : '✅ Categoría creada exitosamente',
+                formData.tipo === 'subcategoria' && !newCat.parent_id
+                    ? '✅ Subcategoría creada sin asignar. Puedes asignarla desde la lista.'
+                    : formData.tipo === 'subcategoria'
+                        ? '✅ Subcategoría creada y asignada'
+                        : '✅ Categoría creada exitosamente',
                 'success'
             );
             resetForm();
@@ -281,69 +256,29 @@ export function CategoryList() {
         }
     };
 
-    // ─── Drag & Drop ─────────────────────────────────────────────────
-    const handleDragStart = useCallback((e, subId) => {
-        setDraggedId(subId);
-        e.dataTransfer.effectAllowed = 'move';
-    }, []);
-
-    const handleDragOver = useCallback((e, catId) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        setDragOverId(catId);
-    }, []);
-
-    const handleDragLeave = useCallback(() => {
-        setDragOverId(null);
-    }, []);
-
-    const handleDrop = useCallback(async (e, parentCatId) => {
-        e.preventDefault();
-        setDragOverId(null);
-        if (!draggedId || draggedId === parentCatId) return;
-
+    // ─── Reasignar categoría padre de una subcategoría ────────────────
+    const handleChangeParent = useCallback(async (subId, newParentId) => {
+        setMovingId(subId);
         try {
             const { error } = await supabase
                 .from('categories')
-                .update({ parent_id: parentCatId })
-                .eq('id', draggedId);
-            if (error) throw error;
-            setCategorias(prev =>
-                prev.map(c => c.id === draggedId ? { ...c, parent_id: parentCatId } : c)
-            );
-            showToast('✅ Subcategoría asignada', 'success');
-        } catch (err) {
-            console.error(err);
-            showToast('❌ Error al asignar subcategoría', 'error');
-        } finally {
-            setDraggedId(null);
-        }
-    }, [draggedId]);
-
-    const handleDragEnd = useCallback(() => {
-        setDraggedId(null);
-        setDragOverId(null);
-    }, []);
-
-    // ─── Remove parent (unassign subcategory) ──────────────────────
-    const handleUnassign = async (subId) => {
-        try {
-            const { error } = await supabase
-                .from('categories')
-                .update({ parent_id: null })
+                .update({ parent_id: newParentId })
                 .eq('id', subId);
             if (error) throw error;
             setCategorias(prev =>
-                prev.map(c => c.id === subId ? { ...c, parent_id: null } : c)
+                prev.map(c => c.id === subId ? { ...c, parent_id: newParentId } : c)
             );
-            showToast('Subcategoría desasignada', 'info');
+            showToast(newParentId ? '✅ Subcategoría asignada' : 'Subcategoría desasignada', newParentId ? 'success' : 'info');
         } catch (err) {
-            showToast('❌ Error al desasignar', 'error');
+            console.error(err);
+            showToast('❌ Error al reasignar subcategoría', 'error');
+        } finally {
+            setMovingId(null);
         }
-    };
+    }, []);
 
     const resetForm = () => {
-        setFormData({ nombre: '', tipo: 'categoria' });
+        setFormData({ nombre: '', tipo: 'categoria', parentId: '' });
         setErrors({});
     };
 
@@ -355,182 +290,88 @@ export function CategoryList() {
     // ─── Row Components ──────────────────────────────────────────────
     const CategoryRow = ({ cat }) => {
         const subs = subcategsByParent[cat.id] || [];
-        const isDropTarget = dragOverId === cat.id;
-        const anyDragging = !!draggedId;
+        const isSelected = selectedCategory?.id === cat.id;
 
         return (
-            <div
-                key={cat.id}
-                onDragOver={(e) => handleDragOver(e, cat.id)}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, cat.id)}
-                style={{
-                    borderRadius: 14,
-                    border: isDropTarget
-                        ? '2px dashed var(--primary)'
-                        : '1.5px solid var(--border)',
-                    background: isDropTarget
-                        ? 'color-mix(in srgb, var(--primary) 6%, var(--card))'
-                        : 'var(--card)',
-                    transition: 'all 0.18s',
-                    overflow: 'hidden',
-                    boxShadow: isDropTarget
-                        ? '0 0 0 4px color-mix(in srgb, var(--primary) 15%, transparent)'
-                        : '0 1px 3px rgba(0,0,0,0.06)',
-                }}
-            >
+            <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden transition-colors">
                 {/* Category header row */}
                 <div
-                    className="group"
-                    style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 12,
-                        padding: '13px 16px',
-                        cursor: 'pointer',
-                        background: selectedCategory?.id === cat.id
-                            ? 'color-mix(in srgb, var(--primary) 8%, var(--card))'
-                            : 'transparent',
-                    }}
+                    className={`group flex items-center gap-3 px-4 py-3 cursor-pointer transition-colors ${isSelected ? 'bg-primary/8' : 'hover:bg-muted/50'}`}
                     onClick={() => setSelectedCategory(cat)}
                 >
-                    <div style={{
-                        width: 36, height: 36, borderRadius: 10,
-                        background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 18, flexShrink: 0,
-                    }}>
-                        📁
+                    <div className="w-9 h-9 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
+                        <Folder className="w-[18px] h-[18px]" />
                     </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--foreground)', lineHeight: 1.3 }}>
+                    <div className="flex-1 min-w-0">
+                        <div className="font-bold text-[15px] text-foreground leading-tight truncate">
                             {cat.name}
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--muted-foreground)', marginTop: 1 }}>
+                        <div className="text-xs text-muted-foreground mt-0.5">
                             Categoría · {subs.length} {subs.length === 1 ? 'subcategoría' : 'subcategorías'}
                         </div>
                     </div>
-                    {anyDragging && (
-                        <span style={{
-                            fontSize: 11, fontWeight: 600,
-                            color: 'var(--primary)',
-                            background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-                            borderRadius: 6, padding: '2px 8px',
-                            opacity: isDropTarget ? 1 : 0.5,
-                        }}>
-                            {isDropTarget ? 'Soltar aquí' : 'Zona de soltar'}
-                        </span>
-                    )}
                     <button
-                        className="delete-btn"
-                        style={{
-                            width: 30, height: 30, borderRadius: 8, border: 'none',
-                            background: 'transparent', cursor: 'pointer', fontSize: 15,
-                            color: 'var(--muted-foreground)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            opacity: 0, transition: 'opacity 0.15s',
-                        }}
-                        onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                        onMouseLeave={e => e.currentTarget.style.opacity = 0}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-muted-foreground opacity-0 group-hover:opacity-100 hover:bg-destructive/10 hover:text-destructive transition-all shrink-0"
                         onClick={(e) => { e.stopPropagation(); handleDelete(cat.id, cat.name, cat.type); }}
                         title="Eliminar categoría"
                     >
-                        🗑️
+                        <Trash2 className="w-4 h-4" />
                     </button>
                 </div>
 
                 {/* Subcategories nested */}
                 {subs.length > 0 && (
-                    <div style={{
-                        borderTop: '1px solid var(--border)',
-                        background: 'color-mix(in srgb, var(--muted) 30%, var(--card))',
-                        padding: '6px 12px 8px 12px',
-                    }}>
+                    <div className="border-t border-border bg-muted/30 p-2.5 pl-3 space-y-1.5">
                         {subs.map(sub => (
                             <SubcategoryRow key={sub.id} sub={sub} />
                         ))}
-                    </div>
-                )}
-
-                {/* Empty drop hint */}
-                {subs.length === 0 && isDropTarget && (
-                    <div style={{
-                        borderTop: '1px dashed var(--border)',
-                        padding: '8px 16px',
-                        textAlign: 'center',
-                        fontSize: 12,
-                        color: 'var(--primary)',
-                    }}>
-                        Soltar subcategoría aquí
                     </div>
                 )}
             </div>
         );
     };
 
-    const SubcategoryRow = ({ sub, showUnassign = false }) => {
-        const isDragging = draggedId === sub.id;
+    const SubcategoryRow = ({ sub }) => {
+        const isMoving = movingId === sub.id;
         return (
-            <div
-                draggable
-                onDragStart={(e) => handleDragStart(e, sub.id)}
-                onDragEnd={handleDragEnd}
-                style={{
-                    display: 'flex', alignItems: 'center', gap: 10,
-                    padding: '8px 10px', borderRadius: 9, margin: '3px 0',
-                    cursor: 'grab', userSelect: 'none',
-                    background: isDragging
-                        ? 'color-mix(in srgb, var(--primary) 10%, var(--muted))'
-                        : 'color-mix(in srgb, var(--muted) 50%, var(--card))',
-                    border: '1px solid',
-                    borderColor: isDragging ? 'var(--primary)' : 'var(--border)',
-                    opacity: isDragging ? 0.55 : 1,
-                    transition: 'all 0.15s',
-                    boxShadow: isDragging ? '0 4px 12px rgba(0,0,0,0.12)' : 'none',
-                }}
-                onClick={() => setSelectedCategory(sub)}
-            >
-                <span style={{ color: 'var(--muted-foreground)', fontSize: 13 }}>⠿</span>
-                <div style={{
-                    width: 26, height: 26, borderRadius: 7,
-                    background: 'color-mix(in srgb, var(--muted-foreground) 15%, transparent)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 13, flexShrink: 0,
-                }}>
-                    🏷️
+            <div className={`flex items-center gap-2 px-2.5 py-2 rounded-lg bg-card border border-border select-none transition-opacity ${isMoving ? 'opacity-50' : ''}`}>
+                <CornerDownRight className="w-3.5 h-3.5 text-muted-foreground/70 shrink-0" />
+                <div className="w-[26px] h-[26px] rounded-md bg-muted-foreground/15 text-muted-foreground flex items-center justify-center shrink-0">
+                    <Tag className="w-3.5 h-3.5" />
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--foreground)' }}>
+                <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => setSelectedCategory(sub)}
+                >
+                    <div className="font-semibold text-[13px] text-foreground truncate">
                         {sub.name}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 1 }}>
+                    <div className="text-[11px] text-muted-foreground">
                         Subcategoría
                     </div>
                 </div>
-                {showUnassign && (
-                    <button
-                        title="Desasignar de categoría padre"
-                        style={{
-                            fontSize: 11, padding: '2px 7px', borderRadius: 6,
-                            border: '1px solid var(--border)', background: 'var(--card)',
-                            cursor: 'pointer', color: 'var(--muted-foreground)',
-                        }}
-                        onClick={(e) => { e.stopPropagation(); handleUnassign(sub.id); }}
+                <div className="relative shrink-0">
+                    <select
+                        value={sub.parent_id || ''}
+                        disabled={isMoving}
+                        onClick={(e) => e.stopPropagation()}
+                        onChange={(e) => handleChangeParent(sub.id, e.target.value || null)}
+                        title="Mover a otra categoría"
+                        className="appearance-none text-[11px] pl-1.5 pr-5 py-1 rounded-md border border-border bg-card text-foreground max-w-[130px] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                     >
-                        Desasignar
-                    </button>
-                )}
+                        <option value="">Sin categoría</option>
+                        {allTopCategories.map(c => (
+                            <option key={c.id} value={c.id}>{c.name}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="w-3 h-3 text-muted-foreground absolute right-1.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
                 <button
-                    style={{
-                        width: 26, height: 26, borderRadius: 7, border: 'none',
-                        background: 'transparent', cursor: 'pointer', fontSize: 14,
-                        color: 'var(--muted-foreground)', flexShrink: 0,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
+                    className="w-[26px] h-[26px] rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors shrink-0"
                     onClick={(e) => { e.stopPropagation(); handleDelete(sub.id, sub.name, sub.type); }}
                     title="Eliminar"
                 >
-                    🗑️
+                    <Trash2 className="w-3.5 h-3.5" />
                 </button>
             </div>
         );
@@ -538,267 +379,236 @@ export function CategoryList() {
 
     // ─── Render ───────────────────────────────────────────────────────
     return (
-        <div className="min-h-screen bg-background">
-            <div className="p-6 max-w-7xl mx-auto">
-                {/* Header */}
-                <div style={{ marginBottom: 28 }}>
-                    <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--foreground)', marginBottom: 4 }}>
-                        Categorías
-                    </h1>
-                    <p style={{ color: 'var(--muted-foreground)', fontSize: 14 }}>
-                        Gestiona las categorías y subcategorías de tus productos
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-7">
+                <div>
+                    <div className="flex items-center gap-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">
+                        <span>Catálogo &amp; Inventario</span>
+                        <ChevronRight className="w-3 h-3" />
+                        <span className="text-primary">Categorías</span>
+                    </div>
+                    <h1 className="text-2xl font-bold text-foreground tracking-tight">Categorías</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
+                        Gestioná las categorías y subcategorías para clasificar tus productos
                     </p>
                 </div>
+                <div className="flex items-center gap-2 shrink-0">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary/12 text-primary">
+                        <Folder className="w-3.5 h-3.5" /> {totalCats} {totalCats === 1 ? 'categoría' : 'categorías'}
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-muted text-muted-foreground">
+                        <Tag className="w-3.5 h-3.5" /> {totalSubs} {totalSubs === 1 ? 'subcategoría' : 'subcategorías'}
+                    </span>
+                </div>
+            </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
 
-                    {/* ── LEFT PANEL ─────────────────────────────────── */}
-                    <div className="lg:col-span-7 bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col"
-                        style={{ height: 'calc(100vh - 200px)' }}>
+                {/* ── LEFT PANEL: árbol de categorías ─────────────────────── */}
+                <div className="lg:col-span-7 bg-card border border-border rounded-xl shadow-sm overflow-hidden flex flex-col" style={{ height: 'calc(100vh - 220px)' }}>
 
-                        {/* Panel header */}
-                        <div style={{
-                            padding: '16px 20px',
-                            borderBottom: '1px solid var(--border)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                            background: 'var(--muted)',
-                        }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontWeight: 700, fontSize: 15 }}>
-                                <span>📋</span> Categorías Existentes
-                            </div>
-                            <div style={{ display: 'flex', gap: 8 }}>
-                                <span style={{
-                                    background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-                                    color: 'var(--primary)',
-                                    fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '3px 10px',
-                                }}>
-                                    {totalCats} {totalCats === 1 ? 'categoría' : 'categorías'}
-                                </span>
-                                {totalSubs > 0 && (
-                                    <span style={{
-                                        background: 'color-mix(in srgb, var(--muted-foreground) 15%, transparent)',
-                                        color: 'var(--muted-foreground)',
-                                        fontSize: 11, fontWeight: 700, borderRadius: 20, padding: '3px 10px',
-                                    }}>
-                                        {totalSubs} {totalSubs === 1 ? 'subcategoría' : 'subcategorías'}
-                                    </span>
-                                )}
-                            </div>
-                        </div>
+                    {/* Panel header */}
+                    <div className="px-5 py-4 border-b border-border bg-muted/40 flex items-center gap-2.5 shrink-0">
+                        <ClipboardList className="w-4 h-4 text-muted-foreground" />
+                        <h2 className="font-bold text-[15px] text-foreground">Categorías Existentes</h2>
+                    </div>
 
-                        {/* Search */}
-                        <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-                            <div style={{ position: 'relative' }}>
-                                <span style={{ position: 'absolute', left: 11, top: '50%', transform: 'translateY(-50%)', color: 'var(--muted-foreground)' }}>🔍</span>
-                                <input
-                                    type="text"
-                                    style={{
-                                        width: '100%', padding: '9px 36px', borderRadius: 9,
-                                        border: '1px solid var(--input)', background: 'var(--muted)',
-                                        color: 'var(--foreground)', fontSize: 13, outline: 'none',
-                                        boxSizing: 'border-box',
-                                    }}
-                                    placeholder="Buscar categoría..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                {searchTerm && (
-                                    <button
-                                        onClick={() => setSearchTerm('')}
-                                        style={{
-                                            position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)',
-                                            background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted-foreground)',
-                                        }}
-                                    >✕</button>
-                                )}
-                            </div>
-                        </div>
-
-                        {/* List */}
-                        <div style={{ flex: 1, overflowY: 'auto', padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                            {loading ? (
-                                <>
-                                    <CategorySkeleton />
-                                    <CategorySkeleton />
-                                    <CategorySkeleton />
-                                </>
-                            ) : topCategories.length === 0 && orphanSubs.length === 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 180, color: 'var(--muted-foreground)', fontSize: 14 }}>
-                                    <span style={{ fontSize: 36, marginBottom: 10 }}>📂</span>
-                                    <p>{searchTerm ? 'No se encontraron resultados' : 'No hay categorías registradas'}</p>
-                                </div>
-                            ) : (
-                                <>
-                                    {/* Top-level categories */}
-                                    {topCategories.map(cat => (
-                                        <CategoryRow key={cat.id} cat={cat} />
-                                    ))}
-
-                                    {/* Orphan subcategories */}
-                                    {orphanSubs.length > 0 && (
-                                        <div style={{
-                                            borderRadius: 12,
-                                            border: '1.5px dashed var(--border)',
-                                            padding: '10px 14px',
-                                        }}>
-                                            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                Subcategorías sin asignar — arrástralas a una categoría
-                                            </div>
-                                            {orphanSubs.map(sub => (
-                                                <SubcategoryRow key={sub.id} sub={sub} showUnassign={false} />
-                                            ))}
-                                        </div>
-                                    )}
-                                </>
+                    {/* Search */}
+                    <div className="px-4 py-3 border-b border-border shrink-0">
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="text"
+                                className="w-full pl-9 pr-9 py-2.5 rounded-lg border border-input bg-muted/50 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:bg-card transition-all"
+                                placeholder="Buscar categoría o subcategoría…"
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                            />
+                            {searchTerm && (
+                                <button
+                                    onClick={() => setSearchTerm('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
                             )}
                         </div>
                     </div>
 
-                    {/* ── RIGHT PANEL ────────────────────────────────── */}
-                    <div className="lg:col-span-5">
-                        <div style={{
-                            background: 'var(--card)', border: '1.5px solid var(--border)',
-                            borderRadius: 16, boxShadow: '0 4px 16px rgba(0,0,0,0.07)',
-                            padding: 24, position: 'sticky', top: 24,
-                        }}>
-                            {/* Panel title */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24, paddingBottom: 16, borderBottom: '1px solid var(--border)' }}>
-                                <span style={{
-                                    fontSize: 22, width: 42, height: 42, display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', borderRadius: 12,
-                                    background: 'color-mix(in srgb, var(--primary) 12%, transparent)',
-                                }}>✨</span>
-                                <h2 style={{ fontSize: 18, fontWeight: 800, color: 'var(--foreground)' }}>
-                                    Nueva Categoría
-                                </h2>
+                    {/* List */}
+                    <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
+                        {loading ? (
+                            <>
+                                <CategorySkeleton />
+                                <CategorySkeleton />
+                                <CategorySkeleton />
+                            </>
+                        ) : topCategories.length === 0 && orphanSubs.length === 0 ? (
+                            <div className="flex flex-col items-center justify-center h-44 text-muted-foreground text-sm gap-2.5">
+                                <FolderOpen className="w-9 h-9 text-muted-foreground/50" />
+                                <p>{searchTerm ? 'No se encontraron resultados' : 'No hay categorías registradas'}</p>
+                            </div>
+                        ) : (
+                            <>
+                                {/* Top-level categories */}
+                                {topCategories.map(cat => (
+                                    <CategoryRow key={cat.id} cat={cat} />
+                                ))}
+
+                                {/* Orphan subcategories */}
+                                {orphanSubs.length > 0 && (
+                                    <div className="rounded-xl border-2 border-dashed border-border p-3.5">
+                                        <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                                            Subcategorías sin asignar — elegí una categoría en el selector
+                                        </div>
+                                        <div className="space-y-1.5">
+                                            {orphanSubs.map(sub => (
+                                                <SubcategoryRow key={sub.id} sub={sub} />
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* Hint de reasignación en tiempo real */}
+                    <div className="px-4 py-2.5 border-t border-border shrink-0 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                        <ArrowUpDown className="w-3.5 h-3.5 text-primary shrink-0" />
+                        <span>Podés cambiar la categoría padre de cualquier subcategoría en tiempo real usando el selector.</span>
+                    </div>
+                </div>
+
+                {/* ── RIGHT PANEL: nueva categoría + leyenda ──────────────── */}
+                <div className="lg:col-span-5">
+                    <div className="bg-card border border-border rounded-2xl shadow-md p-6 lg:sticky lg:top-6">
+                        {/* Panel title */}
+                        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-border">
+                            <span className="w-11 h-11 rounded-xl bg-primary/12 text-primary flex items-center justify-center shrink-0">
+                                <Sparkles className="w-5 h-5" />
+                            </span>
+                            <h2 className="text-lg font-extrabold text-foreground">Nueva Categoría</h2>
+                        </div>
+
+                        <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+
+                            {/* Nombre */}
+                            <div>
+                                <label className="text-sm font-semibold text-foreground block mb-1.5">
+                                    Nombre <span className="text-destructive">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    className={`w-full px-3.5 py-2.5 rounded-lg border bg-background text-foreground text-sm focus:outline-none focus:ring-2 transition-colors ${
+                                        errors.nombre
+                                            ? 'border-destructive focus:ring-destructive/20'
+                                            : 'border-input focus:border-primary focus:ring-primary/20'
+                                    }`}
+                                    placeholder="Ej: Calzado deportivo"
+                                    value={formData.nombre}
+                                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                                />
+                                {errors.nombre && (
+                                    <p className="text-xs text-destructive mt-1.5 flex items-center gap-1">
+                                        <AlertTriangle className="w-3 h-3" /> {errors.nombre}
+                                    </p>
+                                )}
                             </div>
 
-                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-
-                                {/* Nombre */}
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', display: 'block', marginBottom: 6 }}>
-                                        Nombre <span style={{ color: 'var(--destructive)' }}>*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        style={{
-                                            width: '100%', padding: '10px 14px', borderRadius: 10,
-                                            border: `1.5px solid ${errors.nombre ? 'var(--destructive)' : 'var(--input)'}`,
-                                            background: 'var(--background)', color: 'var(--foreground)',
-                                            fontSize: 14, outline: 'none', boxSizing: 'border-box',
-                                            transition: 'border-color 0.15s',
-                                        }}
-                                        placeholder="Ej: Calzado deportivo"
-                                        value={formData.nombre}
-                                        onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
-                                        onFocus={e => { if (!errors.nombre) e.target.style.borderColor = 'var(--primary)'; }}
-                                        onBlur={e => { if (!errors.nombre) e.target.style.borderColor = 'var(--input)'; }}
-                                    />
-                                    {errors.nombre && (
-                                        <p style={{ fontSize: 12, color: 'var(--destructive)', marginTop: 5, display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            ⚠️ {errors.nombre}
-                                        </p>
-                                    )}
-                                </div>
-
-                                {/* Tipo */}
-                                <div>
-                                    <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--foreground)', display: 'block', marginBottom: 6 }}>
-                                        Tipo
-                                    </label>
-                                    <div style={{ display: 'flex', gap: 10 }}>
-                                        {[
-                                            { value: 'categoria', label: '📁 Categoría', desc: 'Nivel principal' },
-                                            { value: 'subcategoria', label: '🏷️ Subcategoría', desc: 'Nivel secundario' },
-                                        ].map(opt => (
+                            {/* Tipo */}
+                            <div>
+                                <label className="text-sm font-semibold text-foreground block mb-1.5">Tipo</label>
+                                <div className="flex gap-2.5">
+                                    {[
+                                        { value: 'categoria', label: 'Categoría', desc: 'Nivel principal', Icon: Folder },
+                                        { value: 'subcategoria', label: 'Subcategoría', desc: 'Nivel secundario', Icon: Tag },
+                                    ].map(opt => {
+                                        const active = formData.tipo === opt.value;
+                                        return (
                                             <button
                                                 key={opt.value}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, tipo: opt.value })}
-                                                style={{
-                                                    flex: 1, padding: '12px 10px', borderRadius: 11, cursor: 'pointer',
-                                                    border: `2px solid ${formData.tipo === opt.value ? 'var(--primary)' : 'var(--border)'}`,
-                                                    background: formData.tipo === opt.value
-                                                        ? 'color-mix(in srgb, var(--primary) 8%, var(--card))'
-                                                        : 'var(--muted)',
-                                                    transition: 'all 0.15s',
-                                                    textAlign: 'center',
-                                                }}
+                                                className={`flex-1 p-3 rounded-xl border-2 text-center transition-all ${
+                                                    active ? 'border-primary bg-primary/8' : 'border-border bg-muted/40 hover:bg-muted'
+                                                }`}
                                             >
-                                                <div style={{ fontSize: 14, fontWeight: 700, color: formData.tipo === opt.value ? 'var(--primary)' : 'var(--foreground)', marginBottom: 2 }}>
+                                                <opt.Icon className={`w-4 h-4 mx-auto mb-1 ${active ? 'text-primary' : 'text-muted-foreground'}`} />
+                                                <div className={`text-sm font-bold ${active ? 'text-primary' : 'text-foreground'}`}>
                                                     {opt.label}
                                                 </div>
-                                                <div style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>
-                                                    {opt.desc}
-                                                </div>
+                                                <div className="text-[11px] text-muted-foreground mt-0.5">{opt.desc}</div>
                                             </button>
-                                        ))}
-                                    </div>
-                                    {formData.tipo === 'subcategoria' && (
-                                        <p style={{ fontSize: 11, color: 'var(--muted-foreground)', marginTop: 8, padding: '6px 10px', background: 'var(--muted)', borderRadius: 7 }}>
-                                            💡 Después de crear, arrastra la subcategoría debajo de una categoría para asignarla.
-                                        </p>
-                                    )}
+                                        );
+                                    })}
                                 </div>
+                            </div>
 
-                                {/* Buttons */}
-                                <div style={{ display: 'flex', gap: 10, paddingTop: 4 }}>
-                                    <button
-                                        type="button"
-                                        onClick={resetForm}
-                                        style={{
-                                            flex: 1, padding: '11px 0', borderRadius: 11, cursor: 'pointer',
-                                            border: '1.5px solid var(--border)', background: 'var(--card)',
-                                            color: 'var(--foreground)', fontWeight: 600, fontSize: 14, transition: 'all 0.15s',
-                                        }}
-                                    >
-                                        Limpiar
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={!formData.nombre.trim()}
-                                        style={{
-                                            flex: 2, padding: '11px 0', borderRadius: 11, cursor: 'pointer',
-                                            border: 'none',
-                                            background: !formData.nombre.trim()
-                                                ? 'var(--muted)'
-                                                : 'var(--primary)',
-                                            color: !formData.nombre.trim()
-                                                ? 'var(--muted-foreground)'
-                                                : 'var(--primary-foreground)',
-                                            fontWeight: 800, fontSize: 14, transition: 'all 0.15s',
-                                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                                        }}
-                                    >
-                                        <span style={{ fontSize: 16 }}>+</span>
-                                        Crear {formData.tipo === 'subcategoria' ? 'Subcategoría' : 'Categoría'}
-                                    </button>
-                                </div>
-                            </form>
-
-                            {/* Legend */}
-                            <div style={{ marginTop: 28, padding: '14px 16px', background: 'var(--muted)', borderRadius: 11, border: '1px solid var(--border)' }}>
-                                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted-foreground)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                    Leyenda
-                                </div>
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'color-mix(in srgb, var(--primary) 12%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
-                                            📁
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>Categoría</div>
-                                            <div style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Nivel principal, agrupa subcategorías</div>
-                                        </div>
+                            {/* Categoría padre (solo para subcategorías) */}
+                            {formData.tipo === 'subcategoria' && (
+                                <div>
+                                    <label className="text-sm font-semibold text-foreground block mb-1.5">Categoría padre</label>
+                                    <div className="relative">
+                                        <select
+                                            value={formData.parentId}
+                                            onChange={(e) => setFormData({ ...formData, parentId: e.target.value })}
+                                            className="appearance-none w-full px-3.5 py-2.5 pr-9 rounded-lg border border-input bg-background text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-colors"
+                                        >
+                                            <option value="">Sin asignar (asignar después)</option>
+                                            {allTopCategories.map(c => (
+                                                <option key={c.id} value={c.id}>{c.name}</option>
+                                            ))}
+                                        </select>
+                                        <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                                        <div style={{ width: 30, height: 30, borderRadius: 8, background: 'color-mix(in srgb, var(--muted-foreground) 15%, transparent)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15 }}>
-                                            🏷️
-                                        </div>
-                                        <div>
-                                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--foreground)' }}>Subcategoría</div>
-                                            <div style={{ fontSize: 11, color: 'var(--muted-foreground)' }}>Arrastrala bajo una categoría para asignarla</div>
+                                </div>
+                            )}
+
+                            {/* Buttons */}
+                            <div className="flex gap-2.5 pt-1">
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    className="flex-1 py-2.5 rounded-xl border border-border bg-card text-foreground font-semibold text-sm hover:bg-muted transition-colors"
+                                >
+                                    Limpiar
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={!formData.nombre.trim()}
+                                    className="flex-[2] py-2.5 rounded-xl bg-primary text-primary-foreground font-extrabold text-sm shadow-sm hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5"
+                                >
+                                    <Plus className="w-4 h-4" />
+                                    Crear {formData.tipo === 'subcategoria' ? 'Subcategoría' : 'Categoría'}
+                                </button>
+                            </div>
+                        </form>
+
+                        {/* Legend */}
+                        <div className="mt-7 p-4 rounded-xl bg-muted/50 border border-border">
+                            <div className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider mb-3">
+                                Leyenda
+                            </div>
+                            <div className="flex flex-col gap-2.5">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-primary/12 text-primary flex items-center justify-center shrink-0">
+                                        <Folder className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[13px] font-bold text-foreground">Categoría</div>
+                                        <div className="text-[11px] text-muted-foreground">Nivel principal, agrupa subcategorías</div>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-lg bg-muted-foreground/15 text-muted-foreground flex items-center justify-center shrink-0">
+                                        <Tag className="w-4 h-4" />
+                                    </div>
+                                    <div>
+                                        <div className="text-[13px] font-bold text-foreground">Subcategoría</div>
+                                        <div className="text-[11px] text-muted-foreground flex items-center gap-1">
+                                            <MousePointerClick className="w-3 h-3" />
+                                            Usá el selector de la fila para asignarla a otra categoría
                                         </div>
                                     </div>
                                 </div>
@@ -806,24 +616,24 @@ export function CategoryList() {
                         </div>
                     </div>
                 </div>
-
-                {/* Delete Confirmation Modal */}
-                <DeleteConfirmModal
-                    info={deleteModal}
-                    onConfirm={handleConfirmDelete}
-                    onCancel={() => setDeleteModal(null)}
-                    loading={deleteLoading}
-                />
-
-                {/* Toast */}
-                {toast && (
-                    <Toast
-                        mensaje={toast.mensaje}
-                        tipo={toast.tipo}
-                        onClose={() => setToast(null)}
-                    />
-                )}
             </div>
+
+            {/* Delete Confirmation Modal */}
+            <DeleteConfirmModal
+                info={deleteModal}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setDeleteModal(null)}
+                loading={deleteLoading}
+            />
+
+            {/* Toast */}
+            {toast && (
+                <Toast
+                    mensaje={toast.mensaje}
+                    tipo={toast.tipo}
+                    onClose={() => setToast(null)}
+                />
+            )}
         </div>
     );
 }
