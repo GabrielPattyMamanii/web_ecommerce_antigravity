@@ -24,7 +24,10 @@ const MP_STATUS_MAP: Record<string, string | null> = {
 
 async function verifyMPSignature(req: Request): Promise<boolean> {
     const secret = Deno.env.get('MP_WEBHOOK_SECRET');
-    if (!secret) return true; // si no está configurado, no bloquear (modo legacy)
+    if (!secret) {
+        console.error('[mp-webhook] MP_WEBHOOK_SECRET no configurado — rechazando notificación');
+        return false;
+    }
 
     const xSignature  = req.headers.get('x-signature');
     const xRequestId  = req.headers.get('x-request-id');

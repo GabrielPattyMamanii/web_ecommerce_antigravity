@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form';
 import {
     HandCoins, Search, CheckCircle2, Clock, XCircle, RefreshCw,
     ChevronDown, Package, MapPin, ToggleLeft, ToggleRight,
-    Save, Plus, Trash2, ShieldCheck, Settings2, X,
+    Save, Plus, Trash2, ShieldCheck, Settings2, X, PackageCheck,
+    AlertTriangle,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Input } from '../../components/ui/Input';
@@ -15,12 +16,14 @@ const STATUS_LABELS = {
     approved:  { label: 'Aprobada',   color: 'bg-green-100 text-green-700',  icon: <CheckCircle2 className="w-3 h-3" /> },
     rejected:  { label: 'Rechazada',  color: 'bg-red-100 text-red-700',      icon: <XCircle      className="w-3 h-3" /> },
     cancelled: { label: 'Cancelada',  color: 'bg-gray-100 text-gray-600',    icon: <XCircle      className="w-3 h-3" /> },
+    delivered: { label: 'Entregada',  color: 'bg-blue-100 text-blue-700',    icon: <PackageCheck className="w-3 h-3" /> },
 };
 
 const FILTER_OPTIONS = [
     { value: 'all',       label: 'Todas' },
     { value: 'pending',   label: 'Pendientes' },
     { value: 'approved',  label: 'Aprobadas' },
+    { value: 'delivered', label: 'Entregadas' },
     { value: 'rejected',  label: 'Rechazadas' },
     { value: 'cancelled', label: 'Canceladas' },
 ];
@@ -38,6 +41,8 @@ export function SenasList() {
     const [search, setSearch]             = useState('');
     const [filterStatus, setFilter]       = useState('approved');
     const [updatingId, setUpdatingId]     = useState(null);
+    const [deletingId, setDeletingId]     = useState(null);
+    const [senaToDelete, setSenaToDelete] = useState(null);
 
     // — Configuración de señas —
     const [configId, setConfigId]         = useState(null);
@@ -188,6 +193,26 @@ export function SenasList() {
         setUpdatingId(null);
     };
 
+    // ── Eliminar una seña definitivamente ──────────────────────────
+    const confirmDeleteSena = async () => {
+        if (!senaToDelete) return;
+        const id = senaToDelete.id;
+        setDeletingId(id);
+        const { error } = await supabase
+            .from('senas')
+            .delete()
+            .eq('id', id);
+
+        if (error) {
+            toast.error('Error al eliminar la seña: ' + error.message);
+        } else {
+            toast.success('Seña eliminada');
+            setSenas(prev => prev.filter(s => s.id !== id));
+            setSenaToDelete(null);
+        }
+        setDeletingId(null);
+    };
+
     // ── Filtros ───────────────────────────────────────────────────
     const filtered = senas.filter(s => {
         const fullName = `${s.buyer_name || ''} ${s.buyer_lastname || ''}`.toLowerCase();
@@ -205,12 +230,13 @@ export function SenasList() {
         all:       senas.length,
         pending:   senas.filter(s => s.status === 'pending').length,
         approved:  senas.filter(s => s.status === 'approved').length,
+        delivered: senas.filter(s => s.status === 'delivered').length,
         rejected:  senas.filter(s => s.status === 'rejected').length,
         cancelled: senas.filter(s => s.status === 'cancelled').length,
     };
 
     const totalAprobado = senas
-        .filter(s => s.status === 'approved')
+        .filter(s => s.status === 'approved' || s.status === 'delivered')
         .reduce((acc, s) => acc + (Number(s.amount_paid) || 0), 0);
 
     return (
@@ -398,7 +424,7 @@ export function SenasList() {
             )}
 
             {/* ── Métricas ── */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
                 <div className="bg-white rounded-xl p-4 border border-gray-100 shadow-sm">
                     <p className="text-xs text-gray-500 font-medium">Total señas</p>
                     <p className="text-2xl font-black text-gray-800 mt-1">{totals.all}</p>
@@ -410,6 +436,10 @@ export function SenasList() {
                 <div className="bg-green-50 rounded-xl p-4 border border-green-100 shadow-sm">
                     <p className="text-xs text-green-600 font-medium">Aprobadas</p>
                     <p className="text-2xl font-black text-green-700 mt-1">{totals.approved}</p>
+                </div>
+                <div className="bg-blue-50 rounded-xl p-4 border border-blue-100 shadow-sm">
+                    <p className="text-xs text-blue-600 font-medium">Entregadas</p>
+                    <p className="text-2xl font-black text-blue-700 mt-1">{totals.delivered}</p>
                 </div>
                 <div className="bg-[#009EE3]/10 rounded-xl p-4 border border-[#009EE3]/20 shadow-sm">
                     <p className="text-xs text-[#0073BD] font-medium">Total cobrado</p>
@@ -572,13 +602,23 @@ export function SenasList() {
                                             )}
                                             {sena.status === 'approved' && (
                                                 <button
-                                                    onClick={() => updateStatus(sena.id, 'cancelled')}
+                                                    onClick={() => updateStatus(sena.id, 'delivered')}
                                                     disabled={updatingId === sena.id}
-                                                    className="px-3 py-1.5 rounded-lg bg-gray-500 hover:bg-gray-600 text-white text-xs font-semibold transition-colors disabled:opacity-50"
+                                                    className="px-3 py-1.5 rounded-lg bg-[#009EE3] hover:bg-[#0073BD] text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
                                                 >
-                                                    Cancelar
+                                                    <PackageCheck className="w-3.5 h-3.5" />
+                                                    Entregado
                                                 </button>
                                             )}
+                                            <button
+                                                onClick={() => setSenaToDelete(sena)}
+                                                disabled={deletingId === sena.id}
+                                                title="Eliminar seña definitivamente"
+                                                className="px-3 py-1.5 rounded-lg bg-white border border-red-200 text-red-500 hover:bg-red-50 text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
+                                            >
+                                                <Trash2 className="w-3.5 h-3.5" />
+                                                Eliminar
+                                            </button>
                                         </div>
                                     </div>
                                 </div>
@@ -600,6 +640,73 @@ export function SenasList() {
                             </div>
                         );
                     })}
+                </div>
+            )}
+
+            {/* ── Modal de confirmación de eliminación ── */}
+            {senaToDelete && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
+                    {/* Backdrop */}
+                    <div
+                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+                        onClick={() => !deletingId && setSenaToDelete(null)}
+                    />
+                    {/* Panel */}
+                    <div className="relative bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl overflow-hidden">
+                        <div className="px-6 pt-6 pb-5">
+                            <div className="flex items-start gap-4">
+                                <div className="flex-shrink-0 w-11 h-11 rounded-full bg-red-50 flex items-center justify-center">
+                                    <AlertTriangle className="w-5 h-5 text-red-500" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h2 className="text-base font-bold text-gray-900">Eliminar seña</h2>
+                                    <p className="text-sm text-gray-500 mt-1">
+                                        Esta acción no se puede deshacer. Se borrará el registro completo de la base de datos.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => !deletingId && setSenaToDelete(null)}
+                                    className="ml-auto flex-shrink-0 p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                                >
+                                    <X className="w-4 h-4" />
+                                </button>
+                            </div>
+
+                            <div className="mt-4 flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
+                                {senaToDelete.product_image ? (
+                                    <img src={senaToDelete.product_image} alt={senaToDelete.product_name} className="w-11 h-11 rounded-lg object-cover border border-gray-100 flex-shrink-0" />
+                                ) : (
+                                    <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
+                                        <Package className="w-5 h-5 text-gray-400" />
+                                    </div>
+                                )}
+                                <div className="min-w-0">
+                                    <p className="text-sm font-semibold text-gray-800 truncate">{senaToDelete.product_name}</p>
+                                    <p className="text-xs text-gray-500 truncate">
+                                        {[senaToDelete.buyer_name, senaToDelete.buyer_lastname].filter(Boolean).join(' ') || senaToDelete.buyer_email}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="flex gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+                            <button
+                                onClick={() => setSenaToDelete(null)}
+                                disabled={!!deletingId}
+                                className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm font-semibold text-gray-700 hover:bg-gray-100 transition-colors disabled:opacity-50"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={confirmDeleteSena}
+                                disabled={!!deletingId}
+                                className="flex-1 px-4 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                <Trash2 className="w-4 h-4" />
+                                {deletingId ? 'Eliminando...' : 'Eliminar definitivamente'}
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
         </div>
