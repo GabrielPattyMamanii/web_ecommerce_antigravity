@@ -610,6 +610,16 @@ export function SenasList() {
                                                     Entregado
                                                 </button>
                                             )}
+                                            {sena.status === 'rejected' && (
+                                                <button
+                                                    onClick={() => updateStatus(sena.id, 'approved')}
+                                                    disabled={updatingId === sena.id}
+                                                    className="px-3 py-1.5 rounded-lg bg-green-500 hover:bg-green-600 text-white text-xs font-semibold transition-colors disabled:opacity-50 flex items-center gap-1"
+                                                >
+                                                    <CheckCircle2 className="w-3.5 h-3.5" />
+                                                    Aprobar
+                                                </button>
+                                            )}
                                             <button
                                                 onClick={() => setSenaToDelete(sena)}
                                                 disabled={deletingId === sena.id}
