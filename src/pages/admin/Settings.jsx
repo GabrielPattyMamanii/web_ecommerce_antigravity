@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Save, Trash2 } from 'lucide-react';
+import { Save, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
@@ -13,6 +13,8 @@ export function Settings() {
     const [configId, setConfigId]       = useState(null);
     const [preciosCount, setPreciosCount] = useState(null);
     const [clearingPrecios, setClearingPrecios] = useState(false);
+    const [liveEnabled, setLiveEnabled] = useState(true);
+    const [toggleLiveLoading, setToggleLiveLoading] = useState(false);
 
     const fetchConfig = async () => {
         const { data, error } = await supabase.from('site_config').select('*').single();
@@ -28,6 +30,7 @@ export function Settings() {
             setValue('contact_phone',   data.contact_phone   || '');
             setValue('whatsapp_number', data.whatsapp_number || '');
             setValue('address',         data.address         || '');
+            setLiveEnabled(data.live_products_enabled ?? true);
         }
     };
 
@@ -51,6 +54,23 @@ export function Settings() {
             setPreciosCount(0);
         }
         setClearingPrecios(false);
+    };
+
+    const toggleLive = async () => {
+        if (!configId) return;
+        const newVal = !liveEnabled;
+        setToggleLiveLoading(true);
+        const { error } = await supabase
+            .from('site_config')
+            .update({ live_products_enabled: newVal })
+            .eq('id', configId);
+        if (error) {
+            toast.error('Error al actualizar configuración');
+        } else {
+            setLiveEnabled(newVal);
+            toast.success(newVal ? 'Sección "Productos en Live" habilitada' : 'Sección "Productos en Live" deshabilitada');
+        }
+        setToggleLiveLoading(false);
     };
 
     const onSubmit = async (data) => {
@@ -137,6 +157,33 @@ export function Settings() {
                     <p className="text-xs text-muted-foreground">
                         Los registros también se eliminan automáticamente a los 7 días.
                     </p>
+                </CardContent>
+            </Card>
+            <Card className="max-w-2xl">
+                <CardHeader>
+                    <CardTitle>Secciones del sitio</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+                        <div>
+                            <span className="text-sm font-medium text-foreground">Productos en Live</span>
+                            <p className="text-xs text-muted-foreground">
+                                Muestra u oculta la sección "Productos en Live" en el menú y el sitio público.
+                            </p>
+                        </div>
+                        <button
+                            onClick={toggleLive}
+                            disabled={toggleLiveLoading || configId === null}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all shadow-sm disabled:opacity-50
+                                ${liveEnabled
+                                    ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                                    : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                                }`}
+                        >
+                            {liveEnabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                            {liveEnabled ? 'Habilitada' : 'Deshabilitada'}
+                        </button>
+                    </div>
                 </CardContent>
             </Card>
         </div>

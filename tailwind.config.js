@@ -73,6 +73,9 @@ export default {
         'brand-yellow': '#fffbb7',
         'brand-cream': '#ffffec',
         'brand-coral-dark': '#e04b1f',
+        // Live signal accent — reserved exclusively for "Productos en Live"
+        'live-red': '#ff2d55',
+        'live-red-dark': '#c4123f',
       },
       fontFamily: {
         sans: 'var(--font-sans)',

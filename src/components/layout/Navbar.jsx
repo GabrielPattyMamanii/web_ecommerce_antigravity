@@ -9,12 +9,14 @@ export function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
     const [categories, setCategories] = useState([]);
     const [expandedCategories, setExpandedCategories] = useState({});
+    const [liveEnabled, setLiveEnabled] = useState(true);
     const cartItemsCount = useCartStore((state) => state.totalItems());
     const navigate = useNavigate();
     const location = useLocation();
 
     useEffect(() => {
         fetchCategories();
+        fetchLiveFlag();
     }, []);
 
     const fetchCategories = async () => {
@@ -23,6 +25,15 @@ export function Navbar() {
             if (data) setCategories(data);
         } catch (error) {
             console.error('Error fetching categories:', error);
+        }
+    };
+
+    const fetchLiveFlag = async () => {
+        try {
+            const { data } = await supabase.from('site_config').select('live_products_enabled').single();
+            setLiveEnabled(data?.live_products_enabled ?? true);
+        } catch (error) {
+            console.error('Error fetching live flag:', error);
         }
     };
 
@@ -38,6 +49,8 @@ export function Navbar() {
             : 'text-on-surface-variant hover:text-on-surface hover:opacity-80 border-transparent'
             }`;
     };
+
+    const isLiveActive = location.pathname.startsWith('/live');
 
     return (
         <>
@@ -77,6 +90,18 @@ export function Navbar() {
                             <Link to="/how-to-buy" className={navLinkClass('/how-to-buy')}>
                                 Cómo Comprar
                             </Link>
+                            {liveEnabled && (
+                                <Link
+                                    to="/live"
+                                    className={`flex items-center gap-2 font-nunito font-bold tracking-tight pb-1 transition-all duration-300 border-b-2 ${isLiveActive
+                                        ? 'text-live-red border-live-red'
+                                        : 'text-live-red/80 hover:text-live-red border-transparent'
+                                        }`}
+                                >
+                                    <span className="live-nav-dot" aria-hidden="true" />
+                                    Productos en Live
+                                </Link>
+                            )}
                         </div>
                     </div>
 
@@ -150,6 +175,15 @@ export function Navbar() {
                                 Cómo Comprar
                                 <ChevronRight className="w-5 h-5 text-on-surface-variant" />
                             </Link>
+                            {liveEnabled && (
+                                <Link to="/live" className="flex items-center justify-between py-3 text-base font-bold text-live-red transition-colors" onClick={() => setIsMenuOpen(false)}>
+                                    <span className="flex items-center gap-2">
+                                        <span className="live-nav-dot" aria-hidden="true" />
+                                        Productos en Live
+                                    </span>
+                                    <ChevronRight className="w-5 h-5 text-live-red/50" />
+                                </Link>
+                            )}
                         </div>
 
                         {/* Categories */}
@@ -225,6 +259,25 @@ export function Navbar() {
                 }
                 .animate-slide-in {
                     animation: slide-in 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                }
+                .live-nav-dot {
+                    width: 8px;
+                    height: 8px;
+                    border-radius: 50%;
+                    background: #ff2d55;
+                    flex-shrink: 0;
+                    box-shadow: 0 0 0 0 rgba(255, 45, 85, 0.6);
+                    animation: live-nav-pulse 1.8s ease-out infinite;
+                }
+                @keyframes live-nav-pulse {
+                    0% { box-shadow: 0 0 0 0 rgba(255, 45, 85, 0.55); }
+                    70% { box-shadow: 0 0 0 6px rgba(255, 45, 85, 0); }
+                    100% { box-shadow: 0 0 0 0 rgba(255, 45, 85, 0); }
+                }
+                @media (prefers-reduced-motion: reduce) {
+                    .live-nav-dot {
+                        animation: none;
+                    }
                 }
             `}</style>
         </>
