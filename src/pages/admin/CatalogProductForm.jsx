@@ -93,8 +93,8 @@ export function CatalogProductForm() {
             if (error) throw error;
 
             if (entrada?.tanda_nombre) setOriginTanda(entrada.tanda_nombre);
-            // Store the code from entradas (read-only)
-            if (entrada?.codigo) setCodigo(entrada.codigo);
+            // Preferir el código ya guardado en catalog_products; si no existe (fila nueva o legacy), caer al de la mercancía origen
+            setCodigo(catData?.code || entrada?.codigo || '');
 
             // Only autocomplete if not already in catalog
             if (!catData) {
@@ -169,6 +169,7 @@ export function CatalogProductForm() {
                 stock: parseInt(formData.stock) || 0,
                 image_url: finalImageUrl || null,
                 published: formData.published,
+                code: codigo || null,
             };
 
             // UPSERT — inserta o actualiza
@@ -299,7 +300,7 @@ export function CatalogProductForm() {
                                     readOnly
                                     disabled
                                 />
-                                <p className="text-xs text-muted-foreground">Este código solo puede editarse desde la sección Mercancía.</p>
+                                <p className="text-xs text-muted-foreground">Código interno tomado de la Mercancía de origen. Solo puede editarse desde esa sección.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

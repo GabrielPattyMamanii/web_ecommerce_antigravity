@@ -7,7 +7,7 @@ import { convertToWebP, validateImageFile } from '../../lib/imageUtils';
 import {
     ArrowLeft, ChevronRight, FileEdit, Ruler, Images, DollarSign, Package,
     SlidersHorizontal, Star, Trash2, Plus, Camera, Eye, Archive, CloudUpload,
-    Code, TrendingUp, X, Check
+    TrendingUp, X, Check
 } from 'lucide-react';
 
 export function ProductForm() {
@@ -241,6 +241,7 @@ export function ProductForm() {
                 marca: formData.marca || null,
                 price_on_request: priceOnRequest,
                 sizes: formData.sizes,
+                code: formData.code || null,
             };
 
             let error;
@@ -326,11 +327,6 @@ export function ProductForm() {
                                 {formData.published ? 'En Catálogo (Activo)' : 'Oculto del catálogo'}
                             </span>
                         )}
-                        {formData.code && (
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-muted text-muted-foreground font-mono">
-                                <Code className="w-3 h-3" /> {formData.code}
-                            </span>
-                        )}
                     </div>
                     <p className="text-sm text-muted-foreground mt-1">
                         {isEdit ? (
@@ -410,6 +406,18 @@ export function ProductForm() {
                                 {validations.name.valid === false && (
                                     <span className="text-xs font-medium text-destructive">{validations.name.message}</span>
                                 )}
+                            </div>
+
+                            <div className="flex flex-col gap-1.5">
+                                <label className={labelCls}>Código de Producto <span className="font-normal text-muted-foreground">(opcional)</span></label>
+                                <input
+                                    type="text"
+                                    className={inputCls}
+                                    placeholder="Ej: A123"
+                                    value={formData.code}
+                                    onChange={(e) => handleInputChange('code', e.target.value)}
+                                />
+                                <p className="text-xs text-muted-foreground">Uso interno del panel — no se muestra en el catálogo público.</p>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

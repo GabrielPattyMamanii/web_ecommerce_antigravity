@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Eye, Edit, Trash2, ExternalLink, X } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { getStockBadgeClass, getStockLabel, getProductImage as getImage } from './productHelpers';
+import { getStockBadgeClass, getStockLabel, getProductImage as getImage, getProductCode } from './productHelpers';
 
 const ProductsTable = ({
     productos,
@@ -108,9 +108,7 @@ const ProductsTable = ({
                                 </td>
                                 <td className="px-6 py-4">
                                     <span className="font-mono text-xs text-muted-foreground">
-                                        {producto._source === 'catalog_products'
-                                            ? (producto.entradas?.codigo || '—')
-                                            : (producto.code || '—')}
+                                        {getProductCode(producto) || '—'}
                                     </span>
                                 </td>
                                 <td className="px-6 py-4">
@@ -206,7 +204,7 @@ const ProductsTable = ({
                                     )}
                                 </div>
                                 <span className="font-mono text-xs text-muted-foreground mt-1 truncate">
-                                    Cód: {producto._source === 'catalog_products' ? (producto.entradas?.codigo || '—') : (producto.code || '—')}
+                                    Cód: {getProductCode(producto) || '—'}
                                 </span>
                             </div>
                         </div>

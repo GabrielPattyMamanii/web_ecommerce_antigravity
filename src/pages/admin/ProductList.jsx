@@ -1,12 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { X, ShoppingBag, Plus, LayoutGrid, List, Package, Eye, AlertTriangle, PackageX, ArrowUpDown } from 'lucide-react';
+import { X, ShoppingBag, Plus, LayoutGrid, List, Package, Eye, AlertTriangle, PackageX, ArrowUpDown, Radio } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import SearchBar from '../../components/admin/products/SearchBar';
 import FiltersPanel from '../../components/admin/products/FiltersPanel';
 import ProductsTable from '../../components/admin/products/ProductsTable';
 import ProductsGrid from '../../components/admin/products/ProductsGrid';
 import Pagination from '../../components/admin/products/Pagination';
+import LiveProductsModal from '../../components/admin/products/LiveProductsModal';
 import Toast from '../../components/ui/Toast';
 import { Button } from '../../components/ui/Button';
 
@@ -50,6 +51,8 @@ export const ProductList = () => {
     const navigate = useNavigate();
     const location = useLocation();
     const [showNewModal, setShowNewModal] = useState(false);
+    const [showLiveModal, setShowLiveModal] = useState(false);
+    const [liveButtonEnabled, setLiveButtonEnabled] = useState(true);
 
     // Estados
     const [productos, setProductos] = useState([]);
@@ -68,7 +71,14 @@ export const ProductList = () => {
     // Cargar productos
     useEffect(() => {
         fetchProductos();
+        fetchLiveButtonFlag();
     }, []);
+
+    // Este flag es global (site_config) e ignora el rol/permisos del usuario logueado
+    const fetchLiveButtonFlag = async () => {
+        const { data } = await supabase.from('site_config').select('live_button_enabled').single();
+        setLiveButtonEnabled(data?.live_button_enabled ?? true);
+    };
 
     // Handle initial search from navigation state
     useEffect(() => {
@@ -303,6 +313,15 @@ export const ProductList = () => {
                             <List className="w-4 h-4" />
                         </button>
                     </div>
+                    {liveButtonEnabled && (
+                        <button
+                            onClick={() => setShowLiveModal(true)}
+                            className="flex items-center gap-2 flex-1 sm:flex-initial sm:w-auto justify-center px-6 py-3 rounded-full text-sm font-medium text-white bg-[#ff2d55] hover:bg-[#c4123f] transition-colors shadow-sm active:scale-[0.98]"
+                        >
+                            <Radio className="w-4 h-4" />
+                            Agregar a Live
+                        </button>
+                    )}
                     <Button className="flex items-center gap-2 flex-1 sm:flex-initial sm:w-auto" onClick={() => setShowNewModal(true)}>
                         <span className="text-xl">+</span>
                         Nuevo Producto
@@ -501,6 +520,15 @@ export const ProductList = () => {
                     </>
                 )}
             </div>
+
+            {showLiveModal && (
+                <LiveProductsModal
+                    productos={productos}
+                    onClose={() => setShowLiveModal(false)}
+                    onSaved={fetchProductos}
+                    showToast={showToast}
+                />
+            )}
 
             {toast && (
                 <Toast

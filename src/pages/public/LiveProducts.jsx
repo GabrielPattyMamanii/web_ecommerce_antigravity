@@ -1,6 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { Video, MessageCircle, PackageCheck, Instagram, Facebook } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Video, MessageCircle, PackageCheck, Instagram, Facebook, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { getProductUrl } from '../../lib/urlUtils';
+
+const getLiveProductImage = (p) =>
+    p._source === 'catalog_products'
+        ? (p.image_url || '/placeholder.png')
+        : ((p.images && p.images[0]) || '/placeholder.png');
+
+const getLiveProductPrice = (p) =>
+    p.price_on_request ? 'A consultar' : `$${parseFloat(p.retail_price || p.price || 0).toLocaleString('es-AR')}`;
 
 const steps = [
     {
@@ -26,14 +36,24 @@ const steps = [
 export function LiveProducts() {
     const [enabled, setEnabled] = useState(true);
     const [loading, setLoading] = useState(true);
+    const [liveProducts, setLiveProducts] = useState([]);
 
     useEffect(() => {
-        const fetchFlag = async () => {
-            const { data } = await supabase.from('site_config').select('live_products_enabled').single();
-            setEnabled(data?.live_products_enabled ?? true);
+        const fetchData = async () => {
+            const [{ data: config }, { data: prods }, { data: catalogProds }] = await Promise.all([
+                supabase.from('site_config').select('live_products_enabled').single(),
+                supabase.from('products').select('*').eq('is_live', true),
+                supabase.from('catalog_products').select('*').eq('is_live', true),
+            ]);
+
+            setEnabled(config?.live_products_enabled ?? true);
+            setLiveProducts([
+                ...(prods || []).map((p) => ({ ...p, _source: 'products' })),
+                ...(catalogProds || []).map((p) => ({ ...p, _source: 'catalog_products' })),
+            ]);
             setLoading(false);
         };
-        fetchFlag();
+        fetchData();
     }, []);
 
     if (loading) {
@@ -54,30 +74,54 @@ export function LiveProducts() {
     }
 
     return (
-        <section className="live-section py-20 px-4 relative overflow-hidden">
+        <section className="live-section py-10 px-4 relative overflow-hidden">
             <div className="live-bg-glow live-bg-glow--1" />
             <div className="live-bg-glow live-bg-glow--2" />
 
             <div className="max-w-5xl mx-auto relative z-10">
                 {/* Hero */}
-                <div className="text-center mb-16">
-                    <div className="live-signal" aria-hidden="true">
-                        <span className="live-signal__ring live-signal__ring--1" />
-                        <span className="live-signal__ring live-signal__ring--2" />
-                        <span className="live-signal__dot" />
-                    </div>
-
+                <div className="text-center mb-8">
                     <span className="live-badge">
-                        <span className="live-badge__dot" aria-hidden="true" />
+                        <span className="live-badge__signal" aria-hidden="true">
+                            <span className="live-badge__ring" />
+                            <span className="live-badge__dot" />
+                        </span>
                         En vivo cuando salimos al aire
                     </span>
 
                     <h1 className="live-title">Productos en Live</h1>
                     <p className="live-subtitle">
                         Nuestros lanzamientos y ofertas salen primero en vivo. Mirá, elegí y reservá
-                        tu producto mientras lo estamos mostrando, directo desde tu celular.
+                        tu producto mientras lo estamos mostrando.
                     </p>
                 </div>
+
+                {/* Productos marcados como Live */}
+                {liveProducts.length > 0 && (
+                    <div className="live-products mb-10">
+                        <h2 className="live-channels__title">Lo que estamos mostrando ahora</h2>
+                        <div className="live-products__grid">
+                            {liveProducts.map((p) => (
+                                <Link key={`${p._source}-${p.id}`} to={getProductUrl(p.id)} className="live-product-card">
+                                    <div className="live-product-card__image-wrap">
+                                        <img src={getLiveProductImage(p)} alt={p.name} className="live-product-card__image" />
+                                        <span className="live-product-card__badge">
+                                            <span className="live-badge__dot" aria-hidden="true" />
+                                            Live
+                                        </span>
+                                    </div>
+                                    <div className="live-product-card__info">
+                                        <p className="live-product-card__name">{p.name}</p>
+                                        <div className="live-product-card__footer">
+                                            <span className="live-product-card__price">{getLiveProductPrice(p)}</span>
+                                            <ArrowRight className="w-4 h-4" />
+                                        </div>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
 
                 {/* Steps */}
                 <div className="live-steps">

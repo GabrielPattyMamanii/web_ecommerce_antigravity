@@ -15,6 +15,8 @@ export function Settings() {
     const [clearingPrecios, setClearingPrecios] = useState(false);
     const [liveEnabled, setLiveEnabled] = useState(true);
     const [toggleLiveLoading, setToggleLiveLoading] = useState(false);
+    const [liveButtonEnabled, setLiveButtonEnabled] = useState(true);
+    const [toggleLiveButtonLoading, setToggleLiveButtonLoading] = useState(false);
 
     const fetchConfig = async () => {
         const { data, error } = await supabase.from('site_config').select('*').single();
@@ -31,6 +33,7 @@ export function Settings() {
             setValue('whatsapp_number', data.whatsapp_number || '');
             setValue('address',         data.address         || '');
             setLiveEnabled(data.live_products_enabled ?? true);
+            setLiveButtonEnabled(data.live_button_enabled ?? true);
         }
     };
 
@@ -71,6 +74,23 @@ export function Settings() {
             toast.success(newVal ? 'Sección "Productos en Live" habilitada' : 'Sección "Productos en Live" deshabilitada');
         }
         setToggleLiveLoading(false);
+    };
+
+    const toggleLiveButton = async () => {
+        if (!configId) return;
+        const newVal = !liveButtonEnabled;
+        setToggleLiveButtonLoading(true);
+        const { error } = await supabase
+            .from('site_config')
+            .update({ live_button_enabled: newVal })
+            .eq('id', configId);
+        if (error) {
+            toast.error('Error al actualizar configuración');
+        } else {
+            setLiveButtonEnabled(newVal);
+            toast.success(newVal ? 'Botón "Agregar a Live" habilitado' : 'Botón "Agregar a Live" deshabilitado');
+        }
+        setToggleLiveButtonLoading(false);
     };
 
     const onSubmit = async (data) => {
@@ -182,6 +202,26 @@ export function Settings() {
                         >
                             {liveEnabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
                             {liveEnabled ? 'Habilitada' : 'Deshabilitada'}
+                        </button>
+                    </div>
+                    <div className="flex items-center justify-between rounded-xl border border-border px-4 py-3">
+                        <div>
+                            <span className="text-sm font-medium text-foreground">Botón "Agregar a Live"</span>
+                            <p className="text-xs text-muted-foreground">
+                                Habilita u oculta el botón "Agregar a Live" en Productos para todos los usuarios, sin importar su rol o permisos.
+                            </p>
+                        </div>
+                        <button
+                            onClick={toggleLiveButton}
+                            disabled={toggleLiveButtonLoading || configId === null}
+                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold border transition-all shadow-sm disabled:opacity-50
+                                ${liveButtonEnabled
+                                    ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
+                                    : 'bg-red-50 border-red-200 text-red-600 hover:bg-red-100'
+                                }`}
+                        >
+                            {liveButtonEnabled ? <ToggleRight className="w-5 h-5" /> : <ToggleLeft className="w-5 h-5" />}
+                            {liveButtonEnabled ? 'Habilitado' : 'Deshabilitado'}
                         </button>
                     </div>
                 </CardContent>

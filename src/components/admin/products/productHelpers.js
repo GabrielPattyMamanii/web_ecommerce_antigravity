@@ -32,5 +32,5 @@ export const getProductImage = (producto) => {
 
 export const getProductCode = (producto) =>
     producto._source === 'catalog_products'
-        ? (producto.entradas?.codigo || null)
+        ? (producto.code || producto.entradas?.codigo || null)
         : (producto.code || null);
