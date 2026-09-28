@@ -4,6 +4,7 @@ import { X, HandCoins, AlertCircle, Loader2, MapPin, Minus, Plus, Trash2, Packag
 import { supabase } from '../../lib/supabase';
 import { useSena } from '../../hooks/useSena';
 import { useSenaCartStore } from '../../context/senaCartStore';
+import { useSenaBuyerStore } from '../../context/senaBuyerStore';
 import { Drawer } from '../ui/Drawer';
 
 const MP_LOGO = (
@@ -25,12 +26,23 @@ export function SenaCartDrawer({ isOpen, onClose }) {
     const [showDataForm, setShowDataForm] = useState(false);
     const { pagarSenaCarrito, isLoading, error } = useSena();
     const formRef = useRef(null);
+    const savedBuyer = useSenaBuyerStore.getState();
+    const setBuyer = useSenaBuyerStore((s) => s.setBuyer);
 
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors },
-    } = useForm();
+    } = useForm({
+        defaultValues: {
+            buyer_name:        savedBuyer.buyer_name,
+            buyer_lastname:    savedBuyer.buyer_lastname,
+            buyer_email:       savedBuyer.buyer_email,
+            buyer_whatsapp:    savedBuyer.buyer_whatsapp,
+            delivery_location: savedBuyer.delivery_location,
+        },
+    });
 
     // Cada vez que se abre el drawer, arranca mostrando el resumen (no el formulario)
     useEffect(() => {
@@ -57,11 +69,16 @@ export function SenaCartDrawer({ isOpen, onClose }) {
         ]).then(([{ data }, { data: ranges }]) => {
             if (data) {
                 setSenaConfig(data);
-                setDeliveryLocations(data.sena_delivery_locations || []);
+                const locations = data.sena_delivery_locations || [];
+                setDeliveryLocations(locations);
+                if (savedBuyer.delivery_location && locations.includes(savedBuyer.delivery_location)) {
+                    setValue('delivery_location', savedBuyer.delivery_location);
+                }
             }
             setPriceRanges(ranges || []);
             setLoadingConfig(false);
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const totalQty = items.reduce((acc, it) => acc + it.quantity, 0);
@@ -85,6 +102,7 @@ export function SenaCartDrawer({ isOpen, onClose }) {
     const sinRangoParaCantidad = senaConfig?.sena_type === 'ranges' && items.length > 0 && montoTotal <= 0;
 
     const onSubmit = (formData) => {
+        setBuyer(formData);
         pagarSenaCarrito({
             items: items.map((it) => ({
                 product_id:     it.product_id,

@@ -4,6 +4,7 @@ import { X, HandCoins, AlertCircle, Loader2, MapPin, Minus, Plus, ShoppingBag } 
 import { supabase } from '../../lib/supabase';
 import { useSena } from '../../hooks/useSena';
 import { useSenaCartStore } from '../../context/senaCartStore';
+import { useSenaBuyerStore } from '../../context/senaBuyerStore';
 import toast from 'react-hot-toast';
 
 const MP_LOGO = (
@@ -33,12 +34,23 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
     });
     const { pagarSenaCarrito, isLoading, error } = useSena();
     const addItem = useSenaCartStore((s) => s.addItem);
+    const savedBuyer = useSenaBuyerStore.getState();
+    const setBuyer = useSenaBuyerStore((s) => s.setBuyer);
 
     const {
         register,
         handleSubmit,
+        setValue,
         formState: { errors },
-    } = useForm();
+    } = useForm({
+        defaultValues: {
+            buyer_name:        savedBuyer.buyer_name,
+            buyer_lastname:    savedBuyer.buyer_lastname,
+            buyer_email:       savedBuyer.buyer_email,
+            buyer_whatsapp:    savedBuyer.buyer_whatsapp,
+            delivery_location: savedBuyer.delivery_location,
+        },
+    });
 
     useEffect(() => {
         Promise.all([
@@ -53,11 +65,16 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
         ]).then(([{ data }, { data: ranges }]) => {
             if (data) {
                 setSenaConfig(data);
-                setDeliveryLocations(data.sena_delivery_locations || []);
+                const locations = data.sena_delivery_locations || [];
+                setDeliveryLocations(locations);
+                if (savedBuyer.delivery_location && locations.includes(savedBuyer.delivery_location)) {
+                    setValue('delivery_location', savedBuyer.delivery_location);
+                }
             }
             setPriceRanges(ranges || []);
             setLoadingConfig(false);
         });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     useEffect(() => {
@@ -102,6 +119,7 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
     });
 
     const onPagarAhora = (formData) => {
+        setBuyer(formData);
         pagarSenaCarrito({
             items:             [buildItem()],
             buyer_name:        formData.buyer_name,
