@@ -5,10 +5,10 @@ import { Home } from './pages/public/Home';
 import { Catalog } from './pages/public/Catalog';
 import { CatalogLimpio } from './pages/public/CatalogLimpio';
 import { ProductDetail } from './pages/public/ProductDetail';
-import { Cart } from './pages/public/Cart';
 import { Contact } from './pages/public/Contact';
 import { HowToBuy } from './pages/public/HowToBuy';
 import { LiveProducts } from './pages/public/LiveProducts';
+import { LiveProductDetail } from './pages/public/LiveProductDetail';
 import { Login } from './pages/admin/Login';
 import { Dashboard } from './pages/admin/Dashboard';
 import { ProductList } from './pages/admin/ProductList';
@@ -99,8 +99,8 @@ function App() {
         {/* ⚠️ TEMPORAL */}
         <Route path="how-to-buy" element={<HowToBuy />} />
         <Route path="live" element={<LiveProducts />} />
+        <Route path="live/:id" element={<LiveProductDetail />} />
         <Route path="catalog/:id" element={<ProductDetail />} />
-        <Route path="cart" element={<Cart />} />
         <Route path="checkout" element={<Checkout />} />
         <Route path="senas" element={<Senas />} />
       </Route>

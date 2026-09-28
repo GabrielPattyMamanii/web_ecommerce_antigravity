@@ -788,6 +788,11 @@ function PedidoCard({ pedido, color, fmtMonto, onOpen, getUserColor }) {
 /* ─── EditVentaInline ─────────────────────────────────────────── */
 
 function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving }) {
+    // "Agregar producto al pedido" usa venta={} (sin id). En ese caso, exigimos
+    // elegir un producto real de la lista — no se permite guardar con datos sueltos.
+    // Al editar una venta ya cargada, en cambio, no se exige re-vincular.
+    const isNewProduct = !venta?.id;
+
     /* ── búsqueda de producto ── */
     const [query,           setQuery]           = useState('');
     const [searching,       setSearching]       = useState(false);
@@ -945,6 +950,11 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
     };
 
     const handleSave = () => {
+        if (isNewProduct && !selectedEntrada) {
+            toast.error('Elegí un producto de la lista para agregarlo');
+            setShowSearch(true);
+            return;
+        }
         const precio   = parseFloat(rawNum(price)) || 0;
         const cantidad = parseFloat(qty)            || 0;
         if (!cantidad || cantidad <= 0) { setQtyError(true); return; }
@@ -961,6 +971,10 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             cuenta_nombre = selectedCuenta?.propietario || null;
         }
         onSave({
+            // Solo se incluye si se usó el buscador de arriba (selecciona una entrada real).
+            // Si se está editando una venta ya vinculada y no se toca el buscador, no se
+            // manda esta clave, para no pisar el entrada_id existente con null.
+            ...(selectedEntrada ? { entrada_id: selectedEntrada.id } : {}),
             producto_titulo:   prod.producto_titulo,
             codigo:            prod.codigo       || null,
             tanda_nombre:      prod.tanda_nombre || null,
@@ -1243,7 +1257,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
                     Cancelar
                 </button>
                 <button type="button" onClick={handleSave}
-                    disabled={saving || !prod.producto_titulo.trim()}
+                    disabled={saving || !prod.producto_titulo.trim() || (isNewProduct && !selectedEntrada)}
                     className="flex-1 py-3 rounded-xl font-bold text-base transition-all hover:opacity-90 active:scale-[0.98] flex items-center justify-center gap-2 text-white disabled:opacity-50"
                     style={{ backgroundColor: ownerColor }}>
                     {saving

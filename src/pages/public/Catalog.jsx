@@ -4,6 +4,7 @@ import { FilterDrawer } from '../../components/ui/FilterDrawer';
 import { supabase } from '../../lib/supabase';
 import { getWhatsAppLink } from '../../utils/whatsapp';
 import { useCartStore } from '../../context/cartStore';
+import { useCartUIStore } from '../../context/cartUIStore';
 import Toast from '../../components/ui/Toast';
 
 export function Catalog() {
@@ -425,6 +426,7 @@ export function Catalog() {
                                                                             setToast({ mensaje: 'No podés mezclar productos con precio y productos a consultar', tipo: 'error' });
                                                                         } else {
                                                                             setToast({ mensaje: `"${product.name}" agregado a tu cotización`, tipo: 'success' });
+                                                                            useCartUIStore.getState().open();
                                                                         }
                                                                     }}
                                                                     className="inline-flex items-center gap-1 text-sm font-black text-public-primary border-2 border-public-primary hover:bg-public-primary hover:text-white px-3 py-1 rounded-full transition-colors"

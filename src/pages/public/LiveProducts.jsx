@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Video, MessageCircle, PackageCheck, Instagram, Facebook, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { getProductUrl } from '../../lib/urlUtils';
 
 const getLiveProductImage = (p) =>
     p._source === 'catalog_products'
@@ -102,7 +101,7 @@ export function LiveProducts() {
                         <h2 className="live-channels__title">Lo que estamos mostrando ahora</h2>
                         <div className="live-products__grid">
                             {liveProducts.map((p) => (
-                                <Link key={`${p._source}-${p.id}`} to={getProductUrl(p.id)} className="live-product-card">
+                                <Link key={`${p._source}-${p.id}`} to={`/live/${p.id}`} className="live-product-card">
                                     <div className="live-product-card__image-wrap">
                                         <img src={getLiveProductImage(p)} alt={p.name} className="live-product-card__image" />
                                         <span className="live-product-card__badge">

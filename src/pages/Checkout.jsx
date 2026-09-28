@@ -64,7 +64,7 @@ const Checkout = () => {
                 {/* Breadcrumb */}
                 <Breadcrumb items={[
                     { label: 'Inicio', href: '/' },
-                    { label: 'Carrito', href: '/cart' },
+                    { label: 'Carrito' },
                     { label: 'Checkout' },
                 ]} />
 

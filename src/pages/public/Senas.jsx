@@ -104,6 +104,7 @@ export function Senas() {
 
     const calcularMontoSena = (product) => {
         if (!senaConfig) return 0;
+        if (senaConfig.sena_type === 'ranges') return null; // depende de la cantidad total del carrito
         const precio = product.retail_price || product.price || 0;
         if (senaConfig.sena_type === 'percentage') {
             return Math.round((precio * senaConfig.sena_percentage) / 100);
@@ -138,7 +139,9 @@ export function Senas() {
                         <div className="inline-block mt-5 bg-white/20 border border-white/30 rounded-full px-5 py-2 text-sm font-semibold">
                             {senaConfig.sena_type === 'percentage'
                                 ? `Seña del ${senaConfig.sena_percentage}% sobre el precio del producto`
-                                : `Seña fija de $${Number(senaConfig.sena_amount).toLocaleString('es-AR')} por producto`}
+                                : senaConfig.sena_type === 'ranges'
+                                    ? 'El monto de la seña depende de la cantidad total que reserves'
+                                    : `Seña fija de $${Number(senaConfig.sena_amount).toLocaleString('es-AR')} por unidad`}
                         </div>
                     )}
                 </div>
@@ -222,7 +225,9 @@ export function Senas() {
 
                                         <div className="mb-3 bg-[#009EE3]/10 rounded-lg px-3 py-2 text-center">
                                             <p className="text-[10px] text-[#0073BD] font-semibold uppercase tracking-wide">Seña</p>
-                                            <p className="text-lg font-black text-[#0073BD]">${montoSena.toLocaleString('es-AR')}</p>
+                                            <p className="text-lg font-black text-[#0073BD]">
+                                                {montoSena == null ? 'Según cantidad' : `$${montoSena.toLocaleString('es-AR')}`}
+                                            </p>
                                         </div>
 
                                         <button

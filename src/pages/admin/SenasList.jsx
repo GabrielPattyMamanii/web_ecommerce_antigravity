@@ -35,7 +35,7 @@ const WA_ICON = (
 );
 
 export function SenasList() {
-    // — Lista de señas —
+    // — Lista de carritos de señas —
     const [senas, setSenas]               = useState([]);
     const [loading, setLoading]           = useState(true);
     const [search, setSearch]             = useState('');
@@ -54,15 +54,24 @@ export function SenasList() {
     const [locations, setLocations]       = useState([]);
     const [newLocation, setNewLocation]   = useState('');
 
+    // — Rangos de precio configurables —
+    const [priceRanges, setPriceRanges]   = useState([]);
+    const [rangeSaving, setRangeSaving]   = useState(false);
+    const [newRange, setNewRange]         = useState({ min_qty: '', max_qty: '', amount: '' });
+
     const { register, handleSubmit, setValue, watch } = useForm();
     const senaType = watch('sena_type', 'fixed');
 
     // ── Carga inicial ──────────────────────────────────────────────
     const fetchSenas = async () => {
         setLoading(true);
-        const [senasRes, configRes] = await Promise.all([
-            supabase.from('senas').select('*').order('created_at', { ascending: false }),
+        const [senasRes, configRes, rangesRes] = await Promise.all([
+            supabase
+                .from('sena_carritos')
+                .select('*, sena_items(*)')
+                .order('created_at', { ascending: false }),
             supabase.from('site_config').select('*').single(),
+            supabase.from('sena_price_ranges').select('*').order('min_qty', { ascending: true }),
         ]);
 
         if (senasRes.error) {
@@ -81,10 +90,54 @@ export function SenasList() {
             setLocations(cfg.sena_delivery_locations || []);
         }
 
+        setPriceRanges(rangesRes.data || []);
+
         setLoading(false);
     };
 
     useEffect(() => { fetchSenas(); }, []);
+
+    // ── Rangos de precio ───────────────────────────────────────────
+    const addPriceRange = async () => {
+        const min_qty = parseInt(newRange.min_qty, 10);
+        const max_qty = newRange.max_qty === '' ? null : parseInt(newRange.max_qty, 10);
+        const amount  = parseFloat(newRange.amount);
+
+        if (!min_qty || min_qty < 1 || !(amount >= 0) || Number.isNaN(amount)) {
+            toast.error('Completá cantidad mínima y monto correctamente');
+            return;
+        }
+        if (max_qty != null && max_qty < min_qty) {
+            toast.error('La cantidad máxima no puede ser menor a la mínima');
+            return;
+        }
+
+        setRangeSaving(true);
+        const { data, error } = await supabase
+            .from('sena_price_ranges')
+            .insert([{ min_qty, max_qty, amount, sort_order: priceRanges.length }])
+            .select()
+            .single();
+
+        if (error) {
+            toast.error('Error al agregar rango: ' + error.message);
+        } else {
+            setPriceRanges(prev => [...prev, data].sort((a, b) => a.min_qty - b.min_qty));
+            setNewRange({ min_qty: '', max_qty: '', amount: '' });
+            toast.success('Rango agregado');
+        }
+        setRangeSaving(false);
+    };
+
+    const removePriceRange = async (id) => {
+        const { error } = await supabase.from('sena_price_ranges').delete().eq('id', id);
+        if (error) {
+            toast.error('Error al eliminar rango: ' + error.message);
+        } else {
+            setPriceRanges(prev => prev.filter(r => r.id !== id));
+            toast.success('Rango eliminado');
+        }
+    };
 
     // ── Toggle habilitado/deshabilitado ───────────────────────────
     const toggleSena = async () => {
@@ -180,7 +233,7 @@ export function SenasList() {
     const updateStatus = async (id, newStatus) => {
         setUpdatingId(id);
         const { error } = await supabase
-            .from('senas')
+            .from('sena_carritos')
             .update({ status: newStatus })
             .eq('id', id);
 
@@ -199,7 +252,7 @@ export function SenasList() {
         const id = senaToDelete.id;
         setDeletingId(id);
         const { error } = await supabase
-            .from('senas')
+            .from('sena_carritos')
             .delete()
             .eq('id', id);
 
@@ -216,8 +269,9 @@ export function SenasList() {
     // ── Filtros ───────────────────────────────────────────────────
     const filtered = senas.filter(s => {
         const fullName = `${s.buyer_name || ''} ${s.buyer_lastname || ''}`.toLowerCase();
+        const items = s.sena_items || [];
         const matchSearch = !search ||
-            s.product_name?.toLowerCase().includes(search.toLowerCase()) ||
+            items.some(it => it.product_name?.toLowerCase().includes(search.toLowerCase())) ||
             fullName.includes(search.toLowerCase()) ||
             s.buyer_email?.toLowerCase().includes(search.toLowerCase()) ||
             s.buyer_whatsapp?.includes(search) ||
@@ -320,7 +374,7 @@ export function SenasList() {
                                             <input type="radio" value="fixed" {...register('sena_type')} className="accent-[#009EE3]" />
                                             <div>
                                                 <p className="font-semibold text-sm">Monto fijo</p>
-                                                <p className="text-xs text-gray-500">Todos pagan lo mismo</p>
+                                                <p className="text-xs text-gray-500">Por unidad señada</p>
                                             </div>
                                         </label>
                                         <label className={`flex-1 flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${senaType === 'percentage' ? 'border-[#009EE3] bg-[#009EE3]/5' : 'border-gray-200 hover:border-gray-300'}`}>
@@ -330,31 +384,114 @@ export function SenasList() {
                                                 <p className="text-xs text-gray-500">% del precio del producto</p>
                                             </div>
                                         </label>
+                                        <label className={`flex-1 flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${senaType === 'ranges' ? 'border-[#009EE3] bg-[#009EE3]/5' : 'border-gray-200 hover:border-gray-300'}`}>
+                                            <input type="radio" value="ranges" {...register('sena_type')} className="accent-[#009EE3]" />
+                                            <div>
+                                                <p className="font-semibold text-sm">Rangos</p>
+                                                <p className="text-xs text-gray-500">Según cantidad total</p>
+                                            </div>
+                                        </label>
                                     </div>
 
                                     {senaType === 'fixed' ? (
                                         <div>
-                                            <label className="block text-sm font-medium mb-1">Monto fijo (ARS)</label>
+                                            <label className="block text-sm font-medium mb-1">Monto fijo por unidad (ARS)</label>
                                             <div className="relative">
                                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">$</span>
                                                 <Input {...register('sena_amount')} type="number" min="0" step="0.01" placeholder="5000" className="pl-7" />
                                             </div>
-                                            <p className="text-xs text-gray-400 mt-1">Todos los productos tendrán esta seña fija.</p>
+                                            <p className="text-xs text-gray-400 mt-1">Se multiplica por la cantidad de unidades que el cliente señe.</p>
                                         </div>
-                                    ) : (
+                                    ) : senaType === 'percentage' ? (
                                         <div>
                                             <label className="block text-sm font-medium mb-1">Porcentaje sobre el precio</label>
                                             <div className="relative">
                                                 <Input {...register('sena_percentage')} type="number" min="1" max="100" step="0.5" placeholder="20" className="pr-8" />
                                                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 font-bold">%</span>
                                             </div>
-                                            <p className="text-xs text-gray-400 mt-1">Ej: 20% de $50.000 = seña de $10.000.</p>
+                                            <p className="text-xs text-gray-400 mt-1">Ej: 20% de $50.000 = seña de $10.000 por unidad.</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <div className="flex gap-2 rounded-xl bg-[#009EE3]/5 border border-[#009EE3]/15 px-3 py-2.5">
+                                                <HandCoins className="w-4 h-4 text-[#009EE3] flex-shrink-0 mt-0.5" />
+                                                <p className="text-xs text-gray-600 leading-relaxed">
+                                                    Sumamos las unidades de <span className="font-semibold text-gray-700">todos los productos</span> del carrito y cobramos la seña del rango donde cae ese total. Ej: si el 1º rango es "1–2 → $20.000" y el cliente lleva 2 unidades (de cualquier producto), la seña es $20.000.
+                                                </p>
+                                            </div>
+
+                                            <div className="flex items-end gap-2">
+                                                <div className="w-20">
+                                                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Desde (u.)</label>
+                                                    <Input
+                                                        value={newRange.min_qty}
+                                                        onChange={e => setNewRange(r => ({ ...r, min_qty: e.target.value }))}
+                                                        type="number" min="1" placeholder="1"
+                                                    />
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Hasta (u.)</label>
+                                                    <Input
+                                                        value={newRange.max_qty}
+                                                        onChange={e => setNewRange(r => ({ ...r, max_qty: e.target.value }))}
+                                                        type="number" min="1" placeholder="Sin límite"
+                                                    />
+                                                </div>
+                                                <div className="w-32">
+                                                    <label className="block text-[11px] font-medium text-gray-500 mb-1">Seña total</label>
+                                                    <div className="relative">
+                                                        <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-gray-400 text-sm font-semibold">$</span>
+                                                        <Input
+                                                            value={newRange.amount}
+                                                            onChange={e => setNewRange(r => ({ ...r, amount: e.target.value }))}
+                                                            type="number" min="0" step="0.01" placeholder="0"
+                                                            className="pl-6"
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    type="button"
+                                                    size="icon"
+                                                    onClick={addPriceRange}
+                                                    disabled={rangeSaving}
+                                                    title="Agregar rango"
+                                                    className="flex-shrink-0"
+                                                >
+                                                    <Plus className="w-4 h-4" />
+                                                </Button>
+                                            </div>
+
+                                            {priceRanges.length === 0 ? (
+                                                <p className="text-sm text-gray-400 text-center py-4 border-2 border-dashed border-gray-200 rounded-xl">
+                                                    Todavía no hay rangos configurados. Agregá el primero arriba para poder guardar.
+                                                </p>
+                                            ) : (
+                                                <ul className="space-y-1.5 max-h-40 overflow-y-auto">
+                                                    {priceRanges.map((r) => (
+                                                        <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-sm">
+                                                            <span className="text-gray-500">
+                                                                <span className="font-semibold text-gray-800">{r.min_qty}{r.max_qty ? `–${r.max_qty}` : '+'}</span> unidades
+                                                            </span>
+                                                            <span className="flex items-center gap-2 flex-shrink-0">
+                                                                <span className="font-bold text-[#0073BD]">${Number(r.amount).toLocaleString('es-AR')}</span>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => removePriceRange(r.id)}
+                                                                    className="p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                                </button>
+                                                            </span>
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            )}
                                         </div>
                                     )}
 
                                     <Button type="submit" disabled={senaSaving} className="w-full bg-[#009EE3] hover:bg-[#0073BD]">
                                         <Save className="mr-2 h-4 w-4" />
-                                        {senaSaving ? 'Guardando...' : 'Guardar monto'}
+                                        {senaSaving ? 'Guardando...' : 'Guardar configuración'}
                                     </Button>
                                 </form>
                             </div>
@@ -509,26 +646,34 @@ export function SenasList() {
                         const waLink = sena.buyer_whatsapp
                             ? `https://wa.me/${sena.buyer_whatsapp.replace(/\D/g, '')}`
                             : null;
+                        const items = sena.sena_items || [];
+                        const totalQty = items.reduce((acc, it) => acc + (it.quantity || 0), 0);
 
                         return (
                             <div key={sena.id} className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
                                 <div className="flex flex-col sm:flex-row sm:items-start gap-4 p-4">
 
-                                    {/* Imagen */}
-                                    <div className="flex-shrink-0">
-                                        {sena.product_image ? (
-                                            <img src={sena.product_image} alt={sena.product_name} className="w-14 h-14 rounded-xl object-cover border border-gray-100" />
-                                        ) : (
-                                            <div className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
-                                                <Package className="w-6 h-6 text-gray-400" />
-                                            </div>
-                                        )}
+                                    {/* Imágenes de los productos */}
+                                    <div className="flex-shrink-0 flex flex-row sm:flex-col gap-1.5">
+                                        {(items.length > 0 ? items : [null]).slice(0, 3).map((it, i) => (
+                                            it?.product_image ? (
+                                                <img key={i} src={it.product_image} alt={it.product_name} className="w-14 h-14 rounded-xl object-cover border border-gray-100" />
+                                            ) : (
+                                                <div key={i} className="w-14 h-14 rounded-xl bg-gray-100 flex items-center justify-center">
+                                                    <Package className="w-6 h-6 text-gray-400" />
+                                                </div>
+                                            )
+                                        ))}
                                     </div>
 
-                                    {/* Info comprador + producto */}
+                                    {/* Info comprador + productos */}
                                     <div className="flex-1 min-w-0 space-y-1.5">
                                         <div className="flex flex-wrap items-center gap-2">
-                                            <h3 className="font-bold text-gray-900 truncate">{sena.product_name}</h3>
+                                            <h3 className="font-bold text-gray-900">
+                                                {items.length === 1
+                                                    ? items[0].product_name
+                                                    : `${items.length} productos (${totalQty} unidades)`}
+                                            </h3>
                                             <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${statusConfig.color}`}>
                                                 {statusConfig.icon}
                                                 {statusConfig.label}
@@ -540,6 +685,14 @@ export function SenasList() {
                                                 </span>
                                             )}
                                         </div>
+
+                                        {items.length > 1 && (
+                                            <ul className="text-xs text-gray-500 space-y-0.5">
+                                                {items.map(it => (
+                                                    <li key={it.id}>{it.quantity}x {it.product_name}</li>
+                                                ))}
+                                            </ul>
+                                        )}
 
                                         <p className="text-sm font-semibold text-gray-700">{fullName || '—'}</p>
 
@@ -574,9 +727,6 @@ export function SenasList() {
                                         <div>
                                             <p className="text-xs text-gray-400">Monto seña</p>
                                             <p className="text-xl font-black text-[#0073BD]">${Number(sena.amount_paid).toLocaleString('es-AR')}</p>
-                                            {sena.product_price && (
-                                                <p className="text-xs text-gray-400">Producto: ${Number(sena.product_price).toLocaleString('es-AR')}</p>
-                                            )}
                                         </div>
 
                                         <div className="flex gap-2 flex-wrap justify-end">
@@ -683,15 +833,19 @@ export function SenasList() {
                             </div>
 
                             <div className="mt-4 flex items-center gap-3 p-3 bg-gray-50 border border-gray-100 rounded-xl">
-                                {senaToDelete.product_image ? (
-                                    <img src={senaToDelete.product_image} alt={senaToDelete.product_name} className="w-11 h-11 rounded-lg object-cover border border-gray-100 flex-shrink-0" />
+                                {senaToDelete.sena_items?.[0]?.product_image ? (
+                                    <img src={senaToDelete.sena_items[0].product_image} alt={senaToDelete.sena_items[0].product_name} className="w-11 h-11 rounded-lg object-cover border border-gray-100 flex-shrink-0" />
                                 ) : (
                                     <div className="w-11 h-11 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
                                         <Package className="w-5 h-5 text-gray-400" />
                                     </div>
                                 )}
                                 <div className="min-w-0">
-                                    <p className="text-sm font-semibold text-gray-800 truncate">{senaToDelete.product_name}</p>
+                                    <p className="text-sm font-semibold text-gray-800 truncate">
+                                        {senaToDelete.sena_items?.length === 1
+                                            ? senaToDelete.sena_items[0].product_name
+                                            : `${senaToDelete.sena_items?.length || 0} productos`}
+                                    </p>
                                     <p className="text-xs text-gray-500 truncate">
                                         {[senaToDelete.buyer_name, senaToDelete.buyer_lastname].filter(Boolean).join(' ') || senaToDelete.buyer_email}
                                     </p>

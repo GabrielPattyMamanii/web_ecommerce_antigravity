@@ -3,6 +3,7 @@ import DOMPurify from 'dompurify';
 import { useParams, Link } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
 import { useCartStore } from '../../context/cartStore';
+import { useCartUIStore } from '../../context/cartUIStore';
 import { usePriceStore } from '../../context/priceStore';
 import { getWhatsAppLink } from '../../utils/whatsapp';
 import Toast from '../../components/ui/Toast';
@@ -114,17 +115,23 @@ export function ProductDetail() {
 
     const handleAddToCart = () => {
         if (!product) return;
-        addToCart({
+        const result = addToCart({
             id: product.id,
             name: product.name,
             price: currentPrice,
             image: product.images?.[0],
             color: selectedColor,
             size: selectedSize,
+            stock: product.stock,
             quantity
         });
+        if (result?.conflict) {
+            setToast({ mensaje: 'No podés mezclar productos con precio y productos a consultar', tipo: 'error' });
+            return;
+        }
         setAddedToCart(true);
         setTimeout(() => setAddedToCart(false), 2000);
+        useCartUIStore.getState().open();
     };
 
     const handleAddToQuoteCart = () => {
@@ -144,6 +151,7 @@ export function ProductDetail() {
         } else {
             setAddedToQuote(true);
             setTimeout(() => setAddedToQuote(false), 2000);
+            useCartUIStore.getState().open();
         }
     };
 
@@ -170,6 +178,10 @@ export function ProductDetail() {
             </div>
         );
     }
+
+    const hasStockLimit = !product.price_on_request && Number.isFinite(product.stock);
+    const stockDisponible = hasStockLimit ? Math.max(0, Number(product.stock)) : Infinity;
+    const sinStock = hasStockLimit && stockDisponible <= 0;
 
     const currentPrice = isWholesale ? product.wholesale_price : product.retail_price;
     const hasDiscount = product.discount_percentage && product.discount_percentage > 0;
@@ -354,18 +366,29 @@ export function ProductDetail() {
                             )}
 
                             {/* Quantity */}
-                            <div className="flex items-center gap-4">
-                                <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Cantidad</p>
-                                <div className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-2">
-                                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
-                                        <span className="material-symbols-outlined text-lg">remove</span>
-                                    </button>
-                                    <span className="w-8 text-center font-bold text-on-surface">{quantity}</span>
-                                    <button onClick={() => setQuantity(q => q + 1)} className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
-                                        <span className="material-symbols-outlined text-lg">add</span>
-                                    </button>
+                            {!product.price_on_request && (
+                                <div className="flex items-center gap-4">
+                                    <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Cantidad</p>
+                                    <div className="flex items-center gap-3 bg-surface-container rounded-xl px-4 py-2">
+                                        <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors">
+                                            <span className="material-symbols-outlined text-lg">remove</span>
+                                        </button>
+                                        <span className="w-8 text-center font-bold text-on-surface">{quantity}</span>
+                                        <button
+                                            onClick={() => setQuantity(q => Math.min(stockDisponible, q + 1))}
+                                            disabled={quantity >= stockDisponible}
+                                            className="w-8 h-8 flex items-center justify-center text-on-surface-variant hover:text-primary transition-colors disabled:opacity-30 disabled:hover:text-on-surface-variant"
+                                        >
+                                            <span className="material-symbols-outlined text-lg">add</span>
+                                        </button>
+                                    </div>
+                                    {hasStockLimit && (
+                                        <span className={`text-xs font-semibold ${sinStock ? 'text-error' : 'text-on-surface-variant'}`}>
+                                            {sinStock ? 'Sin stock' : `${stockDisponible} disponibles`}
+                                        </span>
+                                    )}
                                 </div>
-                            </div>
+                            )}
 
                             {/* CTA Button */}
                             {product.price_on_request ? (
@@ -405,13 +428,16 @@ export function ProductDetail() {
                             ) : (
                                 <button
                                     onClick={handleAddToCart}
-                                    className={`w-full py-5 rounded-xl font-bold text-lg shadow-xl transition-all flex items-center justify-center gap-3 ${
+                                    disabled={sinStock}
+                                    className={`w-full py-5 rounded-xl font-bold text-lg shadow-xl transition-all flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100 ${
                                         addedToCart
                                             ? 'bg-tertiary text-on-tertiary shadow-tertiary/20'
                                             : 'bg-gradient-to-r from-primary to-primary-dim text-on-primary shadow-primary/20 hover:scale-[1.02] active:scale-[0.98]'
                                     }`}
                                 >
-                                    {addedToCart ? (
+                                    {sinStock ? (
+                                        'Sin stock'
+                                    ) : addedToCart ? (
                                         <>
                                             <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                                             ¡Agregado al carrito!
@@ -554,13 +580,16 @@ export function ProductDetail() {
                     <div className="flex gap-2">
                         <button
                             onClick={handleAddToCart}
-                            className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] ${
+                            disabled={sinStock}
+                            className={`flex-1 py-3.5 rounded-xl font-bold text-sm flex items-center justify-center gap-2 transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed ${
                                 addedToCart
                                     ? 'bg-tertiary text-on-tertiary'
                                     : 'bg-gradient-to-r from-primary to-primary-dim text-on-primary shadow-lg shadow-primary/20'
                             }`}
                         >
-                            {addedToCart ? (
+                            {sinStock ? (
+                                'Sin stock'
+                            ) : addedToCart ? (
                                 <>
                                     <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>check_circle</span>
                                     ¡Agregado!
@@ -594,6 +623,7 @@ export function ProductDetail() {
         {senaModalOpen && (
             <SenaModal
                 product={{ ...product, source: product.images ? 'products' : 'catalog_products' }}
+                initialQuantity={quantity}
                 onClose={() => setSenaModalOpen(false)}
             />
         )}

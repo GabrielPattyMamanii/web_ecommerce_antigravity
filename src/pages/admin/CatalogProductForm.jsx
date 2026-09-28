@@ -449,12 +449,12 @@ export function CatalogProductForm() {
                                 <label className={labelCls}>Stock (docenas)</label>
                                 <input
                                     type="number"
-                                    className={`${inputCls} text-lg font-bold`}
+                                    disabled
+                                    className={`${inputCls} text-lg font-bold opacity-70 cursor-not-allowed bg-muted`}
                                     placeholder="0"
                                     value={formData.stock}
-                                    onChange={e => handleInputChange('stock', e.target.value)}
                                 />
-                                <p className="text-xs text-muted-foreground">Se sincroniza automáticamente con el stock de mercancía</p>
+                                <p className="text-xs text-muted-foreground">Se sincroniza automáticamente con el stock de mercancía (Control de Mercancía / escáner). Para ajustarlo, editá la cantidad de docenas en la tanda de origen.</p>
                             </div>
                         </section>
 

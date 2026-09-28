@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { X, HandCoins, AlertCircle, Loader2, MapPin } from 'lucide-react';
+import { X, HandCoins, AlertCircle, Loader2, MapPin, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSena } from '../../hooks/useSena';
+import { useSenaCartStore } from '../../context/senaCartStore';
+import toast from 'react-hot-toast';
 
 const MP_LOGO = (
     <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0">
@@ -16,13 +18,21 @@ const MP_LOGO = (
  *
  * Props:
  *  - product: { id, name, retail_price, price, images, image_url, source }
+ *  - initialQuantity?: number
  *  - onClose: () => void
  */
-export function SenaModal({ product, onClose }) {
+export function SenaModal({ product, initialQuantity = 1, onClose }) {
     const [senaConfig, setSenaConfig]         = useState(null);
+    const [priceRanges, setPriceRanges]       = useState([]);
     const [deliveryLocations, setDeliveryLocations] = useState([]);
     const [loadingConfig, setLoadingConfig]   = useState(true);
-    const { pagarSena, isLoading, error }     = useSena();
+    const [quantity, setQuantity]             = useState(() => {
+        const base = Math.max(1, initialQuantity);
+        if (product?.price_on_request || !Number.isFinite(product?.stock)) return base;
+        return Math.min(base, Math.max(0, Number(product.stock)) || base);
+    });
+    const { pagarSenaCarrito, isLoading, error } = useSena();
+    const addItem = useSenaCartStore((s) => s.addItem);
 
     const {
         register,
@@ -31,17 +41,23 @@ export function SenaModal({ product, onClose }) {
     } = useForm();
 
     useEffect(() => {
-        supabase
-            .from('site_config')
-            .select('sena_enabled, sena_type, sena_amount, sena_percentage, sena_delivery_locations')
-            .single()
-            .then(({ data }) => {
-                if (data) {
-                    setSenaConfig(data);
-                    setDeliveryLocations(data.sena_delivery_locations || []);
-                }
-                setLoadingConfig(false);
-            });
+        Promise.all([
+            supabase
+                .from('site_config')
+                .select('sena_enabled, sena_type, sena_amount, sena_percentage, sena_delivery_locations')
+                .single(),
+            supabase
+                .from('sena_price_ranges')
+                .select('min_qty, max_qty, amount')
+                .order('min_qty', { ascending: true }),
+        ]).then(([{ data }, { data: ranges }]) => {
+            if (data) {
+                setSenaConfig(data);
+                setDeliveryLocations(data.sena_delivery_locations || []);
+            }
+            setPriceRanges(ranges || []);
+            setLoadingConfig(false);
+        });
     }, []);
 
     useEffect(() => {
@@ -52,33 +68,54 @@ export function SenaModal({ product, onClose }) {
     const productPrice  = product?.retail_price || product?.price || 0;
     const productImage  = product?.images?.[0] || product?.image_url || null;
     const productSource = product?.source || 'products';
+    const hasStockLimit = !product?.price_on_request && Number.isFinite(product?.stock);
+    const stockDisponible = hasStockLimit ? Math.max(0, Number(product.stock)) : Infinity;
+    const sinStock = hasStockLimit && stockDisponible <= 0;
 
     const calcularMontoSena = () => {
         if (!senaConfig) return 0;
         if (senaConfig.sena_type === 'percentage') {
-            return Math.round((productPrice * senaConfig.sena_percentage) / 100);
+            return Math.round((productPrice * senaConfig.sena_percentage / 100) * quantity);
         }
-        return Number(senaConfig.sena_amount) || 0;
+        if (senaConfig.sena_type === 'ranges') {
+            const match = priceRanges.find(
+                (r) => quantity >= r.min_qty && (r.max_qty == null || quantity <= r.max_qty)
+            );
+            return match ? Number(match.amount) : 0;
+        }
+        return (Number(senaConfig.sena_amount) || 0) * quantity;
     };
 
     const montoSena = calcularMontoSena();
+    const sinRangoParaCantidad = senaConfig?.sena_type === 'ranges' && montoSena <= 0;
     // Si el tipo es porcentaje y el producto no tiene precio, no se puede calcular la seña
     const sinPrecioParaPorcentaje = senaConfig?.sena_type === 'percentage' && productPrice <= 0;
 
-    const onSubmit = (formData) => {
-        pagarSena({
-            product_id:        product.id,
-            product_source:    productSource,
-            product_name:      product.name,
-            product_image:     productImage,
-            product_price:     productPrice,
+    const buildItem = () => ({
+        product_id:     product.id,
+        product_source: productSource,
+        product_name:   product.name,
+        product_image:  productImage,
+        product_price:  productPrice,
+        stock:          product.stock,
+        quantity,
+    });
+
+    const onPagarAhora = (formData) => {
+        pagarSenaCarrito({
+            items:             [buildItem()],
             buyer_name:        formData.buyer_name,
             buyer_lastname:    formData.buyer_lastname,
             buyer_email:       formData.buyer_email,
             buyer_whatsapp:    formData.buyer_whatsapp,
             delivery_location: formData.delivery_location,
-            amount:            montoSena,
         });
+    };
+
+    const onAgregarAlCarrito = () => {
+        addItem(buildItem(), quantity);
+        toast.success(`Agregado al carrito de señas (${quantity} unidad${quantity > 1 ? 'es' : ''})`);
+        onClose();
     };
 
     const inputClass = (hasError) =>
@@ -149,18 +186,54 @@ export function SenaModal({ product, onClose }) {
                             <p className="text-gray-500 text-sm mt-1">Este producto no tiene precio fijo, por lo que no se puede calcular la seña por porcentaje.<br/>Contactanos por WhatsApp para coordinar la reserva.</p>
                         </div>
                     ) : (
-                        <form onSubmit={handleSubmit(onSubmit)} className="px-5 py-5 space-y-4">
+                        <form onSubmit={handleSubmit(onPagarAhora)} className="px-5 py-5 space-y-4">
+
+                            {/* Cantidad */}
+                            <div className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3">
+                                <div>
+                                    <p className="text-sm font-semibold text-gray-700">Cantidad a señar</p>
+                                    {hasStockLimit && (
+                                        <p className={`text-xs font-semibold ${sinStock ? 'text-red-500' : 'text-gray-400'}`}>
+                                            {sinStock ? 'Sin stock disponible' : `${stockDisponible} disponibles`}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:border-[#009EE3] hover:text-[#009EE3] transition-colors"
+                                    >
+                                        <Minus className="w-3.5 h-3.5" />
+                                    </button>
+                                    <span className="w-6 text-center font-bold text-gray-900">{quantity}</span>
+                                    <button
+                                        type="button"
+                                        onClick={() => setQuantity((q) => Math.min(stockDisponible, q + 1))}
+                                        disabled={quantity >= stockDisponible}
+                                        className="w-8 h-8 flex items-center justify-center rounded-lg bg-white border border-gray-200 text-gray-600 hover:border-[#009EE3] hover:text-[#009EE3] transition-colors disabled:opacity-30 disabled:hover:border-gray-200 disabled:hover:text-gray-600"
+                                    >
+                                        <Plus className="w-3.5 h-3.5" />
+                                    </button>
+                                </div>
+                            </div>
 
                             {/* Badge monto seña */}
                             <div className="bg-[#009EE3]/10 border border-[#009EE3]/25 rounded-xl p-3.5 text-center">
                                 <p className="text-xs text-[#0073BD] font-semibold uppercase tracking-wide mb-0.5">
                                     {senaConfig.sena_type === 'percentage'
                                         ? `Seña (${senaConfig.sena_percentage}% del precio)`
-                                        : 'Monto de la Seña'}
+                                        : senaConfig.sena_type === 'ranges'
+                                            ? 'Monto de la seña por cantidad'
+                                            : 'Monto de la Seña'}
                                 </p>
-                                <p className="text-3xl font-black text-[#0073BD]">
-                                    ${montoSena.toLocaleString('es-AR')}
-                                </p>
+                                {sinRangoParaCantidad ? (
+                                    <p className="text-sm text-amber-600 font-semibold">No hay un rango configurado para esta cantidad. Contactanos.</p>
+                                ) : (
+                                    <p className="text-3xl font-black text-[#0073BD]">
+                                        ${montoSena.toLocaleString('es-AR')}
+                                    </p>
+                                )}
                             </div>
 
                             {/* Nombre y Apellido en fila */}
@@ -252,27 +325,39 @@ export function SenaModal({ product, onClose }) {
                                 </div>
                             )}
 
-                            {/* Botón Mercado Pago */}
-                            <button
-                                type="submit"
-                                disabled={isLoading || montoSena <= 0}
-                                className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-[#009EE3] hover:bg-[#0073BD] disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-lg shadow-[#009EE3]/25 text-sm"
-                            >
-                                {isLoading ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        Preparando pago...
-                                    </>
-                                ) : (
-                                    <>
-                                        {MP_LOGO}
-                                        Pagar Seña — ${montoSena.toLocaleString('es-AR')}
-                                    </>
-                                )}
-                            </button>
+                            {/* Botones */}
+                            <div className="space-y-2">
+                                <button
+                                    type="submit"
+                                    disabled={isLoading || montoSena <= 0 || sinStock}
+                                    className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-bold text-white bg-[#009EE3] hover:bg-[#0073BD] disabled:opacity-60 disabled:cursor-not-allowed transition-colors shadow-lg shadow-[#009EE3]/25 text-sm"
+                                >
+                                    {isLoading ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 animate-spin" />
+                                            Preparando pago...
+                                        </>
+                                    ) : (
+                                        <>
+                                            {MP_LOGO}
+                                            Pagar ahora — ${montoSena.toLocaleString('es-AR')}
+                                        </>
+                                    )}
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={onAgregarAlCarrito}
+                                    disabled={isLoading || sinStock}
+                                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-bold text-[#009EE3] bg-white border-2 border-[#009EE3] hover:bg-[#009EE3]/5 disabled:opacity-60 transition-colors text-sm"
+                                >
+                                    <ShoppingBag className="w-4 h-4" />
+                                    Agregar al carrito de señas
+                                </button>
+                            </div>
 
                             <p className="text-xs text-center text-gray-400 pb-1">
-                                Serás redirigido al checkout seguro de Mercado Pago.
+                                "Pagar ahora" te redirige al checkout seguro de Mercado Pago solo por este producto. "Agregar al carrito" te permite juntar varios productos y pagar todo junto.
                             </p>
                         </form>
                     )}

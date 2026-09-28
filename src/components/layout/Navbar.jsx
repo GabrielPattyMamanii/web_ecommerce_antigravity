@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { ShoppingCart, Menu, X, Search, User, ChevronRight, ChevronDown } from 'lucide-react';
+import { ShoppingCart, Menu, X, Search, User, ChevronRight, ChevronDown, HandCoins } from 'lucide-react';
 import { useCartStore } from '../../context/cartStore';
+import { useSenaCartStore } from '../../context/senaCartStore';
+import { useSenaCartUIStore } from '../../context/senaCartUIStore';
+import { useCartUIStore } from '../../context/cartUIStore';
 import { supabase } from '../../lib/supabase';
 import { ClientSearchBar } from '../public/ClientSearchBar';
+import { SenaCartDrawer } from '../senas/SenaCartDrawer';
+import { CartDrawer } from '../cart/CartDrawer';
 
 export function Navbar() {
     const [isMenuOpen, setIsMenuOpen] = useState(false);
@@ -11,6 +16,12 @@ export function Navbar() {
     const [expandedCategories, setExpandedCategories] = useState({});
     const [liveEnabled, setLiveEnabled] = useState(true);
     const cartItemsCount = useCartStore((state) => state.totalItems());
+    const senaCartCount = useSenaCartStore((state) => state.totalQuantity());
+    const senaCartOpen = useSenaCartUIStore((state) => state.isOpen);
+    const openSenaCart = useSenaCartUIStore((state) => state.open);
+    const closeSenaCart = useSenaCartUIStore((state) => state.close);
+    const cartOpen = useCartUIStore((state) => state.isOpen);
+    const closeCart = useCartUIStore((state) => state.close);
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -118,14 +129,34 @@ export function Navbar() {
                         </Link>
 
                         {/* Cart */}
-                        <Link to="/cart" className="relative p-2 text-public-primary active:scale-95 duration-200 transition-transform hover:bg-black/5 rounded-full">
+                        <button
+                            onClick={() => useCartUIStore.getState().open()}
+                            className="relative p-2 text-public-primary active:scale-95 duration-200 transition-transform hover:bg-black/5 rounded-full"
+                            aria-label="Carrito"
+                        >
                             <ShoppingCart className="w-6 h-6" />
                             {cartItemsCount > 0 && (
                                 <span className="absolute top-0 right-0 lg:-top-1 lg:-right-1 flex h-5 w-5 items-center justify-center rounded-full bg-public-tertiary text-on-surface shadow-md text-[10px] font-bold ring-2 ring-surface">
                                     {cartItemsCount}
                                 </span>
                             )}
-                        </Link>
+                        </button>
+
+                        {/* Carrito de señas — solo si "Productos en Live" está activo */}
+                        {liveEnabled && (
+                            <button
+                                onClick={openSenaCart}
+                                className="relative p-2 text-live-red active:scale-95 duration-200 transition-transform hover:bg-black/5 rounded-full"
+                                aria-label="Carrito de señas"
+                            >
+                                <HandCoins className="w-6 h-6" />
+                                {senaCartCount > 0 && (
+                                    <span className="absolute top-0 right-0 lg:-top-1 lg:-right-1 flex h-5 w-5 items-center justify-center rounded-full bg-live-red text-white shadow-md text-[10px] font-bold ring-2 ring-surface">
+                                        {senaCartCount}
+                                    </span>
+                                )}
+                            </button>
+                        )}
                     </div>
                 </div>
             </nav>
@@ -280,6 +311,9 @@ export function Navbar() {
                     }
                 }
             `}</style>
+
+            <CartDrawer isOpen={cartOpen} onClose={closeCart} />
+            <SenaCartDrawer isOpen={senaCartOpen} onClose={closeSenaCart} />
         </>
     );
 }

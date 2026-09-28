@@ -170,13 +170,13 @@ serve(async (req: Request) => {
 
     if (senaId) {
         const { error } = await supabase
-            .from('senas')
+            .from('sena_carritos')
             .update(updatePayload)
             .eq('id', senaId);
         updateError = error;
     } else if (mpPreferenceId) {
         const { error } = await supabase
-            .from('senas')
+            .from('sena_carritos')
             .update(updatePayload)
             .eq('mp_preference_id', mpPreferenceId);
         updateError = error;

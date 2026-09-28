@@ -14,17 +14,24 @@ export const useCartStore = create(
                         return { success: false, conflict: true };
                     }
                 }
+                const addQuantity = product.quantity || 1;
                 const existingItem = items.find((item) => item.id === product.id);
                 if (existingItem) {
+                    const stock = Number.isFinite(product.stock) ? product.stock : existingItem.stock;
+                    const rawQuantity = existingItem.quantity + addQuantity;
+                    const newQuantity = Number.isFinite(stock) ? Math.min(rawQuantity, Math.max(stock, 0)) : rawQuantity;
                     set({
                         items: items.map((item) =>
                             item.id === product.id
-                                ? { ...item, quantity: item.quantity + 1 }
+                                ? { ...item, quantity: newQuantity, stock }
                                 : item
                         ),
                     });
                 } else {
-                    set({ items: [...items, { ...product, quantity: 1 }] });
+                    const initialQuantity = Number.isFinite(product.stock)
+                        ? Math.min(addQuantity, Math.max(product.stock, 0))
+                        : addQuantity;
+                    set({ items: [...items, { ...product, quantity: initialQuantity }] });
                 }
                 return { success: true };
             },

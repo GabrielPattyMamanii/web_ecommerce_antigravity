@@ -992,6 +992,38 @@ input:checked~.visibility-label {
   }
 }
 
+.drawer-overlay {
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  opacity: 0;
+  transition: opacity 0.28s ease;
+}
+
+.drawer-overlay.drawer-enter {
+  opacity: 1;
+}
+
+.drawer-panel {
+  height: 100%;
+  background: #fff;
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.12);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.drawer-panel.drawer-enter {
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .drawer-overlay,
+  .drawer-panel {
+    transition: none;
+  }
+}
+
 .toast.success {
   background: var(--success-green);
 }
@@ -3512,5 +3544,382 @@ input:checked~.visibility-label {
 @media (prefers-reduced-motion: reduce) {
   .live-picker-dot {
     animation: none;
+  }
+}
+
+/* =========================================
+   LIVE PRODUCT DETAIL — página propia del producto
+   visto durante la transmisión ("/live/:id").
+   Extiende la identidad de .live-* (cream + señal roja),
+   con tipografía de cartel (Archivo Black) para el nombre/precio
+   y un ticker "al aire" como elemento de firma.
+   ========================================= */
+
+.live-pdp {
+  --live-ink: #1a1207;
+  --live-ink-soft: #5c4a30;
+  --live-signal: #ff2d55;
+  --live-signal-deep: #c4123f;
+  background: #ffffec;
+  min-height: 100vh;
+  font-family: var(--font-body), sans-serif;
+}
+
+.live-pdp-loading {
+  min-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #ffffec;
+  color: var(--live-ink-soft, #5c4a30);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+.live-pdp-loading__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ff2d55;
+  animation: live-picker-pulse 1.8s ease-out infinite;
+}
+
+/* --- Ticker "al aire": tira angosta con texto en loop --- */
+.live-pdp-ticker {
+  background: #1a1207;
+  overflow: hidden;
+  white-space: nowrap;
+  border-bottom: 2px solid #ff2d55;
+}
+.live-pdp-ticker__track {
+  display: inline-flex;
+  animation: live-ticker-scroll 26s linear infinite;
+}
+.live-pdp-ticker__track:hover {
+  animation-play-state: paused;
+}
+.live-pdp-ticker__track span {
+  display: inline-block;
+  padding: 7px 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: #ffd9df;
+  text-transform: uppercase;
+}
+@keyframes live-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live-pdp-ticker__track {
+    animation: none;
+  }
+}
+
+.live-pdp__main {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 20px 20px 80px;
+}
+
+.live-pdp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--live-ink-soft);
+  text-decoration: none;
+  margin-bottom: 20px;
+  transition: color 0.2s ease;
+}
+.live-pdp-back:hover {
+  color: var(--live-signal);
+}
+
+.live-pdp__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 36px;
+}
+@media (min-width: 960px) {
+  .live-pdp__grid {
+    grid-template-columns: 1.1fr 1fr;
+    align-items: start;
+  }
+}
+
+/* --- Frame de la imagen: marco tipo "transmisión" --- */
+.live-pdp__frame-col {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.live-pdp__frame {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #fff5f2;
+  border: 2px solid rgba(255, 45, 85, 0.18);
+  box-shadow: 0 20px 50px rgba(26, 18, 7, 0.1);
+}
+.live-pdp__frame-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.live-pdp__frame-tag {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(26, 18, 7, 0.78);
+  backdrop-filter: blur(4px);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+}
+.live-pdp__frame-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.85);
+  border: none;
+  border-radius: 50%;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--live-ink);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.live-pdp__frame-arrow:hover {
+  background: #fff;
+}
+.live-pdp__frame-arrow--left { left: 12px; }
+.live-pdp__frame-arrow--right { right: 12px; }
+
+.live-pdp__thumbs {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+}
+.live-pdp__thumb {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  opacity: 0.55;
+  transition: opacity 0.2s ease, border-color 0.2s ease;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+}
+.live-pdp__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.live-pdp__thumb--active {
+  opacity: 1;
+  border-color: var(--live-signal);
+}
+
+/* --- Info del producto --- */
+.live-pdp__info {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.live-pdp__eyebrow {
+  align-self: flex-start;
+}
+
+.live-pdp__category {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  color: var(--live-signal-deep);
+}
+
+.live-pdp__name {
+  font-family: 'Archivo Black', var(--font-body), sans-serif;
+  font-size: clamp(1.9rem, 4.2vw, 3rem);
+  line-height: 1.05;
+  color: var(--live-ink);
+  margin: 0;
+}
+
+.live-pdp__price-tag {
+  align-self: flex-start;
+  font-family: 'Archivo Black', var(--font-body), sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.1rem);
+  color: var(--live-signal-deep);
+  background: #fff;
+  border: 2.5px solid var(--live-signal);
+  border-radius: 12px;
+  padding: 6px 20px;
+  transform: rotate(-1.2deg);
+  box-shadow: 4px 4px 0 rgba(255, 45, 85, 0.18);
+}
+
+.live-pdp__desc {
+  font-size: 0.9rem;
+  line-height: 1.65;
+  color: var(--live-ink-soft);
+}
+
+.live-pdp__qty {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--live-ink-soft);
+}
+.live-pdp__qty-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 45, 85, 0.06);
+  border: 1.5px solid rgba(255, 45, 85, 0.2);
+  border-radius: 12px;
+  padding: 6px 14px;
+}
+.live-pdp__qty-control button {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: none;
+  background: #fff;
+  color: var(--live-signal-deep);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+.live-pdp__qty-control button:hover {
+  background: rgba(255, 45, 85, 0.15);
+}
+.live-pdp__qty-control button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+  background: #fff;
+}
+.live-pdp__qty-control span {
+  min-width: 18px;
+  text-align: center;
+  color: var(--live-ink);
+  font-weight: 800;
+}
+.live-pdp__qty-hint {
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 700;
+  color: var(--live-ink-soft);
+}
+.live-pdp__qty-warning {
+  font-size: 11px;
+  text-transform: none;
+  letter-spacing: normal;
+  font-weight: 800;
+  color: #d92d20;
+}
+
+.live-pdp__cta-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 16px 24px;
+  border-radius: 14px;
+  border: none;
+  background: var(--live-signal);
+  color: #fff;
+  font-weight: 800;
+  font-size: 1rem;
+  font-family: inherit;
+  text-decoration: none;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(255, 45, 85, 0.3);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  margin-top: 6px;
+}
+.live-pdp__cta-primary:hover {
+  background: var(--live-signal-deep);
+  transform: translateY(-2px);
+  box-shadow: 0 16px 40px rgba(255, 45, 85, 0.4);
+}
+.live-pdp__cta-hint {
+  font-size: 0.75rem;
+  color: var(--live-ink-soft);
+  text-align: center;
+  margin: -2px 0 4px;
+}
+
+.live-pdp__cta-disabled {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: rgba(92, 74, 48, 0.08);
+  color: var(--live-ink-soft);
+  font-weight: 600;
+  font-size: 0.85rem;
+  text-align: center;
+  margin-top: 6px;
+}
+
+.live-pdp__more {
+  margin-top: 64px;
+}
+
+.live-pdp__mobile-cta {
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: rgba(255, 255, 236, 0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1.5px solid rgba(255, 45, 85, 0.18);
+  z-index: 40;
+}
+.live-pdp__cta-primary--mobile {
+  margin-top: 0;
+  padding: 13px 20px;
+}
+@media (max-width: 959px) {
+  .live-pdp__mobile-cta {
+    display: block;
+  }
+  .live-pdp__main {
+    padding-bottom: 110px;
   }
 }
