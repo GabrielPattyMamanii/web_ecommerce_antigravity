@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Video, MessageCircle, PackageCheck, Instagram, Facebook, ArrowRight } from 'lucide-react';
+import { HandCoins, PackageCheck, Instagram, Facebook, ArrowRight, MessageCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
 const getLiveProductImage = (p) =>
@@ -14,21 +14,15 @@ const getLiveProductPrice = (p) =>
 const steps = [
     {
         id: 1,
-        icon: Video,
-        title: 'Mirá la transmisión',
-        description: 'Entrá al vivo en Instagram, TikTok o Facebook y mirá los productos que mostramos en tiempo real, con precio y stock al momento.',
+        icon: HandCoins,
+        title: 'Reservá con una seña',
+        description: 'Entrá al producto que te gustó y tocá "Hacer una seña". El sistema calcula el monto, completás tus datos y pagás online con Mercado Pago para asegurar tu lugar.',
     },
     {
         id: 2,
-        icon: MessageCircle,
-        title: 'Reservá por privado',
-        description: 'Vas viendo algo que te gusta y nos escribís por privado o WhatsApp con el número que decimos en el vivo. Así apartamos tu producto.',
-    },
-    {
-        id: 3,
         icon: PackageCheck,
-        title: 'Coordinamos la entrega',
-        description: 'Confirmamos tu pedido, dejás la seña y coordinamos el retiro o el envío, igual que en una compra normal.',
+        title: 'Elegís dónde retirarlo',
+        description: 'Al reservar, seleccionás el lugar de entrega de una lista de opciones disponibles. Con la seña confirmada te contactamos por WhatsApp para coordinar la fecha y el pago restante.',
     },
 ];
 
