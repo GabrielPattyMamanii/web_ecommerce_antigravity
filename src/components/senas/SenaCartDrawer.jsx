@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, HandCoins, AlertCircle, Loader2, MapPin, Minus, Plus, Trash2, Package, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSena } from '../../hooks/useSena';
+import { useSenaLocationLookup } from '../../hooks/useSenaLocationLookup';
 import { useSenaCartStore } from '../../context/senaCartStore';
 import { useSenaBuyerStore } from '../../context/senaBuyerStore';
 import { Drawer } from '../ui/Drawer';
@@ -28,6 +29,7 @@ export function SenaCartDrawer({ isOpen, onClose }) {
     const formRef = useRef(null);
     const savedBuyer = useSenaBuyerStore.getState();
     const setBuyer = useSenaBuyerStore((s) => s.setBuyer);
+    const { lockedLocation, checkLocation } = useSenaLocationLookup();
 
     const {
         register,
@@ -78,8 +80,15 @@ export function SenaCartDrawer({ isOpen, onClose }) {
             setPriceRanges(ranges || []);
             setLoadingConfig(false);
         });
+        if (savedBuyer.buyer_whatsapp) checkLocation(savedBuyer.buyer_whatsapp);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (lockedLocation && deliveryLocations.includes(lockedLocation)) {
+            setValue('delivery_location', lockedLocation);
+        }
+    }, [lockedLocation, deliveryLocations, setValue]);
 
     const totalQty = items.reduce((acc, it) => acc + it.quantity, 0);
 
@@ -274,7 +283,10 @@ export function SenaCartDrawer({ isOpen, onClose }) {
                                     <div>
                                         <label className="block text-xs font-semibold text-gray-700 mb-1">WhatsApp *</label>
                                         <input
-                                            {...register('buyer_whatsapp', { required: 'El WhatsApp es requerido' })}
+                                            {...register('buyer_whatsapp', {
+                                                required: 'El WhatsApp es requerido',
+                                                onBlur: (e) => checkLocation(e.target.value),
+                                            })}
                                             type="tel"
                                             placeholder="Ej: 1122334455"
                                             className={inputClass(errors.buyer_whatsapp)}
@@ -282,6 +294,14 @@ export function SenaCartDrawer({ isOpen, onClose }) {
                                         {errors.buyer_whatsapp && <p className="text-[11px] text-red-500 mt-0.5">{errors.buyer_whatsapp.message}</p>}
                                         <p className="text-[11px] text-gray-400 mt-1">Te contactaremos por este número para coordinar el pedido.</p>
                                     </div>
+
+                                    {/* Aviso de lugar de entrega ya asignado */}
+                                    {lockedLocation && (
+                                        <div className="flex items-start gap-2 bg-[#009EE3]/5 border border-[#009EE3]/20 rounded-xl p-3 text-xs text-gray-600">
+                                            <MapPin className="w-4 h-4 text-[#009EE3] flex-shrink-0 mt-0.5" />
+                                            <span>Ya tenés un pedido con lugar de entrega <span className="font-semibold text-gray-800">"{lockedLocation}"</span>. Estos productos se sumarán ahí.</span>
+                                        </div>
+                                    )}
 
                                     {/* Lugar de entrega */}
                                     {deliveryLocations.length > 0 && (
@@ -294,7 +314,8 @@ export function SenaCartDrawer({ isOpen, onClose }) {
                                             </label>
                                             <select
                                                 {...register('delivery_location', { required: 'Seleccioná un lugar de entrega' })}
-                                                className={`${inputClass(errors.delivery_location)} appearance-none bg-white`}
+                                                disabled={!!lockedLocation && deliveryLocations.includes(lockedLocation)}
+                                                className={`${inputClass(errors.delivery_location)} appearance-none bg-white disabled:bg-gray-100 disabled:text-gray-500`}
                                             >
                                                 <option value="">Seleccioná una opción...</option>
                                                 {deliveryLocations.map((loc) => (

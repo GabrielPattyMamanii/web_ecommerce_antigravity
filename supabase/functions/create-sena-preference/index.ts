@@ -92,7 +92,7 @@ serve(async (req: Request) => {
             if (previoConOtroLugar) {
                 return json({
                     error: 'No podés cambiar el lugar de entrega',
-                    detail: `Ya tenés un pedido registrado con lugar de entrega "${previoConOtroLugar.delivery_location}". Para modificarlo, contactate con nosotros por WhatsApp.`,
+                    detail: `Ya tenés un pedido con lugar de entrega "${previoConOtroLugar.delivery_location}". Para sumar más productos, seleccioná ese mismo lugar arriba y volvé a pagar. Si necesitás cambiarlo, contactate con nosotros por WhatsApp.`,
                 }, 409);
             }
         }

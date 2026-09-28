@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { X, HandCoins, AlertCircle, Loader2, MapPin, Minus, Plus, ShoppingBag } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSena } from '../../hooks/useSena';
+import { useSenaLocationLookup } from '../../hooks/useSenaLocationLookup';
 import { useSenaCartStore } from '../../context/senaCartStore';
 import { useSenaBuyerStore } from '../../context/senaBuyerStore';
 import toast from 'react-hot-toast';
@@ -36,6 +37,7 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
     const addItem = useSenaCartStore((s) => s.addItem);
     const savedBuyer = useSenaBuyerStore.getState();
     const setBuyer = useSenaBuyerStore((s) => s.setBuyer);
+    const { lockedLocation, checkLocation } = useSenaLocationLookup();
 
     const {
         register,
@@ -74,8 +76,15 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
             setPriceRanges(ranges || []);
             setLoadingConfig(false);
         });
+        if (savedBuyer.buyer_whatsapp) checkLocation(savedBuyer.buyer_whatsapp);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (lockedLocation && deliveryLocations.includes(lockedLocation)) {
+            setValue('delivery_location', lockedLocation);
+        }
+    }, [lockedLocation, deliveryLocations, setValue]);
 
     useEffect(() => {
         document.body.style.overflow = 'hidden';
@@ -303,7 +312,10 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
                                         </svg>
                                     </span>
                                     <input
-                                        {...register('buyer_whatsapp', { required: 'El WhatsApp es requerido' })}
+                                        {...register('buyer_whatsapp', {
+                                            required: 'El WhatsApp es requerido',
+                                            onBlur: (e) => checkLocation(e.target.value),
+                                        })}
                                         type="tel"
                                         placeholder="Ej: 1122334455"
                                         className={`${inputClass(errors.buyer_whatsapp)} pl-9`}
@@ -312,6 +324,14 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
                                 {errors.buyer_whatsapp && <p className="text-[11px] text-red-500 mt-0.5">{errors.buyer_whatsapp.message}</p>}
                                 <p className="text-[11px] text-gray-400 mt-1">Te contactaremos por este número para coordinar el pedido.</p>
                             </div>
+
+                            {/* Aviso de lugar de entrega ya asignado */}
+                            {lockedLocation && (
+                                <div className="flex items-start gap-2 bg-[#009EE3]/5 border border-[#009EE3]/20 rounded-xl p-3 text-xs text-gray-600">
+                                    <MapPin className="w-4 h-4 text-[#009EE3] flex-shrink-0 mt-0.5" />
+                                    <span>Ya tenés un pedido con lugar de entrega <span className="font-semibold text-gray-800">"{lockedLocation}"</span>. Este producto se sumará ahí.</span>
+                                </div>
+                            )}
 
                             {/* Lugar de entrega */}
                             {deliveryLocations.length > 0 && (
@@ -324,7 +344,8 @@ export function SenaModal({ product, initialQuantity = 1, onClose }) {
                                     </label>
                                     <select
                                         {...register('delivery_location', { required: 'Seleccioná un lugar de entrega' })}
-                                        className={`${inputClass(errors.delivery_location)} appearance-none bg-white`}
+                                        disabled={!!lockedLocation && deliveryLocations.includes(lockedLocation)}
+                                        className={`${inputClass(errors.delivery_location)} appearance-none bg-white disabled:bg-gray-100 disabled:text-gray-500`}
                                     >
                                         <option value="">Seleccioná una opción...</option>
                                         {deliveryLocations.map((loc) => (
