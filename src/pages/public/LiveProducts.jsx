@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { HandCoins, PackageCheck, Instagram, Facebook, ArrowRight, MessageCircle } from 'lucide-react';
+import { HandCoins, PackageCheck, ArrowRight } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useSenaBuyerStore } from '../../context/senaBuyerStore';
+import { getSenaPaymentNoticeLink } from '../../utils/whatsapp';
+
+const DEFAULT_WHATSAPP_NUMBER = '5491134656584';
 
 const getLiveProductImage = (p) =>
     p._source === 'catalog_products'
@@ -30,16 +34,19 @@ export function LiveProducts() {
     const [enabled, setEnabled] = useState(true);
     const [loading, setLoading] = useState(true);
     const [liveProducts, setLiveProducts] = useState([]);
+    const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER);
+    const savedBuyer = useSenaBuyerStore();
 
     useEffect(() => {
         const fetchData = async () => {
             const [{ data: config }, { data: prods }, { data: catalogProds }] = await Promise.all([
-                supabase.from('site_config').select('live_products_enabled').single(),
+                supabase.from('site_config').select('live_products_enabled, whatsapp_number').single(),
                 supabase.from('products').select('*').eq('is_live', true),
                 supabase.from('catalog_products').select('*').eq('is_live', true),
             ]);
 
             setEnabled(config?.live_products_enabled ?? true);
+            if (config?.whatsapp_number) setWhatsappNumber(config.whatsapp_number);
             setLiveProducts([
                 ...(prods || []).map((p) => ({ ...p, _source: 'products' })),
                 ...(catalogProds || []).map((p) => ({ ...p, _source: 'catalog_products' })),
@@ -89,6 +96,20 @@ export function LiveProducts() {
                     </p>
                 </div>
 
+                {/* Aviso: ya hice una seña y quiero avisar que pagué */}
+                <div className="live-cta mb-8">
+                    <p className="live-cta__text">¿Ya reservaste un producto y pagaste la seña?</p>
+                    <a
+                        href={getSenaPaymentNoticeLink(whatsappNumber, savedBuyer)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="live-cta__btn"
+                    >
+                        <HandCoins className="w-5 h-5" />
+                        Avisar al vendedor por WhatsApp
+                    </a>
+                </div>
+
                 {/* Productos marcados como Live */}
                 {liveProducts.length > 0 && (
                     <div className="live-products mb-10">
@@ -132,55 +153,6 @@ export function LiveProducts() {
                     })}
                 </div>
 
-                {/* Channels */}
-                <div className="live-channels">
-                    <h2 className="live-channels__title">Seguinos para no perderte el próximo vivo</h2>
-                    <div className="live-channels__grid">
-                        <a
-                            href="https://instagram.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="live-channel-card"
-                        >
-                            <Instagram className="w-6 h-6" />
-                            <span>Instagram</span>
-                        </a>
-                        <a
-                            href="https://tiktok.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="live-channel-card"
-                        >
-                            <svg viewBox="0 0 24 24" className="w-6 h-6" fill="currentColor">
-                                <path d="M16.6 5c.1 1.5 1 2.8 2.4 3.2v2.6c-1.1.1-2.1-.3-3-.9v4.6c0 2.5-2 4.5-4.5 4.5S7 17 7 14.5 9 10 11.5 10c.2 0 .4 0 .6.1v2.6c-.2-.1-.4-.1-.6-.1-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2V5h3.1z" />
-                            </svg>
-                            <span>TikTok</span>
-                        </a>
-                        <a
-                            href="https://facebook.com"
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="live-channel-card"
-                        >
-                            <Facebook className="w-6 h-6" />
-                            <span>Facebook</span>
-                        </a>
-                    </div>
-                </div>
-
-                {/* CTA */}
-                <div className="live-cta">
-                    <p className="live-cta__text">¿Querés que te avisemos cuando salgamos en vivo?</p>
-                    <a
-                        href="https://wa.me/1134656584?text=Hola!%20Quiero%20que%20me%20avisen%20cuando%20est%C3%A9n%20en%20vivo"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="live-cta__btn"
-                    >
-                        <MessageCircle className="w-5 h-5" />
-                        Avisenme por WhatsApp
-                    </a>
-                </div>
             </div>
         </section>
     );

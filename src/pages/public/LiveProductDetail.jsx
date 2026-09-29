@@ -6,7 +6,10 @@ import { supabase } from '../../lib/supabase';
 import { HandCoins, ArrowLeft, ArrowRight, Minus, Plus, AlertCircle } from 'lucide-react';
 import { useSenaCartStore } from '../../context/senaCartStore';
 import { useSenaCartUIStore } from '../../context/senaCartUIStore';
+import { useSenaBuyerStore } from '../../context/senaBuyerStore';
+import { getSenaPaymentNoticeLink } from '../../utils/whatsapp';
 
+const DEFAULT_WHATSAPP_NUMBER = '5491134656584';
 const TICKER_TEXT = '● EN VIVO AHORA — RESERVÁ ANTES DE QUE SE ACABE — ● STOCK LIMITADO MIENTRAS DURA LA TRANSMISIÓN — ';
 
 function getLiveThumb(p) {
@@ -23,9 +26,11 @@ export function LiveProductDetail() {
     const [selectedImage, setSelectedImage] = useState(0);
     const [quantity, setQuantity] = useState(1);
     const [senaEnabled, setSenaEnabled] = useState(false);
+    const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER);
 
     const addItem      = useSenaCartStore((s) => s.addItem);
     const openSenaCart = useSenaCartUIStore((s) => s.open);
+    const savedBuyer   = useSenaBuyerStore();
 
     useEffect(() => {
         window.scrollTo(0, 0);
@@ -38,9 +43,12 @@ export function LiveProductDetail() {
         try {
             const { data: config } = await supabase
                 .from('site_config')
-                .select('sena_enabled')
+                .select('sena_enabled, whatsapp_number')
                 .single();
-            if (config) setSenaEnabled(config.sena_enabled ?? false);
+            if (config) {
+                setSenaEnabled(config.sena_enabled ?? false);
+                if (config.whatsapp_number) setWhatsappNumber(config.whatsapp_number);
+            }
 
             const { data: standardProd } = await supabase
                 .from('products')
@@ -254,6 +262,15 @@ export function LiveProductDetail() {
                                 Las señas no están disponibles en este momento.
                             </div>
                         )}
+
+                        <a
+                            href={getSenaPaymentNoticeLink(whatsappNumber, savedBuyer)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="live-pdp__whatsapp-notice"
+                        >
+                            ¿Ya pagaste tu seña? Avisale al vendedor por WhatsApp
+                        </a>
                     </div>
                 </div>
 
