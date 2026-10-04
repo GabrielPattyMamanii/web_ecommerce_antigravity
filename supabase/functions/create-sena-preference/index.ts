@@ -213,9 +213,9 @@ serve(async (req: Request) => {
                 currency_id: 'ARS',
             }],
             back_urls: {
-                success: `${siteUrl}/senas?sena_success=true&sena_id=${carrito.id}`,
-                failure: `${siteUrl}/senas?sena_failed=true&sena_id=${carrito.id}`,
-                pending: `${siteUrl}/senas?sena_pending=true&sena_id=${carrito.id}`,
+                success: `${siteUrl}/live?sena_success=true&sena_id=${carrito.id}`,
+                failure: `${siteUrl}/live?sena_failed=true&sena_id=${carrito.id}`,
+                pending: `${siteUrl}/live?sena_pending=true&sena_id=${carrito.id}`,
             },
             // auto_return solo funciona con dominios públicos, no localhost
             ...(!siteUrl.includes('localhost') && { auto_return: 'approved' }),

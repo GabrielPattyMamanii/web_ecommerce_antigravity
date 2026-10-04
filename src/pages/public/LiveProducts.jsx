@@ -1,11 +1,48 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { HandCoins, PackageCheck, ArrowRight } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { HandCoins, PackageCheck, ArrowRight, CheckCircle2, Clock, XCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useSenaBuyerStore } from '../../context/senaBuyerStore';
 import { getSenaPaymentNoticeLink } from '../../utils/whatsapp';
 
 const DEFAULT_WHATSAPP_NUMBER = '5491134656584';
+
+function SenaSuccessToast({ status, onClose }) {
+    const config = {
+        success: {
+            icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
+            title: '¡Seña pagada exitosamente!',
+            text: 'Tu reserva fue registrada. Te contactaremos pronto.',
+            bg: 'bg-green-50 border-green-200',
+        },
+        pending: {
+            icon: <Clock className="w-5 h-5 text-amber-500" />,
+            title: 'Pago en proceso',
+            text: 'Tu seña está siendo procesada. Te notificaremos cuando se confirme.',
+            bg: 'bg-amber-50 border-amber-200',
+        },
+        failed: {
+            icon: <XCircle className="w-5 h-5 text-red-500" />,
+            title: 'No se pudo procesar la seña',
+            text: 'Hubo un problema con el pago. Por favor intentá de nuevo.',
+            bg: 'bg-red-50 border-red-200',
+        },
+    };
+
+    const c = config[status];
+    if (!c) return null;
+
+    return (
+        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 px-5 py-4 rounded-xl border shadow-xl max-w-sm w-[calc(100%-2rem)] ${c.bg}`}>
+            {c.icon}
+            <div className="flex-1">
+                <p className="font-bold text-sm text-gray-800">{c.title}</p>
+                <p className="text-xs text-gray-600 mt-0.5">{c.text}</p>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
+        </div>
+    );
+}
 
 const getLiveProductImage = (p) =>
     p._source === 'catalog_products'
@@ -35,7 +72,22 @@ export function LiveProducts() {
     const [loading, setLoading] = useState(true);
     const [liveProducts, setLiveProducts] = useState([]);
     const [whatsappNumber, setWhatsappNumber] = useState(DEFAULT_WHATSAPP_NUMBER);
+    const [toastStatus, setToastStatus] = useState(null);
+    const [searchParams, setSearchParams] = useSearchParams();
     const savedBuyer = useSenaBuyerStore();
+
+    useEffect(() => {
+        if (searchParams.get('sena_success') === 'true') {
+            setToastStatus('success');
+            setSearchParams({}, { replace: true });
+        } else if (searchParams.get('sena_pending') === 'true') {
+            setToastStatus('pending');
+            setSearchParams({}, { replace: true });
+        } else if (searchParams.get('sena_failed') === 'true') {
+            setToastStatus('failed');
+            setSearchParams({}, { replace: true });
+        }
+    }, []);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -75,6 +127,9 @@ export function LiveProducts() {
 
     return (
         <section className="live-section py-10 px-4 relative overflow-hidden">
+            {toastStatus && (
+                <SenaSuccessToast status={toastStatus} onClose={() => setToastStatus(null)} />
+            )}
             <div className="live-bg-glow live-bg-glow--1" />
             <div className="live-bg-glow live-bg-glow--2" />
 

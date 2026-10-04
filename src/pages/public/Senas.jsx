@@ -1,46 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { HandCoins, Search, CheckCircle2, Clock, XCircle } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { HandCoins, Search } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { SenaModal } from '../../components/senas/SenaModal';
 import { getProductUrl } from '../../lib/urlUtils';
-
-function SenaSuccessToast({ status, onClose }) {
-    const config = {
-        success: {
-            icon: <CheckCircle2 className="w-5 h-5 text-green-500" />,
-            title: '¡Seña pagada exitosamente!',
-            text: 'Tu reserva fue registrada. Te contactaremos pronto.',
-            bg: 'bg-green-50 border-green-200',
-        },
-        pending: {
-            icon: <Clock className="w-5 h-5 text-amber-500" />,
-            title: 'Pago en proceso',
-            text: 'Tu seña está siendo procesada. Te notificaremos cuando se confirme.',
-            bg: 'bg-amber-50 border-amber-200',
-        },
-        failed: {
-            icon: <XCircle className="w-5 h-5 text-red-500" />,
-            title: 'No se pudo procesar la seña',
-            text: 'Hubo un problema con el pago. Por favor intentá de nuevo.',
-            bg: 'bg-red-50 border-red-200',
-        },
-    };
-
-    const c = config[status];
-    if (!c) return null;
-
-    return (
-        <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-start gap-3 px-5 py-4 rounded-xl border shadow-xl max-w-sm w-[calc(100%-2rem)] ${c.bg}`}>
-            {c.icon}
-            <div className="flex-1">
-                <p className="font-bold text-sm text-gray-800">{c.title}</p>
-                <p className="text-xs text-gray-600 mt-0.5">{c.text}</p>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-lg leading-none">&times;</button>
-        </div>
-    );
-}
 
 export function Senas() {
     const [products, setProducts]       = useState([]);
@@ -48,26 +11,10 @@ export function Senas() {
     const [search, setSearch]           = useState('');
     const [senaConfig, setSenaConfig]   = useState(null);
     const [selectedProduct, setSelectedProduct] = useState(null);
-    const [toastStatus, setToastStatus] = useState(null);
-    const [searchParams, setSearchParams] = useSearchParams();
 
     useEffect(() => {
         fetchAll();
-        checkReturnFromMP();
     }, []);
-
-    const checkReturnFromMP = () => {
-        if (searchParams.get('sena_success') === 'true') {
-            setToastStatus('success');
-            setSearchParams({}, { replace: true });
-        } else if (searchParams.get('sena_pending') === 'true') {
-            setToastStatus('pending');
-            setSearchParams({}, { replace: true });
-        } else if (searchParams.get('sena_failed') === 'true') {
-            setToastStatus('failed');
-            setSearchParams({}, { replace: true });
-        }
-    };
 
     const fetchAll = async () => {
         setLoading(true);
@@ -119,11 +66,6 @@ export function Senas() {
 
     return (
         <div className="min-h-screen bg-[#f5f7fa]">
-
-            {/* Toast de retorno de MP */}
-            {toastStatus && (
-                <SenaSuccessToast status={toastStatus} onClose={() => setToastStatus(null)} />
-            )}
 
             {/* Hero */}
             <div className="bg-gradient-to-br from-[#009EE3] to-[#0073BD] text-white py-14 px-4">
