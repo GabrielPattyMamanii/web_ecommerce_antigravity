@@ -4,6 +4,7 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { CouponBanner } from './CouponBanner';
 import { WhatsAppButton } from './WhatsAppButton';
+import { LivePopup } from './LivePopup';
 
 export function MainLayout() {
     return (
@@ -17,6 +18,7 @@ export function MainLayout() {
             </main>
             <Footer />
             <WhatsAppButton />
+            <LivePopup />
         </div>
     );
 }
