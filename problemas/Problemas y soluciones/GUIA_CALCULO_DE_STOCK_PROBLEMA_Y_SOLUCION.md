@@ -132,6 +132,17 @@ Ejemplo: cargado 10, se vende 3 → `copy = 7`, y la pantalla mostraba `7 − 3 
 
 **Decisión de la persona usuaria:** "Doc. Control" y el Total deben ser el **valor de la boleta** (fijo), y el **stock actual** debe mostrarse como un **dato aparte**.
 
+### 3.7 Cambiar el código de un producto: las ventas viejas conservan el código anterior
+
+**Qué pasa:** cada venta guarda una **copia del código** del producto en `ventas.codigo`. Si se cambia el código de un producto desde la edición de tanda (por ejemplo `GT8008` → `GT80088`):
+
+- **El stock y el vínculo no se rompen.** Desde que `AgregarTanda` empareja los productos por `entrada_id` (ver `GUIA_VALIDACION_STOCK_EDITAR_ITEM_CARRITO.md`, sección 8), el producto se actualiza **en la misma fila** (mismo `id`), y las ventas siguen vinculadas por `entrada_id`. El QR impreso tampoco se rompe (usa el `id`).
+- **Pero las ventas viejas siguen diciendo `GT8008`.** Las pantallas que agrupan por código (por ejemplo **Entrega de dinero**, que agrupa por `ventas.codigo`) muestran el mismo producto en **dos líneas**: `GT8008` (ventas viejas) y `GT80088` (ventas nuevas). Es un problema de reportes, no de stock.
+
+Dato real al implementar la solución: de 936 ventas vinculadas, **1** tenía un código distinto al de su producto (`123456` en la venta, `1234567` en el producto, PRIMERA TANDA OCTUBRE).
+
+**Aclaración:** quitar un producto del formulario sí borra su fila y desvincula sus ventas (`ON DELETE SET NULL`); cambiar solo el código **no** lo hace. En la operación de la persona usuaria no se eliminan códigos: solo se cambian.
+
 ## 4. La solución
 
 ### 4.1 Principio
@@ -262,9 +273,52 @@ Ahora las cuatro pantallas coinciden en "Doc. Control" y el Total, y el stock ac
 
 **Estado:** aplicado y compila. **No probado todavía en el navegador.**
 
-### 4.6 Qué NO se cambió todavía
+### 4.6 Solución al cambio de código: un trigger que sincroniza `ventas.codigo`
+
+**Archivo:** `supabase/migrations/20261016_sync_codigo_ventas.sql` (se ejecuta **una sola vez** en el editor SQL de Supabase; después trabaja solo).
+
+**Qué hace:**
+1. **Función `sync_codigo_ventas()`** y **trigger `trg_entradas_sync_codigo_ventas`** (`AFTER UPDATE OF codigo ON entradas`, solo cuando el código cambió): actualiza `ventas.codigo` de **todas las ventas con `entrada_id` igual al `id` del producto**.
+2. **Corrección única** de las ventas que ya tenían un código distinto al de su producto (cambiados antes de crear el trigger).
+
+```sql
+AFTER UPDATE OF codigo ON entradas
+→ UPDATE ventas SET codigo = NEW.codigo WHERE entrada_id = NEW.id
+```
+
+**Por qué un trigger en la base y no código en la pantalla:**
+- **Atómico**: el cambio del producto y el de sus ventas ocurren juntos, o ninguno.
+- **Funciona desde cualquier lado**: `AgregarTanda`, el editor SQL, otros scripts.
+- **Sin pasos extra**: al guardar la tanda con un código cambiado, las ventas se actualizan solas. Guardar sin cambiar códigos no dispara nada.
+
+**Qué no hace:**
+- **No toca el stock**: el trigger `trg_ventas_reajusta_stock` solo actúa si cambia la cantidad o el `entrada_id` de la venta, no el código.
+- **No alcanza a las ventas sin `entrada_id`** (las 169 viejas sin vincular): no hay forma segura de saber a qué producto pertenecen.
+- **Solo sincroniza el código.** Título, marca y tanda de las ventas no cambian.
+- Si el producto queda con código vacío, no se toca ninguna venta (`ventas.codigo` no admite vacío).
+
+**Variables:**
+
+| Elemento | Qué es |
+|---|---|
+| `OLD.codigo` / `NEW.codigo` | Código del producto antes y después del cambio |
+| `NEW.id` | `id` del producto (el mismo que está en `ventas.entrada_id`) |
+| `ventas.codigo` | Copia del código en cada venta: lo que se sincroniza |
+
+**Resultado esperado** (cambiar `GT8008` → `GT80088` y guardar la tanda): las 3 ventas de ese producto pasan a decir `GT80088`; Entrega de dinero y el Historial muestran una sola línea; el stock no cambia.
+
+**Cómo probarlo:**
+1. Ejecutar la migración y la consulta de verificación del final del archivo (debe dar 0 filas).
+2. Con un producto de prueba que tenga ventas, cambiar su código en "Editar tanda" y guardar.
+3. En el Historial de ventas (o con `SELECT codigo FROM ventas WHERE entrada_id = '<id>'`), comprobar que las ventas muestran el código nuevo y que el stock del producto es el mismo.
+
+**Para quitarlo:** `DROP TRIGGER trg_entradas_sync_codigo_ventas ON public.entradas;` y `DROP FUNCTION public.sync_codigo_ventas();`
+
+**Estado:** **migración ejecutada y probada por la persona usuaria: funciona.** Verificado por lectura: **0 ventas vinculadas con un código distinto al de su producto** (la venta desfasada `123456` → `1234567` ya fue corregida).
+
+### 4.7 Qué NO se cambió todavía
 - La app `ecommerce-mobile` no manda `entrada_id`.
-- `ecommerce-men` (`ControlInventarioTandas.jsx`) suma `cant_docenas_copy` con la lógica antigua.
+- `ecommerce-men` (`ControlInventarioTandas.jsx`) suma `cant_docenas_copy` con la lógica antigua. Es **otro proyecto con otra base de Supabase** y no usa `ventas`: no afecta los datos de `ecommerce-web`.
 
 ---
 
@@ -394,6 +448,7 @@ SELECT tanda_nombre, codigo, COUNT(*) FROM entradas GROUP BY 1, 2 HAVING COUNT(*
 6. **Si se vinculan ventas viejas:** apagar `trg_ventas_reajusta_stock` mientras se vinculan, porque el cambio de `entrada_id` NULL → valor descuenta stock. Corregir el stock de forma deliberada (paso 2 de la sección 5), con backup.
 7. **El stock negativo ya está controlado** (ver `GUIA_VALIDACION_STOCK_EDITAR_ITEM_CARRITO.md`): hay validación en pantalla al agregar al carrito, editar el ítem, confirmar y editar ventas en el historial, y la base rechaza el negativo con la restricción `chk_stock_no_negativo`. **Toda función nueva que cree o modifique ventas debe validar el stock.**
 8. **Todo cálculo de stock por texto es un riesgo.** Si una pantalla nueva (o una existente) calcula lo vendido con `codigo + propietario` o por `tanda_nombre`, usar `calcSold`/`fetchSoldForEntradas` de `src/lib/stockVentas.js` en su lugar.
+9. **Las ventas guardan copias de datos del producto** (`codigo`, `producto_titulo`, `marca`, `tanda_nombre`, `propietario`). Cuando uno de esos datos cambia en `entradas`, la copia en las ventas queda vieja salvo que haya un mecanismo que la sincronice: para el **código** existe el trigger `trg_entradas_sync_codigo_ventas` (sección 4.6); para el **propietario**, la pantalla "Asignar propietario" (`GUIA_ASIGNAR_PROPIETARIO_PROBLEMA_Y_SOLUCION.md`). Título, marca y tanda no se sincronizan.
 
 ---
 

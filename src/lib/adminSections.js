@@ -19,5 +19,6 @@ export const ADMIN_SECTIONS = [
     { key: 'ventas-historial',       label: 'Historial de Ventas' },
     { key: 'cuentas-bancarias',      label: 'Cuentas Bancarias' },
     { key: 'entrega-dinero',         label: 'Entrega Dinero' },
+    { key: 'asignar-propietario',    label: 'Asignar Propietario' },
     { key: 'settings',               label: 'Configuración' },
 ];

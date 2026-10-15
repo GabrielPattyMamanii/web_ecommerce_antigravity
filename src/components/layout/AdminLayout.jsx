@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut,
     CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun,
     Calculator, ShoppingCart, Users, ClipboardList, Ticket, HandCoins,
-    ScanLine, History, Building2, UserCog, Wallet,
+    ScanLine, History, Building2, UserCog, Wallet, UserCheck,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
@@ -20,6 +20,7 @@ const PATH_SECTION_MAP = [
     ['/admin/settings',                'settings'],
     ['/admin/cuentas-bancarias',       'cuentas-bancarias'],
     ['/admin/entrega-dinero',          'entrega-dinero'],
+    ['/admin/asignar-propietario',     'asignar-propietario'],
     ['/admin/ventas/historial',        'ventas-historial'],
     ['/admin/ventas',                  'ventas'],
     ['/admin/posibles-compras',        'posibles-compras'],
@@ -118,6 +119,7 @@ const isActive = (path, exact = false) => {
         { to: '/admin/ventas/historial',       icon: History,          label: 'Historial Ventas',       section: 'ventas-historial' },
         { to: '/admin/cuentas-bancarias',      icon: Building2,        label: 'Cuentas Bancarias',      section: 'cuentas-bancarias' },
         { to: '/admin/entrega-dinero',         icon: Wallet,           label: 'Entrega Dinero',         section: 'entrega-dinero' },
+        { to: '/admin/asignar-propietario',    icon: UserCheck,        label: 'Asignar Propietario',    section: 'asignar-propietario' },
         { to: '/admin/settings',               icon: Settings,         label: 'Configuración',               section: 'settings' },
     ];
 

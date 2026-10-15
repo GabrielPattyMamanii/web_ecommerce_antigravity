@@ -386,8 +386,8 @@ Consulta de verificación (stock actual esperado de un producto con ventas vincu
 ### 8.8 Límites y cuidados
 - **"Descontadas" se calcula como `cargado − stock actual`** de la base al abrir. Incluye lo restado por el escáner QR, no solo ventas. Para productos con ventas viejas sin vincular (sin `entrada_id`), el stock actual no las descontó, así que la protección es algo más permisiva en ellos.
 - **Dato "viejo" si otra persona vende mientras editás la tanda:** el formulario usa lo leído al abrir. La base (capa 2) sigue protegiendo contra el stock negativo.
-- **Cambiar un código** de un producto existente, o quitarlo del formulario, sigue tratándose como producto nuevo / borrado: la fila vieja se borra y sus ventas pierden el vínculo (`ON DELETE SET NULL`). Sigue pendiente proteger el borrado de productos con ventas.
-- **`ecommerce-men/src/lib/inventarioUtils.js`** (~líneas 127-132) tiene **la misma lógica antigua** y **no se modificó**.
+- **Cambiar el código** de un producto existente **ya no borra su fila**: desde que el formulario emparejaba por `entrada_id` (paso 1 del emparejamiento), el producto se actualiza con su mismo `id` aunque cambie el código. Lo que **sigue borrando la fila** es **quitar el producto del formulario** (o borrar la marca entera): sus ventas pierden el vínculo (`ON DELETE SET NULL`). Sigue pendiente proteger el borrado de productos con ventas.
+- **`ecommerce-men`** (`src/lib/inventarioUtils.js`, ~líneas 127-132) tiene la misma lógica antigua y no se modificó, pero es **otro proyecto con otra base de Supabase** (la URL es distinta a la de `ecommerce-web`) y **no usa `ventas` ni `entrada_id`**. No afecta los datos de esta base; solo, en su propio sistema, cambiar una cantidad pisa el stock de control.
 - **Probado por la persona usuaria en el navegador: funciona.** El lint de ambos archivos solo marca errores que ya existían (`allCodesInTanda`, `findError`, `filteredIdx` y el `cant_docenas_copy` desestructurado sin uso).
 
 ---
@@ -494,8 +494,8 @@ Usar un producto de prueba, por ejemplo **MARCATEST** (`12345`, 100 docenas), y 
 | **Otras funciones que cambien ventas ya hechas** | Por la regla de la sección 9, cualquier función nueva o existente que edite/agregue/cambie de producto una venta debe validar el stock | Revisar si existen otras (no se encontraron más en `src/pages/admin` al hacer este cambio, salvo la app móvil, en pausa) |
 | **App móvil** (`ecommerce-mobile`) | No manda `entrada_id`, no descuenta stock ni valida | Pausado a pedido |
 | **Selector de tandas** de Registrar Ventas | Sigue calculando el stock por texto | Pendiente |
-| **Editar una tanda pisa lo descontado** (`AgregarTanda.jsx`) | Al corregir cantidades perdía el descuento de las ventas | **Resuelto y probado por la persona usuaria** (sección 8). `ecommerce-men` conserva la lógica antigua |
-| **Quitar o cambiar el código de un producto en la edición de tanda borra su fila** | Sus ventas pierden el vínculo (`ON DELETE SET NULL`) | Pendiente |
+| **Editar una tanda pisa lo descontado** (`AgregarTanda.jsx`) | Al corregir cantidades perdía el descuento de las ventas | **Resuelto y probado por la persona usuaria** (sección 8). `ecommerce-men` (otro proyecto, con otra base y sin ventas) conserva la lógica antigua |
+| **Quitar un producto en la edición de tanda (o borrar una marca) borra su fila** | Sus ventas pierden el vínculo (`ON DELETE SET NULL`). Cambiar solo el código ya no lo borra | Pendiente |
 
 ---
 

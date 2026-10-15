@@ -43,6 +43,7 @@ import { CalculoTransporteUser } from './pages/user/CalculoTransporteUser';
 import { UserTandaDetalle } from './pages/user/UserTandaDetalle';
 import { ControlMercancia } from './pages/admin/ControlMercancia';
 import { ControlMercanciaTanda } from './pages/admin/ControlMercanciaTanda';
+import { AsignarPropietario } from './pages/admin/AsignarPropietario';
 import { ProductScan } from './pages/scan/ProductScan';
 import Checkout from './pages/Checkout';
 import { BoletasCargadas } from './pages/admin/BoletasCargadas';
@@ -178,6 +179,7 @@ function App() {
         <Route path="cuentas-bancarias" element={<CuentasBancarias />} />
         <Route path="entrega-dinero" element={<EntregaDinero />} />
         <Route path="entrega-dinero/:tanda" element={<EntregaDineroTanda />} />
+        <Route path="asignar-propietario" element={<AsignarPropietario />} />
       </Route>
 
       {/* User Dashboard Routes - For App Users (Light Auth) */}
