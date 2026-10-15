@@ -7,6 +7,37 @@ import {
 } from 'lucide-react';
 import { QRCodeSVG, QRCodeCanvas } from 'qrcode.react';
 
+// --- Cálculo de stock ---
+// Doc. Control = cantidad_docenas (original de la boleta, solo se muestra, nunca se modifica).
+// disponible   = cantidad_docenas - vendido (nunca menor a 0).
+// cant_docenas_copy NO entra en la cuenta: solo se usa para avisar si no coincide.
+const getOriginal = (prod) => Number(prod.cantidad_docenas) || 0;
+
+// En ventas, un producto sin dueño se guarda como 'Sin propietario'; en entradas queda vacío.
+const normalizeOwner = (name) => {
+    const n = (name || '').trim();
+    return n === 'Sin propietario' ? '' : n;
+};
+const getOwnerKey = (prod) => normalizeOwner(prod.propietario_producto) || normalizeOwner(prod.propietario);
+
+function calcStock(prod, soldMap) {
+    const original = getOriginal(prod);
+    const soldById = soldMap.byId[prod.id] || 0;
+
+    // Respaldo por texto (ventas sin entrada_id): solo si la clave identifica un único producto
+    const key = `${prod.codigo}_${getOwnerKey(prod)}`;
+    const soldByText = soldMap.byText[key] || 0;
+    const ambiguous = soldByText > 0 && (soldMap.keyCounts[key] || 0) > 1;
+
+    const sold = soldById + (ambiguous ? 0 : soldByText);
+    const available = Math.max(0, original - sold);
+    const oversold = sold > original;
+    const copy = prod.cant_docenas_copy;
+    const mismatch = copy != null && Math.abs(Number(copy) - (original - sold)) > 0.001;
+
+    return { original, sold, available, oversold, ambiguous, mismatch, copy };
+}
+
 export function ControlMercanciaTanda() {
     const { tanda } = useParams();
     const navigate = useNavigate();
@@ -16,8 +47,11 @@ export function ControlMercanciaTanda() {
     const [loading, setLoading] = useState(true);
     const [tandaInfo, setTandaInfo] = useState({ date: null, count: 0, gastos: 0 });
     const [users, setUsers] = useState([]);
-    // soldMap: { [`${codigo}_${propietario}`]: docenas_vendidas }
-    const [soldMap, setSoldMap] = useState({});
+    // soldMap: ventas agrupadas para calcular lo vendido por producto (ver calcStock)
+    //   byId:      { [entrada_id]: docenas }  -> ventas vinculadas a un producto
+    //   byText:    { [`${codigo}_${propietario}`]: docenas } -> respaldo para ventas sin entrada_id
+    //   keyCounts: { [`${codigo}_${propietario}`]: nº de productos con esa clave }
+    const [soldMap, setSoldMap] = useState({ byId: {}, byText: {}, keyCounts: {} });
 
     // Filters
     const [filterBrand, setFilterBrand] = useState('');
@@ -73,20 +107,30 @@ export function ControlMercanciaTanda() {
                 });
             }
 
-            // Traer ventas para los códigos de esta tanda
-            const codes = [...new Set((data || []).filter(p => p.codigo).map(p => p.codigo))];
-            if (codes.length > 0) {
+            // Traer las ventas de esta tanda. Se suman por entrada_id (vínculo directo al producto);
+            // las ventas sin entrada_id (anteriores a la migración) usan codigo+propietario como respaldo.
+            if ((data || []).length > 0) {
                 const { data: ventasData } = await supabase
                     .from('ventas')
-                    .select('codigo, propietario, cantidad_docenas')
-                    .in('codigo', codes)
+                    .select('entrada_id, codigo, propietario, cantidad_docenas')
                     .eq('tanda_nombre', tandaName);
-                const map = {};
+                const byId = {};
+                const byText = {};
                 for (const v of ventasData || []) {
-                    const key = `${v.codigo}_${v.propietario}`;
-                    map[key] = (map[key] || 0) + Number(v.cantidad_docenas);
+                    const cant = Number(v.cantidad_docenas) || 0;
+                    if (v.entrada_id) {
+                        byId[v.entrada_id] = (byId[v.entrada_id] || 0) + cant;
+                    } else {
+                        const key = `${v.codigo}_${normalizeOwner(v.propietario)}`;
+                        byText[key] = (byText[key] || 0) + cant;
+                    }
                 }
-                setSoldMap(map);
+                const keyCounts = {};
+                for (const p of data) {
+                    const key = `${p.codigo}_${getOwnerKey(p)}`;
+                    keyCounts[key] = (keyCounts[key] || 0) + 1;
+                }
+                setSoldMap({ byId, byText, keyCounts });
             }
         } catch (err) {
             console.error('Error fetching control detail:', err);
@@ -108,11 +152,10 @@ export function ControlMercanciaTanda() {
         return matchBrand && matchOwner && matchCode;
     });
 
-    // Totals using cant_docenas_copy
-    const totalDocenasCopy = filteredProducts.reduce((sum, p) => sum + (p.cant_docenas_copy ?? p.cantidad_docenas ?? 0), 0);
+    // Totals using cantidad_docenas (original de la boleta)
+    const totalDocenasCopy = filteredProducts.reduce((sum, p) => sum + getOriginal(p), 0);
     const totalMoney = filteredProducts.reduce((sum, p) => {
-        const docenas = p.cant_docenas_copy ?? p.cantidad_docenas ?? 0;
-        return sum + (docenas * (Number(p.precio_docena) || 0));
+        return sum + (getOriginal(p) * (Number(p.precio_docena) || 0));
     }, 0);
 
     // --- Group by brand ---
@@ -327,8 +370,7 @@ export function ControlMercanciaTanda() {
                             let hasExplicitOwner = false;
                             brandGroup.items.forEach(prod => {
                                 const ownerName = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
-                                const docenas = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
-                                const amount = docenas * (Number(prod.precio_docena) || 0);
+                                const amount = getOriginal(prod) * (Number(prod.precio_docena) || 0);
                                 const bucket = ownerName || '—';
                                 if (ownerName) hasExplicitOwner = true;
                                 if (!ownerTotals[bucket]) ownerTotals[bucket] = 0;
@@ -466,7 +508,7 @@ export function ControlMercanciaTanda() {
 }
 
 // --- Brand Section (Acordeón Enriquecido) ---
-function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, getStableKey, onGenerate, onOpen, onPhotoClick, soldMap = {}, defaultOpen = false }) {
+function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMultiOwner = false, users = [], generatedQRs, getStableKey, onGenerate, onOpen, onPhotoClick, soldMap, defaultOpen = false }) {
     const [isExpanded, setIsExpanded] = useState(defaultOpen);
 
     const getColor = (name) => users.find(u => u.username === name)?.color || '#9ca3af';
@@ -486,12 +528,9 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
         return { borderLeft: '4px solid transparent', borderImage: `linear-gradient(to bottom, ${stops.join(', ')}) 1` };
     })();
 
-    const totalDocenasCopy = brandGroup.items.reduce((sum, p) =>
-        sum + (p.cant_docenas_copy ?? p.cantidad_docenas ?? 0), 0
-    );
+    const totalDocenasCopy = brandGroup.items.reduce((sum, p) => sum + getOriginal(p), 0);
     const totalMoney = brandGroup.items.reduce((sum, p) => {
-        const docenas = p.cant_docenas_copy ?? p.cantidad_docenas ?? 0;
-        return sum + (docenas * (Number(p.precio_docena) || 0));
+        return sum + (getOriginal(p) * (Number(p.precio_docena) || 0));
     }, 0);
 
     const ownerBadges = isMultiOwner ? (
@@ -619,7 +658,8 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                             </thead>
                             <tbody className="divide-y divide-border text-sm">
                                 {brandGroup.items.map((prod) => {
-                                    const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                                    const stock = calcStock(prod, soldMap);
+                                    const docenasCopy = stock.original;
                                     const total = docenasCopy * (Number(prod.precio_docena) || 0);
                                     const isGenerated = generatedQRs.has(getStableKey(prod));
                                     const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
@@ -652,9 +692,7 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                                 </span>
                                             </td>
                                             {(() => {
-                                                const ownerKey = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
-                                                const sold = soldMap[`${prod.codigo}_${ownerKey}`] || 0;
-                                                const available = docenasCopy - sold;
+                                                const { sold, available, oversold, ambiguous, mismatch, copy } = stock;
                                                 const isOut = available <= 0 && docenasCopy > 0;
                                                 const isLow = !isOut && docenasCopy > 0 && (available / docenasCopy) <= 0.25;
                                                 const color = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#10b981';
@@ -664,7 +702,7 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                                             <div className="flex flex-col gap-1 max-w-[150px]">
                                                                 <div className="flex justify-between text-xs font-bold">
                                                                     <span style={{ color }}>{sold} vend.</span>
-                                                                    <span className="text-muted-foreground font-medium">{available >= 0 ? available : 0} disp.</span>
+                                                                    <span className="text-muted-foreground font-medium">{available} disp.</span>
                                                                 </div>
                                                                 {docenasCopy > 0 && (
                                                                     <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
@@ -674,9 +712,29 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                                                         />
                                                                     </div>
                                                                 )}
-                                                                {isOut && (
+                                                                {oversold ? (
+                                                                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive">
+                                                                        <AlertTriangle className="w-3 h-3" /> Sobrevendido
+                                                                    </span>
+                                                                ) : isOut && (
                                                                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-destructive">
                                                                         <AlertTriangle className="w-3 h-3" /> Agotado
+                                                                    </span>
+                                                                )}
+                                                                {ambiguous && (
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600"
+                                                                        title="Hay ventas sin vincular que coinciden con más de un producto (mismo código y propietario). No se asignaron."
+                                                                    >
+                                                                        <AlertTriangle className="w-3 h-3" /> Ventas ambiguas
+                                                                    </span>
+                                                                )}
+                                                                {mismatch && (
+                                                                    <span
+                                                                        className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600"
+                                                                        title={`Descuadre: boleta - vendido = ${docenasCopy - sold}, pero el stock del catálogo (cant_docenas_copy) es ${copy}.`}
+                                                                    >
+                                                                        <AlertTriangle className="w-3 h-3" /> Descuadre
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -721,14 +779,13 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                     {/* Mobile Cards */}
                     <div className="md:hidden divide-y divide-border">
                         {brandGroup.items.map((prod) => {
-                            const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                            const stock = calcStock(prod, soldMap);
+                            const docenasCopy = stock.original;
+                            const { sold, available, oversold, ambiguous, mismatch, copy } = stock;
                             const total = docenasCopy * (Number(prod.precio_docena) || 0);
                             const isGenerated = generatedQRs.has(getStableKey(prod));
                             const prodOwner = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
                             const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
-                            const ownerKey = prod.propietario_producto?.trim() || prod.propietario?.trim() || '';
-                            const sold = soldMap[`${prod.codigo}_${ownerKey}`] || 0;
-                            const available = docenasCopy - sold;
                             const isOut = available <= 0 && docenasCopy > 0;
                             const isLow = !isOut && docenasCopy > 0 && (available / docenasCopy) <= 0.25;
                             const stockColor = isOut ? '#ef4444' : isLow ? '#f59e0b' : '#10b981';
@@ -788,7 +845,8 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                         <div>
                                             <div className="flex items-center gap-1.5 text-xs font-semibold mb-1" style={{ color: stockColor }}>
                                                 {isOut && <AlertTriangle className="w-3 h-3 flex-shrink-0" />}
-                                                <span>{sold} vendidas / {available >= 0 ? available : 0} disponibles</span>
+                                                <span>{sold} vendidas / {available} disponibles</span>
+                                                {oversold && <span className="font-semibold text-destructive">· Sobrevendido</span>}
                                             </div>
                                             {docenasCopy > 0 && (
                                                 <div className="w-full h-2 rounded-full bg-muted overflow-hidden">
@@ -797,6 +855,16 @@ function ControlBrandSection({ brandGroup, ownerColor, ownerTotals = {}, isMulti
                                                         style={{ width: `${Math.min(100, (sold / docenasCopy) * 100)}%`, backgroundColor: stockColor }}
                                                     />
                                                 </div>
+                                            )}
+                                            {ambiguous && (
+                                                <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 mt-1">
+                                                    <AlertTriangle className="w-3 h-3" /> Ventas ambiguas sin asignar
+                                                </p>
+                                            )}
+                                            {mismatch && (
+                                                <p className="flex items-center gap-1 text-[11px] font-semibold text-amber-600 mt-1">
+                                                    <AlertTriangle className="w-3 h-3" /> Descuadre: catálogo tiene {copy}
+                                                </p>
                                             )}
                                         </div>
                                     )}

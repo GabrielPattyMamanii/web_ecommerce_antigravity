@@ -19,7 +19,7 @@ export function ControlMercancia() {
         try {
             const { data, error } = await supabase
                 .from('entradas')
-                .select('tanda_nombre, tanda_fecha, marca, codigo_boleta, cant_docenas_copy, propietario');
+                .select('tanda_nombre, tanda_fecha, marca, codigo_boleta, cantidad_docenas, cant_docenas_copy, propietario');
 
             if (error) throw error;
 
@@ -44,12 +44,14 @@ export function ControlMercancia() {
                     fecha: row.tanda_fecha,
                     marcas: new Set(),
                     propietarios: new Set(),
-                    totalDocenasCopy: 0,
+                    totalDocenas: 0,      // Doc. Control: docenas cargadas según la boleta (no baja con las ventas)
+                    totalStockActual: 0,  // Stock actual: lo que queda para vender (baja con las ventas)
                     totalProductos: 0
                 };
             }
             grouped[key].marcas.add(row.marca);
-            grouped[key].totalDocenasCopy += (row.cant_docenas_copy || 0);
+            grouped[key].totalDocenas += (row.cantidad_docenas || 0);
+            grouped[key].totalStockActual += (row.cant_docenas_copy ?? row.cantidad_docenas ?? 0);
             grouped[key].totalProductos += 1;
             if (row.propietario) grouped[key].propietarios.add(row.propietario);
         });
@@ -177,7 +179,11 @@ export function ControlMercancia() {
                                         </div>
                                         <div className="flex justify-between items-center pt-2 border-t border-border">
                                             <span className="font-medium text-muted-foreground">Doc. Control</span>
-                                            <span className="font-bold text-indigo-600 dark:text-indigo-400 text-base">{tanda.totalDocenasCopy}</span>
+                                            <span className="font-bold text-indigo-600 dark:text-indigo-400 text-base">{tanda.totalDocenas}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center text-muted-foreground">
+                                            <span>Stock actual</span>
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400">{tanda.totalStockActual}</span>
                                         </div>
                                     </div>
                                 </div>

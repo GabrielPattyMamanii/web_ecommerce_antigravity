@@ -8,6 +8,7 @@ import {
     AlertTriangle, Lock, Eye, EyeOff, Pencil, Check, ShoppingBag, Clock, Layers, Search, Plus, ScanLine
 } from 'lucide-react';
 import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
+import { fetchEntradaStock, avisarLimiteVenta, esErrorStockNegativo } from '../../lib/stockVentas';
 
 /* ─── helpers ─────────────────────────────────────────────────── */
 
@@ -1294,6 +1295,8 @@ function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete
         try {
             await onEdit(ventaId, data);
             setEditingId(null);
+        } catch {
+            // El aviso ya se mostró en editVenta; el formulario queda abierto para corregir la cantidad.
         } finally {
             setSavingId(null);
         }
@@ -1304,6 +1307,8 @@ function PedidoModal({ pedido, color, getUserColor, appUsers, fmtMonto, onDelete
         try {
             await onAdd(pedido.ventaId, data);
             setAddingProduct(false);
+        } catch {
+            // El aviso ya se mostró en addVenta; el formulario queda abierto.
         } finally {
             setSavingAdd(false);
         }
@@ -2645,14 +2650,67 @@ export function VentasHistorial() {
         0
     );
 
+    // Valida el stock antes de guardar un cambio en una venta ya hecha (misma idea que saveEdit en Registrar Venta).
+    // El trigger de ventas descuenta/devuelve stock por la diferencia, así que solo hay que comprobar cuando
+    // AUMENTA lo que se descuenta de un producto: el aumento debe entrar en lo disponible.
+    // cantAnterior = lo que esta venta ya descontaba de ese mismo producto (0 si es otro producto o una venta nueva).
+    // Si no hay producto vinculado (entrada_id), el trigger no mueve stock y no hay nada que validar.
+    // Lanza un error (después de avisar) para frenar el guardado.
+    const validarStockVenta = async ({ entradaId, cantNueva, cantAnterior, codigo }) => {
+        if (!entradaId || !(cantNueva > cantAnterior)) return;
+        let stock;
+        try {
+            stock = await fetchEntradaStock(entradaId);
+        } catch {
+            toast.error('No se pudo verificar el stock. Intentá de nuevo.');
+            throw new Error('stock-no-verificado');
+        }
+        if (!stock) {
+            toast.error(`El producto ${codigo || ''} ya no existe en la tanda.`);
+            throw new Error('stock-producto-inexistente');
+        }
+        if (cantNueva - cantAnterior > stock.disponible) {
+            avisarLimiteVenta({ codigo: codigo || stock.entrada.codigo, maximo: cantAnterior + stock.disponible, disponible: stock.disponible });
+            throw new Error('stock-insuficiente');
+        }
+    };
+
+    // Aviso cuando la base rechaza el guardado de una venta (nunca debe fallar en silencio)
+    const avisarErrorGuardado = (error, accion) => {
+        toast.error(
+            esErrorStockNegativo(error)
+                ? '⚠️ El stock de este producto ya no alcanza (otra venta se registró antes). Actualizá el historial y revisá la cantidad.'
+                : `Error al ${accion} la venta`,
+            { duration: 7000 }
+        );
+    };
+
     const editVenta = async (id, data) => {
+        const actual = ventas.find(v => v.id === id);
+        const entradaId = data.entrada_id ?? actual?.entrada_id ?? null;
+        const mismoProducto = !!actual?.entrada_id && actual.entrada_id === entradaId;
+        await validarStockVenta({
+            entradaId,
+            cantNueva: Number(data.cantidad_docenas) || 0,
+            cantAnterior: mismoProducto ? Number(actual.cantidad_docenas) || 0 : 0,
+            codigo: data.codigo || actual?.codigo,
+        });
         const { error } = await supabase.from('ventas').update(data).eq('id', id);
-        if (error) throw error;
+        if (error) {
+            avisarErrorGuardado(error, 'guardar');
+            throw error;
+        }
         setVentas(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
         toast.success('Venta actualizada');
     };
 
     const addVenta = async (pedidoVentaId, data) => {
+        await validarStockVenta({
+            entradaId: data.entrada_id ?? null,
+            cantNueva: Number(data.cantidad_docenas) || 0,
+            cantAnterior: 0,
+            codigo: data.codigo,
+        });
         const refRow = ventas.find(v => v.venta_id === pedidoVentaId);
         const { data: inserted, error } = await supabase
             .from('ventas')
@@ -2665,7 +2723,10 @@ export function VentasHistorial() {
             })
             .select()
             .single();
-        if (error) throw error;
+        if (error) {
+            avisarErrorGuardado(error, 'agregar a');
+            throw error;
+        }
         setVentas(prev => [...prev, inserted]);
         toast.success('Producto agregado');
     };

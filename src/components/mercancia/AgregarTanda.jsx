@@ -249,7 +249,13 @@ export function AgregarTanda() {
                         bultos: row.bultos || 0,
                         codigo: row.codigo,
                         observaciones: row.observaciones || '',
-                        propietario: row.propietario_producto || '' // Per-product owner
+                        propietario: row.propietario_producto || '', // Per-product owner
+                        // Datos de la fila en la base: al guardar se empareja por id (no por código, que puede
+                        // repetirse) y el stock actual se ajusta por diferencia en vez de pisarse.
+                        // Son solo del formulario: nunca se envían a la base tal cual.
+                        entrada_id: row.id,
+                        stock_original: row.cantidad_docenas,
+                        stock_actual: row.cant_docenas_copy
                     });
                 });
                 setFormData({
@@ -407,8 +413,10 @@ export function AgregarTanda() {
 
             // Prepare entries with per-brand photo URLs
             const entriesToInsert = [];
+            const entradaIds = []; // id de la fila de cada producto (mismo orden que entriesToInsert); null si es nuevo
             processedMarcas.forEach(marca => {
                 marca.productos.forEach(prod => {
+                    entradaIds.push(prod.entrada_id || null);
                     entriesToInsert.push({
                         tanda_nombre: formData.nombre,
                         tanda_fecha: formData.fechaIngreso,
@@ -438,38 +446,74 @@ export function AgregarTanda() {
 
             const { data: existingRows, error: existingError } = await supabase
                 .from('entradas')
-                .select('id, codigo, cantidad_docenas')
+                .select('id, codigo, cantidad_docenas, cant_docenas_copy')
                 .eq('tanda_nombre', tandaNameOrigen);
             if (existingError) throw existingError;
 
+            const existingById = new Map((existingRows || []).map(row => [row.id, row]));
             const existingByCode = new Map();
             (existingRows || []).forEach(row => {
                 const key = normalizeCode(row.codigo);
                 if (!existingByCode.has(key)) existingByCode.set(key, []);
-                existingByCode.get(key).push({ id: row.id, cantidad_docenas: row.cantidad_docenas });
+                existingByCode.get(key).push(row);
             });
 
             const matchedIds = new Set();
-            const rowsToUpdate = [];
-            const rowsToInsert = [];
+            const matchByEntry = new Array(entriesToInsert.length).fill(null);
 
-            entriesToInsert.forEach(entry => {
-                const candidates = existingByCode.get(normalizeCode(entry.codigo));
-                const match = candidates?.find(r => !matchedIds.has(r.id));
-                if (match) {
-                    matchedIds.add(match.id);
-                    // No sobreescribir cant_docenas_copy si cantidad_docenas no cambió,
-                    // para preservar el progreso de escaneo (decrementos del scanner).
-                    const { cant_docenas_copy, ...fieldsWithoutCopy } = entry;
-                    const cantidadCambio = parseFloat(entry.cantidad_docenas) !== parseFloat(match.cantidad_docenas);
-                    const updateFields = cantidadCambio
-                        ? { ...fieldsWithoutCopy, cant_docenas_copy: entry.cantidad_docenas }
-                        : fieldsWithoutCopy;
-                    rowsToUpdate.push({ id: match.id, fields: updateFields });
-                } else {
-                    rowsToInsert.push(entry);
+            // Paso 1: los productos que ya traen el id de su fila se emparejan por id (exacto, aunque el
+            // código se repita entre dueños, como Gabriel y Luis con el mismo código).
+            entriesToInsert.forEach((entry, i) => {
+                const row = entradaIds[i] ? existingById.get(entradaIds[i]) : null;
+                if (row && !matchedIds.has(row.id)) {
+                    matchedIds.add(row.id);
+                    matchByEntry[i] = row;
                 }
             });
+            // Paso 2: el resto (productos nuevos sin id, o cuya fila ya no existe) se empareja por código.
+            entriesToInsert.forEach((entry, i) => {
+                if (matchByEntry[i]) return;
+                const candidates = existingByCode.get(normalizeCode(entry.codigo));
+                const row = candidates?.find(r => !matchedIds.has(r.id));
+                if (row) {
+                    matchedIds.add(row.id);
+                    matchByEntry[i] = row;
+                }
+            });
+
+            const rowsToUpdate = [];
+            const rowsToInsert = [];
+            const stockErrors = [];
+
+            entriesToInsert.forEach((entry, i) => {
+                const match = matchByEntry[i];
+                if (!match) {
+                    rowsToInsert.push(entry);
+                    return;
+                }
+                // cant_docenas_copy (stock actual) no se pisa con la cantidad cargada: si la cantidad cambió,
+                // se le aplica solo la diferencia, así se conserva lo ya descontado por ventas y escáner.
+                const { cant_docenas_copy, ...fieldsWithoutCopy } = entry;
+                const cantNueva = parseFloat(entry.cantidad_docenas);
+                const cantVieja = parseFloat(match.cantidad_docenas);
+                let updateFields = fieldsWithoutCopy;
+                if (cantNueva !== cantVieja) {
+                    const copyActual = match.cant_docenas_copy != null ? Number(match.cant_docenas_copy) : cantVieja;
+                    const copyNueva = Math.round((copyActual + (cantNueva - cantVieja)) * 100) / 100;
+                    if (copyNueva < 0) {
+                        const descontadas = Math.round((cantVieja - copyActual) * 100) / 100;
+                        stockErrors.push(`${entry.codigo}: ya se descontaron ${descontadas} docenas por ventas, no podés cargar menos que eso`);
+                    } else {
+                        updateFields = { ...fieldsWithoutCopy, cant_docenas_copy: copyNueva };
+                    }
+                }
+                rowsToUpdate.push({ id: match.id, fields: updateFields });
+            });
+
+            // Antes de escribir nada en la base: no guardar si alguna cantidad quedaría por debajo de lo ya vendido
+            if (stockErrors.length > 0) {
+                throw new Error(stockErrors.join(' | '));
+            }
 
             // Solo se borran los productos que ya no están en la tanda (sacados por el usuario)
             const idsToDelete = (existingRows || [])

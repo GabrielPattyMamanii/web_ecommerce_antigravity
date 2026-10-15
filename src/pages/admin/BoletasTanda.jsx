@@ -231,12 +231,14 @@ export function BoletasTanda() {
 function BrandSectionCatalog({ brandGroup, ownerColor, publishedMap, tandaName, navigate }) {
     const [isExpanded, setIsExpanded] = useState(false);
 
-    const totalDocenasCopy = brandGroup.items.reduce((sum, p) =>
+    // Doc. Control y Total = valor de la boleta (cantidad_docenas): no bajan con las ventas.
+    // Stock actual = lo que queda para vender (cant_docenas_copy): dato aparte.
+    const totalDocenas = brandGroup.items.reduce((sum, p) => sum + (Number(p.cantidad_docenas) || 0), 0);
+    const totalStockActual = brandGroup.items.reduce((sum, p) =>
         sum + (p.cant_docenas_copy ?? p.cantidad_docenas ?? 0), 0
     );
     const totalMoney = brandGroup.items.reduce((sum, p) => {
-        const docenas = p.cant_docenas_copy ?? p.cantidad_docenas ?? 0;
-        return sum + (docenas * (Number(p.precio_docena) || 0));
+        return sum + ((Number(p.cantidad_docenas) || 0) * (Number(p.precio_docena) || 0));
     }, 0);
 
     return (
@@ -276,8 +278,13 @@ function BrandSectionCatalog({ brandGroup, ownerColor, publishedMap, tandaName, 
                     <div className="text-sm font-medium px-3 py-1 rounded-md border bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-300 dark:border-violet-800">
                         <span className="flex items-center gap-1.5">
                             <ClipboardList className="w-4 h-4" />
-                            {totalDocenasCopy} doc. control
+                            {totalDocenas} doc. control
                         </span>
+                    </div>
+
+                    {/* Stock actual (dato aparte: baja con las ventas) */}
+                    <div className="text-sm font-medium px-3 py-1 rounded-md border bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-800">
+                        {totalStockActual} en stock
                     </div>
                 </div>
 
@@ -313,6 +320,7 @@ function BrandSectionCatalog({ brandGroup, ownerColor, publishedMap, tandaName, 
                                 <th className="px-6 py-3">Producto</th>
                                 <th className="px-6 py-3">Código</th>
                                 <th className="px-6 py-3 text-center">Doc. Control</th>
+                                <th className="px-6 py-3 text-center">Stock actual</th>
                                 <th className="px-6 py-3 text-right">Precio Doc.</th>
                                 <th className="px-6 py-3 text-right">Total</th>
                                 <th className="px-6 py-3 text-center">Crear producto</th>
@@ -320,8 +328,9 @@ function BrandSectionCatalog({ brandGroup, ownerColor, publishedMap, tandaName, 
                         </thead>
                         <tbody className="divide-y divide-border bg-card">
                             {brandGroup.items.map((prod) => {
-                                const docenasCopy = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
-                                const total = docenasCopy * (Number(prod.precio_docena) || 0);
+                                const docenas = Number(prod.cantidad_docenas) || 0;
+                                const stockActual = prod.cant_docenas_copy ?? prod.cantidad_docenas ?? 0;
+                                const total = docenas * (Number(prod.precio_docena) || 0);
                                 const isPublished = !!publishedMap[prod.id];
                                 return (
                                     <tr key={prod.id} className="hover:bg-muted/10 transition-colors">
@@ -329,7 +338,12 @@ function BrandSectionCatalog({ brandGroup, ownerColor, publishedMap, tandaName, 
                                         <td className="px-6 py-4 text-muted-foreground font-mono text-xs">{prod.codigo}</td>
                                         <td className="px-6 py-4 text-center">
                                             <span className="font-bold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-2 py-0.5 rounded-md">
-                                                {docenasCopy}
+                                                {docenas}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 text-center">
+                                            <span className="font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-md">
+                                                {stockActual}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4 text-right text-muted-foreground">

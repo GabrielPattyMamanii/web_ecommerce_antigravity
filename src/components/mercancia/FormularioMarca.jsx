@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Trash2, Edit2, ChevronDown, ChevronUp, Plus, Save, X, User } from 'lucide-react';
+import { Trash2, Edit2, ChevronDown, ChevronUp, Plus, Save, X, User, PackageCheck, AlertTriangle } from 'lucide-react';
 import { BrandPhotoUploader } from './BrandPhotoUploader';
 import toast from 'react-hot-toast';
 
@@ -41,6 +41,14 @@ export function FormularioMarca({
     const [fieldErrors, setFieldErrors] = useState({});
     const [showEditModal, setShowEditModal] = useState(false);
 
+    // Docenas de un producto ya cargado que se descontaron por ventas o escáner (cargado − stock actual).
+    // Los productos nuevos (sin datos de la base) devuelven 0.
+    const getDescontadas = (prod) => {
+        if (!prod || prod.stock_original == null || prod.stock_actual == null) return 0;
+        return Math.max(0, Math.round((Number(prod.stock_original) - Number(prod.stock_actual)) * 100) / 100);
+    };
+    const editingProd = editingProductIndex !== null ? (marca.productos || [])[editingProductIndex] : null;
+
     const calculateSubtotal = () =>
         (parseFloat(productForm.docenas) || 0) * (parseFloat(productForm.precioPorDocena) || 0);
 
@@ -56,7 +64,17 @@ export function FormularioMarca({
             return;
         }
 
+        // Al editar un producto existente no se puede cargar menos de lo que ya se descontó por ventas
+        const prevProd = editingProductIndex !== null ? (marca.productos || [])[editingProductIndex] : null;
+        const descontadas = getDescontadas(prevProd);
+        if (descontadas > 0 && parseFloat(productForm.docenas) < descontadas) {
+            setFieldErrors({ docenas: `No puede ser menor a ${descontadas} (ya descontadas por ventas)` });
+            return;
+        }
+
         const newProd = {
+            // Conserva los datos de la fila en la base (entrada_id, stock_original, stock_actual) al editar
+            ...(prevProd || {}),
             producto_titulo: productForm.nombre,
             cantidad_docenas: parseFloat(productForm.docenas),
             precio_docena: parseFloat(productForm.precioPorDocena),
@@ -336,6 +354,55 @@ export function FormularioMarca({
                                     {fieldErrors.codigo && <p className="text-[10px] text-destructive mt-0.5">{fieldErrors.codigo}</p>}
                                 </div>
                             </div>
+
+                            {/* Estado del stock del producto que se edita: qué se descontó y cómo quedaría el stock */}
+                            {editingProd && editingProd.stock_actual != null && (() => {
+                                const descontadas = getDescontadas(editingProd);
+                                const stockActual = Number(editingProd.stock_actual);
+                                const nuevaCant = parseFloat(productForm.docenas);
+                                const hayCant = Number.isFinite(nuevaCant);
+                                const stockNuevo = hayCant
+                                    ? Math.round((stockActual + (nuevaCant - Number(editingProd.stock_original))) * 100) / 100
+                                    : null;
+                                const noAlcanza = stockNuevo !== null && stockNuevo < 0;
+                                return (
+                                    <div className={`rounded-xl border-2 px-4 py-3 ${
+                                        noAlcanza
+                                            ? 'border-red-400 bg-red-50 dark:border-red-700 dark:bg-red-950/30'
+                                            : 'border-amber-400 bg-amber-50 dark:border-amber-600 dark:bg-amber-950/30'
+                                    }`}>
+                                        <p className={`flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide ${
+                                            noAlcanza ? 'text-red-700 dark:text-red-300' : 'text-amber-800 dark:text-amber-300'
+                                        }`}>
+                                            {noAlcanza ? <AlertTriangle size={14} /> : <PackageCheck size={14} />}
+                                            Este producto ya tiene movimientos de stock
+                                        </p>
+                                        <div className="grid grid-cols-3 gap-2 mt-2 text-center">
+                                            <div className="rounded-lg bg-white/70 dark:bg-black/20 py-1.5">
+                                                <p className="text-[10px] font-bold uppercase text-muted-foreground">Descontadas</p>
+                                                <p className="text-lg font-black text-orange-600 dark:text-orange-400 leading-tight">{descontadas}</p>
+                                            </div>
+                                            <div className="rounded-lg bg-white/70 dark:bg-black/20 py-1.5">
+                                                <p className="text-[10px] font-bold uppercase text-muted-foreground">Stock actual</p>
+                                                <p className="text-lg font-black text-emerald-600 dark:text-emerald-400 leading-tight">{stockActual}</p>
+                                            </div>
+                                            <div className="rounded-lg bg-white/70 dark:bg-black/20 py-1.5">
+                                                <p className="text-[10px] font-bold uppercase text-muted-foreground">Mínimo a cargar</p>
+                                                <p className="text-lg font-black text-red-600 dark:text-red-400 leading-tight">{descontadas}</p>
+                                            </div>
+                                        </div>
+                                        {stockNuevo !== null && (
+                                            <p className={`mt-2 text-xs font-semibold ${
+                                                noAlcanza ? 'text-red-700 dark:text-red-300' : 'text-amber-900 dark:text-amber-200'
+                                            }`}>
+                                                {noAlcanza
+                                                    ? `Con ${nuevaCant} docenas no alcanza: ya se descontaron ${descontadas}.`
+                                                    : `Con ${nuevaCant} docenas, el stock actual quedará en ${stockNuevo}.`}
+                                            </p>
+                                        )}
+                                    </div>
+                                );
+                            })()}
 
                             <div className="grid grid-cols-3 gap-2">
                                 <div>

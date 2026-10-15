@@ -10,6 +10,10 @@ import {
     Banknote, ArrowLeftRight, Blend, Building2, Pencil, Eye, EyeOff, AlertTriangle, Search, Layers
 } from 'lucide-react';
 import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
+import {
+    calcSold, fetchSoldForEntrada, fetchSoldForEntradas, VENTAS_STOCK_FIELDS,
+    avisarStockInsuficiente, esErrorStockNegativo,
+} from '../../lib/stockVentas';
 
 const METODOS = [
     { id: 'efectivo',       label: 'Efectivo',       Icon: Banknote },
@@ -24,6 +28,57 @@ const fmtMiles = (str) => {
 };
 
 const rawNum = (str) => String(str ?? '').replace(/\./g, '');
+
+// El cálculo de stock (calcSold, fetchSoldForEntrada, avisos) vive en src/lib/stockVentas.js,
+// compartido con el Historial de ventas.
+
+// Stock actual de cada producto del carrito, leído de la base justo antes de guardar la venta.
+// Devuelve los productos que ya no alcanzan: [{ codigo, mensaje }]. Lanza error si no puede consultar.
+const verificarStockCarrito = async (cart) => {
+    const pedido = {}; // entrada_id -> docenas pedidas en total (suma de todas sus líneas del carrito)
+    for (const item of cart) {
+        if (!item.entrada_id) continue;
+        if (!pedido[item.entrada_id]) pedido[item.entrada_id] = { cantidad: 0, codigo: item.codigo || item.producto_titulo };
+        pedido[item.entrada_id].cantidad += Number(item.cantidad_docenas) || 0;
+    }
+    const ids = Object.keys(pedido);
+    if (ids.length === 0) return [];
+
+    const { data: entradas, error } = await supabase
+        .from('entradas')
+        .select('id, tanda_nombre, codigo, propietario, propietario_producto, cantidad_docenas')
+        .in('id', ids);
+    if (error) throw error;
+
+    const codes = [...new Set((entradas || []).filter(e => e.codigo).map(e => e.codigo))];
+    const [vinculadas, sinVinculo, hermanos] = await Promise.all([
+        supabase.from('ventas').select(VENTAS_STOCK_FIELDS).in('entrada_id', ids),
+        codes.length > 0
+            ? supabase.from('ventas').select(VENTAS_STOCK_FIELDS).is('entrada_id', null).in('codigo', codes)
+            : Promise.resolve({ data: [] }),
+        codes.length > 0
+            ? supabase.from('entradas').select('id, tanda_nombre, codigo, propietario, propietario_producto').in('codigo', codes)
+            : Promise.resolve({ data: [] }),
+    ]);
+    if (vinculadas.error || sinVinculo.error || hermanos.error) throw new Error('No se pudo leer el stock');
+
+    const ventas = [...(vinculadas.data || []), ...(sinVinculo.data || [])];
+    const fmt = (n) => (n % 1 === 0 ? n : n.toFixed(1));
+    const faltantes = [];
+    for (const id of ids) {
+        const { cantidad, codigo } = pedido[id];
+        const entrada = (entradas || []).find(e => e.id === id);
+        if (!entrada) {
+            faltantes.push({ codigo, mensaje: 'el producto ya no existe' });
+            continue;
+        }
+        const disponible = (Number(entrada.cantidad_docenas) || 0) - calcSold(entrada, ventas, hermanos.data || []);
+        if (cantidad > disponible) {
+            faltantes.push({ codigo, mensaje: `quedan ${fmt(Math.max(0, disponible))}, intentás vender ${fmt(cantidad)}` });
+        }
+    }
+    return faltantes;
+};
 
 // Encuentra el ancestro scrolleable (en este layout es el <main overflow-y-auto>).
 const getScrollParent = (el) => {
@@ -109,6 +164,9 @@ export function VentasScanner() {
 
     // --- Método de registro (scanner vs manual) ---
     const metodoRegistroRef = useRef(null);
+    // Stock { total, sold } de cada producto, guardado al seleccionarlo; lo usa saveEdit para
+    // validar la cantidad de un ítem del carrito sin volver a consultar la base.
+    const stockPorEntradaRef = useRef({});
 
     // --- Buscador manual de productos ---
     const [showSearchModal, setShowSearchModal] = useState(false);
@@ -247,13 +305,11 @@ export function VentasScanner() {
         setLoadingPrice(true);
 
         try {
-            const propietarioKey = entrada.propietario_producto?.trim() || entrada.propietario?.trim() || null;
-
             // Check dolar config: if API disabled, use stored manual value
             const dolarCfg = await loadDolarConfigFromDB();
             const useApi = dolarCfg.useApi !== false;
 
-            const [dolarRes, settingsRes, precioCustomRes, ventasRes] = await Promise.all([
+            const [dolarRes, settingsRes, precioCustomRes, sold] = await Promise.all([
                 useApi
                     ? fetch('https://dolarapi.com/v1/dolares/blue')
                     : Promise.resolve(null),
@@ -265,17 +321,12 @@ export function VentasScanner() {
                 entrada.codigo
                     ? supabase.from('precios_custom').select('precio_ars').eq('codigo', entrada.codigo).maybeSingle()
                     : Promise.resolve({ data: null }),
-                entrada.codigo && propietarioKey
-                    ? (() => {
-                        const q = supabase.from('ventas').select('cantidad_docenas').eq('codigo', entrada.codigo).eq('propietario', propietarioKey);
-                        return entrada.tanda_nombre ? q.eq('tanda_nombre', entrada.tanda_nombre) : q;
-                    })()
-                    : Promise.resolve({ data: [] }),
+                fetchSoldForEntrada(entrada),
             ]);
 
             // Stock siempre se calcula, incluso si el dólar falla
             const totalDocenas = Number(entrada.cantidad_docenas) || 0;
-            const sold = (ventasRes.data || []).reduce((sum, v) => sum + Number(v.cantidad_docenas), 0);
+            stockPorEntradaRef.current[entrada.id] = { total: totalDocenas, sold };
             setStockInfo({ total: totalDocenas, sold, loading: false });
 
             let dolarBlue;
@@ -410,31 +461,20 @@ export function VentasScanner() {
     }, [selectEntrada]);
 
     const openTandaPicker = useCallback(async (entries) => {
-        const propietarioKey = getPropietario(entries[0]) ?? null;
         setTandaEntries(entries);
         setShowTandaModal(true);
         setLoadingTandaStock(true);
         try {
-            const codigo = entries[0].codigo;
-            const tandaNames = entries.map(e => e.tanda_nombre).filter(Boolean);
-            const { data } = await supabase
-                .from('ventas')
-                .select('cantidad_docenas, tanda_nombre')
-                .eq('codigo', codigo)
-                .eq('propietario', propietarioKey)
-                .in('tanda_nombre', tandaNames.length > 0 ? tandaNames : ['__none__']);
-            const soldByTanda = {};
-            for (const v of data || []) {
-                const t = v.tanda_nombre || '__unknown__';
-                soldByTanda[t] = (soldByTanda[t] || 0) + Number(v.cantidad_docenas);
-            }
-            setTandaSoldMap(soldByTanda);
+            // Cada fila es el producto de una tanda distinta: lo vendido se calcula por su entrada_id
+            // (no por código + propietario, que fallaba en productos sin dueño). Mapa { [entrada.id]: vendido }
+            setTandaSoldMap(await fetchSoldForEntradas(entries));
         } catch {
-            setTandaSoldMap({ __total__: 0 });
+            toast.error('No se pudo calcular el stock de cada tanda');
+            setTandaSoldMap({});
         } finally {
             setLoadingTandaStock(false);
         }
-    }, [getPropietario]);
+    }, []);
 
     const handleSelectPropietario = useCallback(async (propietarioKey) => {
         const entries = foundEntradas.filter(e => (getPropietario(e) ?? null) === propietarioKey);
@@ -500,23 +540,28 @@ export function VentasScanner() {
 
             const results = data || [];
 
-            // Traer ventas de esos códigos para mostrar stock disponible
+            // Traer las ventas de esos productos para mostrar el stock disponible.
+            // Se suman por entrada_id; las ventas viejas sin vínculo usan el respaldo (ver calcSold).
+            const ids = results.map(r => r.id);
             const codes = [...new Set(results.filter(r => r.codigo).map(r => r.codigo))];
-            let salesMap = {};
-            if (codes.length > 0) {
-                const { data: vData } = await supabase
-                    .from('ventas')
-                    .select('codigo, propietario, cantidad_docenas, tanda_nombre')
-                    .in('codigo', codes);
-                for (const v of vData || []) {
-                    const key = `${v.codigo}_${v.propietario}_${v.tanda_nombre || ''}`;
-                    salesMap[key] = (salesMap[key] || 0) + Number(v.cantidad_docenas);
-                }
+            let ventasData = [];
+            let hermanos = [];
+            if (ids.length > 0) {
+                const [vinculadas, sinVinculo, siblings] = await Promise.all([
+                    supabase.from('ventas').select(VENTAS_STOCK_FIELDS).in('entrada_id', ids),
+                    codes.length > 0
+                        ? supabase.from('ventas').select(VENTAS_STOCK_FIELDS).is('entrada_id', null).in('codigo', codes)
+                        : Promise.resolve({ data: [] }),
+                    codes.length > 0
+                        ? supabase.from('entradas').select('id, tanda_nombre, codigo, propietario, propietario_producto').in('codigo', codes)
+                        : Promise.resolve({ data: [] }),
+                ]);
+                ventasData = [...(vinculadas.data || []), ...(sinVinculo.data || [])];
+                hermanos = siblings.data || [];
             }
 
             setSearchResults(results.map(r => {
-                const owner = r.propietario_producto?.trim() || r.propietario?.trim() || '';
-                const sold = salesMap[`${r.codigo}_${owner}_${r.tanda_nombre || ''}`] || 0;
+                const sold = calcSold(r, ventasData, hermanos);
                 const available = Number(r.cantidad_docenas) - sold;
                 return { ...r, _sold: sold, _available: available };
             }));
@@ -563,22 +608,16 @@ export function VentasScanner() {
         const propietarioCheck = getPropietario(selectedEntrada) || 'Sin propietario';
         if (stockInfo && !stockInfo.loading) {
             const inCartQty = cart
-                .filter(item => item.codigo === selectedEntrada.codigo && item.propietario === propietarioCheck)
+                .filter(item => item.entrada_id === selectedEntrada.id)
                 .reduce((sum, item) => sum + item.cantidad_docenas, 0);
             const available = stockInfo.total - stockInfo.sold - inCartQty;
             if (qty > available) {
-                if (available <= 0) {
-                    toast.error(
-                        `⚠️ ${propietarioCheck} ya vendió todas sus ${stockInfo.total} docenas del código ${selectedEntrada.codigo || selectedEntrada.producto_titulo}`,
-                        { duration: 5000 }
-                    );
-                } else {
-                    const dispStr = available % 1 === 0 ? available : available.toFixed(1);
-                    toast.error(
-                        `⚠️ Solo quedan ${dispStr} docena${available !== 1 ? 's' : ''} disponibles para ${propietarioCheck} (código ${selectedEntrada.codigo || selectedEntrada.producto_titulo})`,
-                        { duration: 5000 }
-                    );
-                }
+                avisarStockInsuficiente({
+                    available,
+                    total: stockInfo.total,
+                    propietario: propietarioCheck,
+                    codigo: selectedEntrada.codigo || selectedEntrada.producto_titulo,
+                });
                 return;
             }
         }
@@ -676,6 +715,23 @@ export function VentasScanner() {
 
         setSaving(true);
         try {
+            // Releer el stock actual: puede haber cambiado desde que se agregó cada ítem al carrito
+            // (otra persona vendiendo el mismo producto, ventas editadas o borradas, etc.).
+            let faltantes;
+            try {
+                faltantes = await verificarStockCarrito(cart);
+            } catch {
+                toast.error('No se pudo verificar el stock. Intentá de nuevo.');
+                return;
+            }
+            if (faltantes.length > 0) {
+                toast.error(
+                    `⚠️ No se guardó la venta: el stock cambió.\n${faltantes.map(f => `• ${f.codigo}: ${f.mensaje}`).join('\n')}\nAjustá el carrito y confirmá de nuevo.`,
+                    { duration: 9000, style: { whiteSpace: 'pre-line' } }
+                );
+                return;
+            }
+
             // Resolver quién registra: siempre validar contra la BD (regla 4 SECURITY_GUIDELINES)
             let registradoPor = null;
             const { data: { user } } = await supabase.auth.getUser();
@@ -708,8 +764,16 @@ export function VentasScanner() {
             setHideTransferencias(false);
             setNombrePedido('');
             toast.success(`✓ ${records.length} venta(s) registrada(s)`);
-        } catch {
-            toast.error('Error al guardar las ventas');
+        } catch (err) {
+            // La base rechaza la venta si dejaría algún stock negativo (restricción chk_stock_no_negativo).
+            // Pasa si otra persona vende el mismo producto en el mismo instante en que se confirma.
+            const sinStock = esErrorStockNegativo(err);
+            toast.error(
+                sinStock
+                    ? '⚠️ No se guardó la venta: el stock de algún producto ya no alcanza (otra venta se registró antes). Actualizá la página y revisá el carrito.'
+                    : 'Error al guardar las ventas',
+                sinStock ? { duration: 9000 } : undefined
+            );
         } finally {
             setSaving(false);
         }
@@ -759,6 +823,30 @@ export function VentasScanner() {
         const price = parseFloat(rawNum(editPrice));
         if (!qty || qty <= 0) { toast.error('Cantidad inválida'); return; }
         if (!price || price <= 0) { toast.error('Precio inválido'); return; }
+
+        // Validación de stock (igual que addToCart): solo si se sube la cantidad. Disponible =
+        // cargado − ya vendido − docenas de OTROS ítems del carrito con el mismo producto.
+        const editedItem = cart[editingIndex];
+        if (editedItem && qty > editedItem.cantidad_docenas) {
+            const stock = stockPorEntradaRef.current[editedItem.entrada_id];
+            if (!stock) {
+                toast.error('No se pudo verificar el stock de este producto. Quitalo y volvé a agregarlo.');
+                return;
+            }
+            const enOtrosItems = cart
+                .filter((item, i) => i !== editingIndex && item.entrada_id === editedItem.entrada_id)
+                .reduce((sum, item) => sum + item.cantidad_docenas, 0);
+            const available = stock.total - stock.sold - enOtrosItems;
+            if (qty > available) {
+                avisarStockInsuficiente({
+                    available,
+                    total: stock.total,
+                    propietario: editedItem.propietario,
+                    codigo: editedItem.codigo || editedItem.producto_titulo,
+                });
+                return;
+            }
+        }
 
         const baseTotal = parseFloat((price * qty).toFixed(2));
 
@@ -813,7 +901,7 @@ export function VentasScanner() {
     // Docenas en carrito para el producto actualmente seleccionado
     const cartDocenasForSelected = selectedEntrada && stockInfo
         ? cart
-            .filter(item => item.codigo === selectedEntrada.codigo && item.propietario === (ownerName || 'Sin propietario'))
+            .filter(item => item.entrada_id === selectedEntrada.id)
             .reduce((sum, item) => sum + item.cantidad_docenas, 0)
         : 0;
     // Disponibles neto = total − ya vendidas − ya en carrito
@@ -1129,7 +1217,7 @@ export function VentasScanner() {
                                 const propKey = getPropietario(entrada) ?? null;
                                 const color = getUserColor(propKey);
                                 const total = Number(entrada.cantidad_docenas) || 0;
-                                const sold = loadingTandaStock ? null : (tandaSoldMap[entrada.tanda_nombre] ?? 0);
+                                const sold = loadingTandaStock ? null : (tandaSoldMap[entrada.id] ?? 0);
                                 const available = sold !== null ? total - sold : null;
                                 const isOut = available !== null && available <= 0 && total > 0;
                                 const isLow = !isOut && available !== null && total > 0 && (available / total) <= 0.25;
