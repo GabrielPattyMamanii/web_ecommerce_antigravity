@@ -194,6 +194,8 @@ export function AgregarTanda() {
                 setTandaId(tandaData.id);
                 if (tandaData.parametros) {
                     setShippingParams({
+                        // Conserva el resto de claves guardadas (CANT_BULTOS_PAGAR_ID, etc.) para no perderlas al guardar
+                        ...tandaData.parametros,
                         gastosViaje: tandaData.parametros.gastosViaje || '',
                         costoPilotajeXBulto: tandaData.parametros.costoPilotajeXBulto || '',
                         cantidadBultosTOTAL: tandaData.parametros.cantidadBultosTOTAL || '',
@@ -569,7 +571,7 @@ export function AgregarTanda() {
                     .from('tandas')
                     .update(tandaRecord)
                     .eq('id', tandaId);
-                if (tandaError) console.error("Error updating tanda config:", tandaError);
+                if (tandaError) throw new Error("No se pudo guardar la configuración de la tanda (bultos personalizados): " + tandaError.message);
             } else {
                 // Try to find if it exists by name first (in case 'entradas' existed but we didn't get ID)
                 const { data: existing, error: findError } = await supabase
@@ -583,12 +585,12 @@ export function AgregarTanda() {
                         .from('tandas')
                         .update(tandaRecord)
                         .eq('id', existing.id);
-                    if (updateError) console.error("Error updating existing tanda:", updateError);
+                    if (updateError) throw new Error("No se pudo guardar la configuración de la tanda (bultos personalizados): " + updateError.message);
                 } else {
                     const { error: insertError } = await supabase
                         .from('tandas')
                         .insert([tandaRecord]);
-                    if (insertError) console.error("Error creating tanda config:", insertError);
+                    if (insertError) throw new Error("No se pudo guardar la configuración de la tanda (bultos personalizados): " + insertError.message);
                 }
             }
             // -----------------------------------------------------
