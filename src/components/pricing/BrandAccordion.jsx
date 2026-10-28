@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import { calcularCostoParaPrecio } from '../../utils/costoDocena';
+import { AvisoSinBultos } from './AvisoSinBultos';
 
-export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor, products, allProductsForK, settings, isOldEntrada = false, bultosPersonalizados = 0, isMobile = false, users = [] }) {
+export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor, products, allProductsForK, settings, isOldEntrada = false, bultosPersonalizados = 0, bultosConocidos = true, isMobile = false, users = [] }) {
     // Desktop: abierto por defecto (diseño Acordeones Modulares). Mobile: colapsado, como antes.
     const [isOpen, setIsOpen] = useState(!isMobile);
 
@@ -47,16 +49,6 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
         return { borderLeft: '4px solid transparent', borderImage: `linear-gradient(to bottom, ${stops.join(', ')}) 1` };
     })();
 
-    // --- Pre-compute group-level values for proportional formula ---
-    const useProportionalFormula = bultosPersonalizados > 0 && !isOldEntrada;
-    const K = useProportionalFormula
-        ? baseProducts.reduce((s, p) => s + (parseFloat(p.cantidad_docenas || 0) * parseFloat(p.precio_docena || 0)), 0)
-        : 0;
-    const gastoPorBulto = useProportionalFormula && baseProducts.length > 0
-        ? parseFloat(baseProducts[0].gastos || 0)
-        : 0;
-    const L = gastoPorBulto * bultosPersonalizados;
-
     // Helper to format currency
     const formatCurrency = (val, currency = 'USD') => {
         if (currency === 'ARS') {
@@ -65,24 +57,18 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
         return `$${val.toFixed(2)}`;
     };
 
-    // Shared price calculation logic
+    // Shared price calculation logic. El costo sale de la MISMA función que el costo guardado en cada venta
+    // (src/utils/costoDocena.js). Si no se pudieron leer los bultos personalizados de la tanda
+    // (bultosConocidos = false) no se pasan las filas de la boleta: así no se muestra un aviso que podría ser falso.
     const calcProductPrices = (item) => {
-        const docenas = parseFloat(item.cantidad_docenas || 0);
-        const precioDocena = parseFloat(item.precio_docena || 0);
-        const numDocenas = docenas || 1;
-
         let precioVentaAlCosto;
-        if (useProportionalFormula && K > 0) {
-            const D = docenas * precioDocena;
-            const E = (100 * D) / K;
-            const F = (0.01 * E) * L;
-            const G = (precioDocena + F) / numDocenas;
-            const H = G + precioDocena;
-            precioVentaAlCosto = H;
+        let aviso = null;
+        if (isOldEntrada) {
+            precioVentaAlCosto = parseFloat(item.precio_docena || 0);
         } else {
-            precioVentaAlCosto = isOldEntrada
-                ? precioDocena
-                : (precioDocena * docenas + (parseFloat(item.gastos || 0) * parseFloat(item.bultos || 0))) / numDocenas;
+            ({ costo: precioVentaAlCosto, aviso } = calcularCostoParaPrecio(
+                item, bultosConocidos ? baseProducts : undefined, bultosPersonalizados
+            ));
         }
 
         const indice = parseFloat(settings.indice_ganancia_valor || 1);
@@ -90,7 +76,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
         const dolar = parseFloat(settings.cotizacion_dolar || 0);
         const precioVentaArg = precioDeVenta * dolar;
 
-        return { precioVentaAlCosto, precioDeVenta, precioVentaArg };
+        return { precioVentaAlCosto, precioDeVenta, precioVentaArg, aviso };
     };
 
     // Subtotal ARS del grupo (suma de precio de venta en pesos de todos los productos)
@@ -149,7 +135,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                 {isOpen && (
                     <div className="divide-y divide-gray-50">
                         {products.map((item) => {
-                            const { precioVentaAlCosto, precioDeVenta, precioVentaArg } = calcProductPrices(item);
+                            const { precioVentaAlCosto, precioDeVenta, precioVentaArg, aviso } = calcProductPrices(item);
                             return (
                                 <div key={item.id} className="px-4 py-3.5">
                                     <div className="mb-2.5">
@@ -162,6 +148,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                                         <div className="bg-gray-100 rounded-xl px-3 py-1.5 text-center">
                                             <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-0.5">PV Costo</p>
                                             <p className="text-[12px] font-black text-gray-500">{formatCurrency(precioVentaAlCosto, 'USD')}</p>
+                                            {aviso === 'sin_bultos' && <AvisoSinBultos className="mt-1" />}
                                         </div>
                                         <div className="bg-indigo-50 rounded-xl px-3 py-1.5 text-center">
                                             <p className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider mb-0.5">PV USD</p>
@@ -256,7 +243,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                         </thead>
                         <tbody className="divide-y divide-border text-xs font-medium text-foreground">
                             {products.map((item) => {
-                                const { precioVentaAlCosto, precioDeVenta, precioVentaArg } = calcProductPrices(item);
+                                const { precioVentaAlCosto, precioDeVenta, precioVentaArg, aviso } = calcProductPrices(item);
                                 const prodOwner = item.propietario_producto?.trim() || item.propietario?.trim() || '';
                                 const prodOwnerColor = prodOwner ? getColor(prodOwner) : null;
                                 return (
@@ -282,6 +269,7 @@ export function BrandAccordion({ brandName, boletaCode, propietario, ownerColor,
                                             </td>
                                         )}
                                         <td className="py-3 px-4 text-right text-muted-foreground font-mono">
+                                            {aviso === 'sin_bultos' && <AvisoSinBultos className="mr-2" />}
                                             {formatCurrency(precioVentaAlCosto, 'USD')}
                                         </td>
                                         <td className="py-3 px-4 text-right font-bold text-foreground font-mono">

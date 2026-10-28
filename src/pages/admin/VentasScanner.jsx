@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useGlobalScanner } from '../../hooks/useGlobalScanner';
 import { supabase } from '../../lib/supabase';
-import { calcPrice } from '../../utils/pricingUtils';
+import { calcPrice, attachProrrateo, calcularCostosDocenaUsd, esErrorColumnaCosto, AVISO_SIN_BULTOS } from '../../utils/pricingUtils';
 import toast from 'react-hot-toast';
 import {
     ScanLine, Trash2, CheckCircle, Package,
@@ -167,6 +167,7 @@ export function VentasScanner() {
     // Stock { total, sold } de cada producto, guardado al seleccionarlo; lo usa saveEdit para
     // validar la cantidad de un ítem del carrito sin volver a consultar la base.
     const stockPorEntradaRef = useRef({});
+    const prorrateoRef = useRef(null);
 
     // --- Buscador manual de productos ---
     const [showSearchModal, setShowSearchModal] = useState(false);
@@ -343,10 +344,15 @@ export function VentasScanner() {
 
             const indice = parseFloat(settingsRes.data?.indice_ganancia_valor || 1.5);
 
+            const [entradaConCosto] = await attachProrrateo([{ ...entrada, _source: 'entradas' }]);
+            // Datos de la boleta para recalcular el precio al cambiar el índice (calcPrice los necesita)
+            prorrateoRef.current = { _filasBoleta: entradaConCosto._filasBoleta, _bultosPersonalizados: entradaConCosto._bultosPersonalizados };
             const prices = calcPrice(
-                { ...entrada, _source: 'entradas' },
+                entradaConCosto,
                 { cotizacion_dolar: dolarBlue, indice_ganancia_valor: indice }
             );
+
+            if (prices.aviso === 'sin_bultos') toast(AVISO_SIN_BULTOS, { icon: '⚠️', duration: 8000 });
 
             const precioCustom = precioCustomRes.data?.precio_ars ?? null;
             if (precioCustom != null) {
@@ -396,7 +402,7 @@ export function VentasScanner() {
         setFoundEntradas([]);
 
         try {
-            const FIELDS = 'id, producto_titulo, codigo, propietario, propietario_producto, precio_docena, gastos, bultos, cantidad_docenas, marca, tanda_nombre';
+            const FIELDS = 'id, producto_titulo, codigo, propietario, propietario_producto, precio_docena, gastos, bultos, cantidad_docenas, marca, marca_id, codigo_boleta, tanda_nombre';
 
             // 1. Buscar por ID (UUID/bigint del QR)
             const { data: byId } = await supabase
@@ -505,7 +511,7 @@ export function VentasScanner() {
         const idx = parseFloat(indiceVal);
         if (!idx || !dolar || !entrada) return;
         const prices = calcPrice(
-            { ...entrada, _source: 'entradas' },
+            { ...entrada, _source: 'entradas', ...prorrateoRef.current },
             { cotizacion_dolar: dolar, indice_ganancia_valor: idx }
         );
         if (prices.precioVentaArg != null) {
@@ -529,7 +535,7 @@ export function VentasScanner() {
         if (!query.trim()) { setSearchResults([]); return; }
         setSearchLoading(true);
         try {
-            const FIELDS = 'id, producto_titulo, codigo, propietario, propietario_producto, cantidad_docenas, marca, tanda_nombre, precio_docena, gastos, bultos';
+            const FIELDS = 'id, producto_titulo, codigo, propietario, propietario_producto, cantidad_docenas, marca, marca_id, codigo_boleta, tanda_nombre, precio_docena, gastos, bultos';
             const { data, error } = await supabase
                 .from('entradas')
                 .select(FIELDS)
@@ -748,22 +754,56 @@ export function VentasScanner() {
             const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, '0')}-${String(_now.getDate()).padStart(2, '0')}`;
             const ventaId = crypto.randomUUID();
             const nombrePedidoTrim = nombrePedido.trim() || null;
-            const records = cart.map(({ dolar_blue, ...item }) => ({
-                ...item,
-                fecha: today,
-                dolar_blue,
-                venta_id: ventaId,
-                nombre_pedido: nombrePedidoTrim,
-                registrado_por: registradoPor,
-            }));
 
-            const { error } = await supabase.from('ventas').insert(records);
+            // Costo de una docena (USD) de cada producto al momento de la venta. Si no se puede
+            // calcular con certeza, la venta se guarda igual pero SIN costo (se avisa abajo).
+            const costos = await calcularCostosDocenaUsd(cart.map(item => item.entrada_id));
+            const records = cart.map(({ dolar_blue, ...item }) => {
+                const costo = costos.get(item.entrada_id)?.costo;
+                return {
+                    ...item,
+                    fecha: today,
+                    dolar_blue,
+                    venta_id: ventaId,
+                    nombre_pedido: nombrePedidoTrim,
+                    registrado_por: registradoPor,
+                    // Solo se envía si hay costo: así la venta no falla si la columna aún no existe
+                    ...(costo != null ? { costo_docena_usd: costo } : {}),
+                };
+            });
+
+            let { error } = await supabase.from('ventas').insert(records);
+            let columnaFaltante = false;
+            if (error && esErrorColumnaCosto(error)) {
+                // La migración de ventas.costo_docena_usd todavía no se ejecutó: no se frena la venta
+                columnaFaltante = true;
+                ({ error } = await supabase.from('ventas').insert(
+                    records.map(registro => {
+                        const resto = { ...registro };
+                        delete resto.costo_docena_usd;
+                        return resto;
+                    })
+                ));
+            }
             if (error) throw error;
 
             setCart([]);
             setHideTransferencias(false);
             setNombrePedido('');
             toast.success(`✓ ${records.length} venta(s) registrada(s)`);
+
+            if (columnaFaltante) {
+                toast.error('⚠️ Venta guardada sin costo: falta ejecutar la migración de ventas.costo_docena_usd.', { duration: 9000 });
+            } else {
+                const sinCosto = cart.filter(item => costos.get(item.entrada_id)?.costo == null);
+                if (sinCosto.length > 0) {
+                    const motivos = [...new Set(sinCosto.map(item => costos.get(item.entrada_id)?.motivo).filter(Boolean))];
+                    toast.error(
+                        ['⚠️ ' + sinCosto.length + ' producto(s) se guardaron SIN costo (la ganancia no los incluirá).', ...motivos].join('\n'),
+                        { duration: 12000, style: { whiteSpace: 'pre-line' } }
+                    );
+                }
+            }
         } catch (err) {
             // La base rechaza la venta si dejaría algún stock negativo (restricción chk_stock_no_negativo).
             // Pasa si otra persona vende el mismo producto en el mismo instante en que se confirma.

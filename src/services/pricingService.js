@@ -133,7 +133,8 @@ export const pricingService = {
                 settings: currentSettings,
                 products,
                 isOldEntrada: tandaNombre === TANDAS_VIEJAS_NOMBRE,
-                tandaParametros: tandaRow?.parametros || {}
+                // null = la tanda no se pudo leer (p. ej. sin permiso): no se sabe si hay bultos personalizados
+                tandaParametros: tandaRow ? (tandaRow.parametros || {}) : null
             };
 
         } catch (error) {

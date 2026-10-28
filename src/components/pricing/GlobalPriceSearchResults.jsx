@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { calcPrice, formatARS } from '../../utils/pricingUtils';
+import { calcPrice, attachProrrateo, formatARS } from '../../utils/pricingUtils';
+import { AvisoSinBultos } from './AvisoSinBultos';
 import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Database, Search } from 'lucide-react';
 
@@ -22,7 +23,7 @@ export function GlobalPriceSearchResults({ searchTerm, currentTanda }) {
                 const [entradasRes, oldEntradasRes] = await Promise.all([
                     supabase
                         .from('entradas')
-                        .select('codigo, producto_titulo, marca, codigo_boleta, precio_venta_arg, precio_venta_usd, precio_docena, cantidad_docenas, gastos, tanda_nombre, _source')
+                        .select('codigo, producto_titulo, marca, marca_id, codigo_boleta, precio_venta_arg, precio_venta_usd, precio_docena, cantidad_docenas, gastos, tanda_nombre, _source')
                         .or(`codigo.ilike.%${term}%,producto_titulo.ilike.%${term}%,marca.ilike.%${term}%,codigo_boleta.ilike.%${term}%`)
                         .limit(100),
                     supabase
@@ -35,7 +36,7 @@ export function GlobalPriceSearchResults({ searchTerm, currentTanda }) {
                 const entradasData = (entradasRes.data || []).map(d => ({ ...d, _source: 'entradas' }));
                 const oldEntradasData = (oldEntradasRes.error ? [] : (oldEntradasRes.data || [])).map(d => ({ ...d, _source: 'old_entradas' }));
                 // ALL tandas — including current one
-                const allData = [...entradasData, ...oldEntradasData];
+                const allData = await attachProrrateo([...entradasData, ...oldEntradasData]);
 
                 if (allData.length === 0) {
                     setGlobalResults([]);
@@ -121,6 +122,7 @@ export function GlobalPriceSearchResults({ searchTerm, currentTanda }) {
                                     )}
                                 </div>
                                 {item.codigo && <span className="text-[12px] font-mono bg-gray-100 text-gray-600 px-2 py-0.5 rounded mt-1 inline-block">{item.codigo}</span>}
+                                {item.prices?.aviso === 'sin_bultos' && <AvisoSinBultos className="mt-1 ml-2" />}
                             </div>
                             <div className="text-right shrink-0">
                                 <span className="block text-[16px] font-black text-emerald-600">

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
-import { calcPrice } from '../../utils/pricingUtils';
+import { calcPrice, attachProrrateo, calcularCostosDocenaUsd, esErrorColumnaCosto, AVISO_SIN_BULTOS } from '../../utils/pricingUtils';
 import toast from 'react-hot-toast';
 import {
     Package, Trash2, RefreshCw, User,
@@ -112,6 +112,14 @@ const METODO_CONFIG = {
 };
 
 /* Paleta cíclica para distinguir visualmente un pedido de otro dentro del mismo día */
+// Columnas de `ventas` que se leen desde el navegador. NO incluye costo_docena_usd: esa columna no es
+// legible con la clave pública ni con sesión (solo la leen las RPC del dashboard, que son solo admin).
+// Por eso no se usa select('*'). Si se agrega una columna nueva a `ventas` y esta pantalla la necesita,
+// hay que agregarla acá y darle permiso de lectura (ver 20261027_ventas_ocultar_costo_docena_usd.sql).
+const VENTAS_COLUMNAS = 'id, fecha, producto_titulo, codigo, propietario, cantidad_docenas, precio_docena_ars, '
+    + 'total_ars, dolar_blue, created_at, metodo_pago, monto_efectivo, monto_transferencia, cuenta_id, '
+    + 'cuenta_nombre, venta_id, nombre_pedido, tanda_nombre, registrado_por, metodo_registro, marca, entrada_id';
+
 const PEDIDO_COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#ef4444', '#8b5cf6', '#14b8a6'];
 const pedidoColor = (index) => PEDIDO_COLORS[index % PEDIDO_COLORS.length];
 
@@ -857,7 +865,7 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             try {
                 const { data } = await supabase
                     .from('entradas')
-                    .select('id, producto_titulo, codigo, propietario, propietario_producto, tanda_nombre, marca, precio_docena, gastos, bultos, cantidad_docenas')
+                    .select('id, producto_titulo, codigo, propietario, propietario_producto, tanda_nombre, marca, marca_id, codigo_boleta, precio_docena, gastos, bultos, cantidad_docenas')
                     .or(`codigo.ilike.%${query}%,producto_titulo.ilike.%${query}%,marca.ilike.%${query}%,tanda_nombre.ilike.%${query}%`)
                     .order('tanda_nombre', { ascending: false })
                     .limit(20);
@@ -916,11 +924,13 @@ function EditVentaInline({ venta, appUsers, cuentas, onSave, onCancel, saving })
             }
 
             const indice = parseFloat(settingsRes.data?.indice_ganancia_valor || 1.5);
+            const [entradaConCosto] = await attachProrrateo([{ ...entrada, _source: 'entradas' }]);
             const prices = calcPrice(
-                { ...entrada, _source: 'entradas' },
+                entradaConCosto,
                 { cotizacion_dolar: dolarBlue, indice_ganancia_valor: indice }
             );
 
+            if (prices.aviso === 'sin_bultos') toast(AVISO_SIN_BULTOS, { icon: '⚠️', duration: 8000 });
             if (prices.precioVentaArg != null) {
                 setPrice(fmtMiles(prices.precioVentaArg.toFixed(0)));
             } else if (entrada.precio_docena) {
@@ -2602,7 +2612,7 @@ export function VentasHistorial() {
             const [{ data }, { data: users }] = await Promise.all([
                 supabase
                     .from('ventas')
-                    .select('*')
+                    .select(VENTAS_COLUMNAS)
                     .order('fecha', { ascending: false })
                     .order('created_at', { ascending: false }),
                 supabase.rpc('get_app_user_colors'),
@@ -2695,12 +2705,26 @@ export function VentasHistorial() {
             cantAnterior: mismoProducto ? Number(actual.cantidad_docenas) || 0 : 0,
             codigo: data.codigo || actual?.codigo,
         });
-        const { error } = await supabase.from('ventas').update(data).eq('id', id);
+        // Si cambia el producto de la venta, el costo guardado ya no corresponde: se recalcula para
+        // el producto nuevo (o queda sin costo si no se puede calcular con certeza).
+        let dataGuardar = data;
+        if (data.entrada_id && data.entrada_id !== actual?.entrada_id) {
+            const costo = (await calcularCostosDocenaUsd([data.entrada_id])).get(data.entrada_id)?.costo ?? null;
+            dataGuardar = { ...data, costo_docena_usd: costo };
+            if (costo == null) toast.error('⚠️ No se pudo calcular el costo del producto nuevo: la venta queda sin costo.', { duration: 8000 });
+        }
+        let { error } = await supabase.from('ventas').update(dataGuardar).eq('id', id);
+        if (error && esErrorColumnaCosto(error)) {
+            // La migración de ventas.costo_docena_usd todavía no se ejecutó: se guarda sin ese campo
+            const { costo_docena_usd: _costo, ...resto } = dataGuardar;
+            dataGuardar = resto;
+            ({ error } = await supabase.from('ventas').update(dataGuardar).eq('id', id));
+        }
         if (error) {
             avisarErrorGuardado(error, 'guardar');
             throw error;
         }
-        setVentas(prev => prev.map(v => v.id === id ? { ...v, ...data } : v));
+        setVentas(prev => prev.map(v => v.id === id ? { ...v, ...dataGuardar } : v));
         toast.success('Venta actualizada');
     };
 
@@ -2712,17 +2736,29 @@ export function VentasHistorial() {
             codigo: data.codigo,
         });
         const refRow = ventas.find(v => v.venta_id === pedidoVentaId);
-        const { data: inserted, error } = await supabase
+        // Costo de una docena (USD) del producto agregado; si no se puede calcular, queda sin costo
+        const costo = data.entrada_id
+            ? (await calcularCostosDocenaUsd([data.entrada_id])).get(data.entrada_id)?.costo ?? null
+            : null;
+        if (data.entrada_id && costo == null) {
+            toast.error('⚠️ No se pudo calcular el costo del producto: se agrega sin costo.', { duration: 8000 });
+        }
+        const registro = {
+            ...data,
+            venta_id:      pedidoVentaId,
+            fecha:         refRow?.fecha         || null,
+            nombre_pedido: refRow?.nombre_pedido || null,
+            dolar_blue:    refRow?.dolar_blue    || null,
+        };
+        // Solo se envía si hay costo: así no falla si la columna aún no existe
+        let { data: inserted, error } = await supabase
             .from('ventas')
-            .insert({
-                ...data,
-                venta_id:      pedidoVentaId,
-                fecha:         refRow?.fecha         || null,
-                nombre_pedido: refRow?.nombre_pedido || null,
-                dolar_blue:    refRow?.dolar_blue    || null,
-            })
-            .select()
+            .insert(costo != null ? { ...registro, costo_docena_usd: costo } : registro)
+            .select(VENTAS_COLUMNAS)
             .single();
+        if (error && esErrorColumnaCosto(error)) {
+            ({ data: inserted, error } = await supabase.from('ventas').insert(registro).select(VENTAS_COLUMNAS).single());
+        }
         if (error) {
             avisarErrorGuardado(error, 'agregar a');
             throw error;

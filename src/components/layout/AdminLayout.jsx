@@ -4,7 +4,7 @@ import {
     LayoutDashboard, Heart, Folder, Settings, Bell, Mail, LogOut,
     CircleDollarSign, Layers, Tag, Store, ExternalLink, Moon, Sun,
     Calculator, ShoppingCart, Users, ClipboardList, Ticket, HandCoins,
-    ScanLine, History, Building2, UserCog, Wallet, UserCheck,
+    ScanLine, History, Building2, UserCog, Wallet, UserCheck, ChartColumn,
 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { BuscadorProductos } from '../mercancia/BuscadorProductos';
@@ -36,6 +36,9 @@ const PATH_SECTION_MAP = [
     ['/admin/products',                'products'],
 ];
 
+// Rutas que solo puede abrir un admin de Supabase Auth (no se asignan por permisos).
+const ADMIN_ONLY_PATHS = ['/admin/resumen-ventas'];
+
 export function AdminLayout() {
     const location = useLocation();
     const navigate = useNavigate();
@@ -63,12 +66,16 @@ useEffect(() => {
     // Guard de rutas: redirige al dashboard si el usuario no tiene permiso para la ruta actual
     useEffect(() => {
         if (permLoading) return;
+        if (!isAdmin && ADMIN_ONLY_PATHS.some(path => location.pathname.startsWith(path))) {
+            navigate('/admin/dashboard', { replace: true });
+            return;
+        }
         const entry = PATH_SECTION_MAP.find(([path]) => location.pathname.startsWith(path));
         if (entry) {
             const [, section] = entry;
             if (!can(section)) navigate('/admin/dashboard', { replace: true });
         }
-    }, [location.pathname, permLoading, can]);
+    }, [location.pathname, permLoading, can, isAdmin, navigate]);
 
     // Scanner global mobile: al escanear desde cualquier sección navega a Registrar Venta
     useGlobalScanner(useCallback((code, codigoFallback) => {
@@ -117,6 +124,7 @@ const isActive = (path, exact = false) => {
         // { to: '/admin/posibles-compras',       icon: ShoppingCart,     label: 'Posibles Compras',       section: 'posibles-compras' },
         { to: '/admin/ventas',                 icon: ScanLine,         label: 'Registrar Venta',        section: 'ventas', exact: true },
         { to: '/admin/ventas/historial',       icon: History,          label: 'Historial Ventas',       section: 'ventas-historial' },
+        { to: '/admin/resumen-ventas',          icon: ChartColumn,      label: 'Resumen de Ventas',      section: 'resumen-ventas', adminOnly: true },
         { to: '/admin/cuentas-bancarias',      icon: Building2,        label: 'Cuentas Bancarias',      section: 'cuentas-bancarias' },
         { to: '/admin/entrega-dinero',         icon: Wallet,           label: 'Entrega Dinero',         section: 'entrega-dinero' },
         { to: '/admin/asignar-propietario',    icon: UserCheck,        label: 'Asignar Propietario',    section: 'asignar-propietario' },

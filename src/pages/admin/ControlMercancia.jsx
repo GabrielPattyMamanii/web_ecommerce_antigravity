@@ -19,14 +19,14 @@ export function ControlMercancia() {
         try {
             const { data, error } = await supabase
                 .from('entradas')
-                .select('tanda_nombre, tanda_fecha, marca, codigo_boleta, cantidad_docenas, cant_docenas_copy, propietario');
+                .select('tanda_nombre, tanda_fecha, marca, codigo, producto_titulo, codigo_boleta, cantidad_docenas, cant_docenas_copy, propietario');
 
             if (error) throw error;
 
             const grouped = groupTandas(data || []);
             const sorted = Object.values(grouped).sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
             setTandas(sorted);
-            setFilteredTandas(sorted);
+            setFilteredTandas(applyFilter(sorted, '', false));
         } catch (error) {
             console.error('Error fetching tandas:', error);
         } finally {
@@ -46,9 +46,16 @@ export function ControlMercancia() {
                     propietarios: new Set(),
                     totalDocenas: 0,      // Doc. Control: docenas cargadas según la boleta (no baja con las ventas)
                     totalStockActual: 0,  // Stock actual: lo que queda para vender (baja con las ventas)
-                    totalProductos: 0
+                    totalProductos: 0,
+                    productos: []
                 };
             }
+            grouped[key].productos.push({
+                codigo: row.codigo,
+                marca: row.marca,
+                titulo: row.producto_titulo,
+                stock: row.cant_docenas_copy ?? row.cantidad_docenas ?? 0
+            });
             grouped[key].marcas.add(row.marca);
             grouped[key].totalDocenas += (row.cantidad_docenas || 0);
             grouped[key].totalStockActual += (row.cant_docenas_copy ?? row.cantidad_docenas ?? 0);
@@ -58,14 +65,25 @@ export function ControlMercancia() {
         return grouped;
     };
 
+    // Filtra por nombre de tanda o por código de producto. Si coincide por código,
+    // se guardan los productos coincidentes para mostrar su stock en la tarjeta.
+    const applyFilter = (list, term, asc) => {
+        const lower = term.trim().toLowerCase();
+        let result = list.map(t => ({ ...t, productosCoincidentes: [] }));
+        if (lower) {
+            result = result
+                .map(t => ({
+                    ...t,
+                    productosCoincidentes: t.productos.filter(p => p.codigo && p.codigo.toLowerCase().includes(lower))
+                }))
+                .filter(t => t.nombre.toLowerCase().includes(lower) || t.productosCoincidentes.length > 0);
+        }
+        return sortList(result, asc);
+    };
+
     const handleSearch = (term) => {
         setSearchTerm(term);
-        if (!term.trim()) {
-            setFilteredTandas(sortList(tandas, sortAsc));
-            return;
-        }
-        const lower = term.toLowerCase();
-        setFilteredTandas(sortList(tandas.filter(t => t.nombre.toLowerCase().includes(lower)), sortAsc));
+        setFilteredTandas(applyFilter(tandas, term, sortAsc));
     };
 
     const sortList = (list, asc) =>
@@ -103,7 +121,7 @@ export function ControlMercancia() {
                     <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
                     <input
                         className="w-full pl-10 pr-4 py-2 text-sm bg-transparent border-0 focus:ring-0 text-foreground placeholder:text-muted-foreground"
-                        placeholder="Buscar tanda por nombre..."
+                        placeholder="Buscar por nombre de tanda o código de producto..."
                         value={searchTerm}
                         onChange={e => handleSearch(e.target.value)}
                     />
@@ -187,6 +205,25 @@ export function ControlMercancia() {
                                         </div>
                                     </div>
                                 </div>
+
+                                {/* Productos que coinciden con el código buscado */}
+                                {tanda.productosCoincidentes.length > 0 && (
+                                    <div className="mt-4 pt-3 border-t border-border space-y-1.5">
+                                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Código encontrado</p>
+                                        {tanda.productosCoincidentes.map((p, i) => (
+                                            <div key={`${p.codigo}-${i}`} className="flex justify-between items-start gap-3 text-sm">
+                                                <div className="min-w-0">
+                                                    <span className="font-medium text-foreground">
+                                                        {p.codigo}
+                                                        {p.marca && <span className="ml-1.5 text-xs font-normal text-muted-foreground">{p.marca}</span>}
+                                                    </span>
+                                                    {p.titulo && <p className="text-xs text-muted-foreground truncate">{p.titulo}</p>}
+                                                </div>
+                                                <span className="font-bold text-emerald-600 dark:text-emerald-400 shrink-0">{p.stock} doc.</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
 
                                 {/* Propietarios badges */}
                                 {tanda.propietarios.size > 0 && (

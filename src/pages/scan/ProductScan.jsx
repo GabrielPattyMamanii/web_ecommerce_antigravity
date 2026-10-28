@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useSearchParams, Navigate } from 'react-router-dom';
 import { supabase } from '../../lib/supabase';
-import { calcPrice, formatARS } from '../../utils/pricingUtils';
+import { calcPrice, attachProrrateo, formatARS, AVISO_SIN_BULTOS } from '../../utils/pricingUtils';
 import { useAuth } from '../../hooks/useAuth';
 import { loadDolarConfigFromDB } from '../../lib/dolarConfig';
 
@@ -14,6 +14,7 @@ export function ProductScan() {
     const [product, setProduct] = useState(null);
     const [precioARS, setPrecioARS] = useState(null);
     const [precioUSD, setPrecioUSD] = useState(null);
+    const [avisoCosto, setAvisoCosto] = useState(null);
     const [dolarVenta, setDolarVenta] = useState(null);
     const [loading, setLoading] = useState(true);
     const [notFound, setNotFound] = useState(false);
@@ -31,7 +32,7 @@ export function ProductScan() {
         setLoading(true);
         try {
             // 1. Producto + campos de costo — buscar por UUID primero
-            const FIELDS = 'id, producto_titulo, marca, cant_docenas_copy, cantidad_docenas, codigo, precio_docena, gastos, bultos, tanda_nombre';
+            const FIELDS = 'id, producto_titulo, marca, cant_docenas_copy, cantidad_docenas, codigo, precio_docena, gastos, bultos, tanda_nombre, marca_id, codigo_boleta';
             let { data, error } = await supabase
                 .from('entradas')
                 .select(FIELDS)
@@ -85,12 +86,14 @@ export function ProductScan() {
             setDolarVenta(dolar);
 
             // 4. Calcular precio
-            const { precioDeVenta, precioVentaArg } = calcPrice(data, {
+            const [dataConCosto] = await attachProrrateo([{ ...data, _source: 'entradas' }]);
+            const { precioDeVenta, precioVentaArg, aviso } = calcPrice(dataConCosto, {
                 indice_ganancia_valor: indice,
                 cotizacion_dolar: dolar ?? 0,
             });
 
             setPrecioUSD(precioDeVenta);
+            setAvisoCosto(aviso);
             setPrecioARS(precioVentaArg);
 
         } catch (err) {
@@ -206,6 +209,7 @@ export function ProductScan() {
                     <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl px-6 py-4 shadow-inner">
                         <p className="text-emerald-400 text-xs uppercase tracking-wide font-semibold mb-2">Precio de Venta Sugerido</p>
                         {hasPrecio ? (
+                            <>
                             <div className="flex items-end justify-between gap-2">
                                 <div>
                                     <p className="text-3xl font-black text-emerald-300 leading-none">
@@ -217,6 +221,10 @@ export function ProductScan() {
                                 </div>
                                 <span className="text-2xl shrink-0">🏷️</span>
                             </div>
+                            {avisoCosto === 'sin_bultos' && (
+                                <p className="mt-2 text-xs font-semibold text-amber-400">⚠️ Sin bultos: {AVISO_SIN_BULTOS}</p>
+                            )}
+                            </>
                         ) : (
                             <p className="text-slate-500 text-sm">
                                 {dolarVenta == null ? 'Sin cotización del dólar' : 'Sin precio configurado'}

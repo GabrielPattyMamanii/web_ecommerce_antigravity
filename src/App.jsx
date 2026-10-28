@@ -54,6 +54,7 @@ import { SenasList } from './pages/admin/SenasList';
 import { Senas } from './pages/public/Senas';
 import { VentasScanner } from './pages/admin/VentasScanner';
 import { VentasHistorial } from './pages/admin/VentasHistorial';
+import { VentasDashboard } from './pages/admin/VentasDashboard';
 import { CuentasBancarias } from './pages/admin/CuentasBancarias';
 import { EntregaDinero } from './pages/admin/EntregaDinero';
 import { EntregaDineroTanda } from './pages/admin/EntregaDineroTanda';
@@ -176,6 +177,8 @@ function App() {
         {/* Ventas diarias */}
         <Route path="ventas" element={<VentasScanner />} />
         <Route path="ventas/historial" element={<VentasHistorial />} />
+        {/* Resumen de ventas y ganancia: solo admin (guard en AdminLayout y en la RPC) */}
+        <Route path="resumen-ventas" element={<VentasDashboard />} />
         <Route path="cuentas-bancarias" element={<CuentasBancarias />} />
         <Route path="entrega-dinero" element={<EntregaDinero />} />
         <Route path="entrega-dinero/:tanda" element={<EntregaDineroTanda />} />

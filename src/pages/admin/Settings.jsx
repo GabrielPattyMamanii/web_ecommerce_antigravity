@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { Save, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
+import { Save, Trash2, ToggleLeft, ToggleRight, Download } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { descargarTandasJson } from '../../services/exportTandasService';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/Card';
@@ -17,6 +18,22 @@ export function Settings() {
     const [toggleLiveLoading, setToggleLiveLoading] = useState(false);
     const [liveButtonEnabled, setLiveButtonEnabled] = useState(true);
     const [toggleLiveButtonLoading, setToggleLiveButtonLoading] = useState(false);
+
+    const [exportando, setExportando] = useState(false);
+
+    const exportarTandas = async () => {
+        setExportando(true);
+        try {
+            const data = await descargarTandasJson();
+            const sinCosto = data.tandas.reduce((s, t) => s + t.productos.filter(p => p.costo_usd === null).length, 0);
+            toast.success(`JSON descargado: ${data.total_tandas} tandas, ${data.total_productos} productos` +
+                (sinCosto ? ` (${sinCosto} sin costo calculable)` : ''));
+        } catch (err) {
+            console.error(err);
+            toast.error('Error al exportar: ' + (err.message || 'desconocido'));
+        }
+        setExportando(false);
+    };
 
     const fetchConfig = async () => {
         const { data, error } = await supabase.from('site_config').select('*').single();
@@ -177,6 +194,21 @@ export function Settings() {
                     <p className="text-xs text-muted-foreground">
                         Los registros también se eliminan automáticamente a los 7 días.
                     </p>
+                </CardContent>
+            </Card>
+            <Card className="max-w-2xl">
+                <CardHeader>
+                    <CardTitle>Exportar tandas (JSON)</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <p className="text-sm text-muted-foreground">
+                        Descarga un JSON con todas las tandas, cada una con sus productos, el precio de compra
+                        de la boleta y el costo (USD por docena).
+                    </p>
+                    <Button onClick={exportarTandas} disabled={exportando}>
+                        <Download className="mr-2 h-4 w-4" />
+                        {exportando ? 'Generando...' : 'Descargar JSON'}
+                    </Button>
                 </CardContent>
             </Card>
             <Card className="max-w-2xl">

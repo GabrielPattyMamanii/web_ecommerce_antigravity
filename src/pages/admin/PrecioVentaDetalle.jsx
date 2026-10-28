@@ -34,7 +34,7 @@ export function PrecioVentaDetalle() {
             ]);
             setData(result);
             setIsOldEntrada(result.isOldEntrada || false);
-            setTandaParametros(result.tandaParametros || {});
+            setTandaParametros(result.tandaParametros ?? null);
             if (result.settings) {
                 setSettings(result.settings);
             }

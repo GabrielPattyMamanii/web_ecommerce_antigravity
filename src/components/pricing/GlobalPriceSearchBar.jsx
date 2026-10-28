@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, X, Package, ExternalLink, Activity } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { calcPrice, formatARS } from '../../utils/pricingUtils';
+import { calcPrice, attachProrrateo, formatARS } from '../../utils/pricingUtils';
+import { AvisoSinBultos } from './AvisoSinBultos';
 import { useNavigate } from 'react-router-dom';
 
 export default function GlobalPriceSearchBar({ 
@@ -33,7 +34,7 @@ export default function GlobalPriceSearchBar({
                 const [entradasRes, oldEntradasRes] = await Promise.all([
                     supabase
                         .from('entradas')
-                        .select('codigo, producto_titulo, marca, precio_venta_arg, precio_venta_usd, precio_docena, cantidad_docenas, gastos, tanda_nombre, _source')
+                        .select('codigo, producto_titulo, marca, marca_id, codigo_boleta, precio_venta_arg, precio_venta_usd, precio_docena, cantidad_docenas, gastos, tanda_nombre, _source')
                         .or(`codigo.ilike.%${term}%,producto_titulo.ilike.%${term}%`)
                         .limit(10),
                     supabase
@@ -45,7 +46,7 @@ export default function GlobalPriceSearchBar({
 
                 const entradasData = (entradasRes.data || []).map(d => ({ ...d, _source: 'entradas' }));
                 const oldEntradasData = (oldEntradasRes.error ? [] : (oldEntradasRes.data || [])).map(d => ({ ...d, _source: 'old_entradas' }));
-                const allData = [...entradasData, ...oldEntradasData];
+                const allData = await attachProrrateo([...entradasData, ...oldEntradasData]);
 
                 if (allData.length === 0) {
                     setGlobalResults([]);
@@ -175,6 +176,7 @@ export default function GlobalPriceSearchBar({
                                         <span className="text-[12px] font-medium text-gray-500 flex items-center gap-1 truncate">
                                             <span className="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>
                                             {item.tanda_nombre}
+                                            {item.prices?.aviso === 'sin_bultos' && <AvisoSinBultos className="ml-1 shrink-0" />}
                                         </span>
                                     </div>
                                     <div className="text-right shrink-0">

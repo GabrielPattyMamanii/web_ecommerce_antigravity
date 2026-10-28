@@ -195,6 +195,7 @@ export function PricingTable({ products, settings, users = [], isOldEntrada = fa
                             settings={settings}
                             isOldEntrada={isOldEntrada}
                             bultosPersonalizados={group.bultosPersonalizados || 0}
+                            bultosConocidos={!!tandaParametros}
                             isMobile={true}
                             users={users}
                         />
@@ -368,6 +369,7 @@ export function PricingTable({ products, settings, users = [], isOldEntrada = fa
                             settings={settings}
                             isOldEntrada={isOldEntrada}
                             bultosPersonalizados={group.bultosPersonalizados || 0}
+                            bultosConocidos={!!tandaParametros}
                             users={users}
                         />
                     );

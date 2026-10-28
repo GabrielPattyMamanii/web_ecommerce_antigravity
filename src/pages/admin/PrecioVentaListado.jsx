@@ -6,7 +6,8 @@ import { supabase } from '../../lib/supabase';
 import { PackageX, Package, ShoppingBag, Archive, Search, ChevronRight, Tag, DollarSign, TrendingUp, Wifi, WifiOff, RefreshCw, AlertTriangle, X } from 'lucide-react';
 import { useMobile } from '../../hooks/useMobile';
 import { useDebounce } from '../../hooks/useDebounce';
-import { formatARS, formatUSD } from '../../utils/pricingUtils';
+import { formatARS, formatUSD, attachProrrateo, calcCostoSugerido } from '../../utils/pricingUtils';
+import { AvisoSinBultos } from '../../components/pricing/AvisoSinBultos';
 import { loadDolarConfigLocal, loadDolarConfigFromDB, saveDolarConfig } from '../../lib/dolarConfig';
 
 export function PrecioVentaListado() {
@@ -182,105 +183,19 @@ export function PrecioVentaListado() {
                 setFilteredTandas(filtered);
                 setSearchResults(allData);
 
-                // Fetch tandas.parametros for non-old entradas to check bultosPersonalizados
-                const entradasOnly = entradasData;
-                const uniqueEntradaTandas = [...new Set(entradasOnly.map(d => d.tanda_nombre).filter(Boolean))];
+                // Filas de cada boleta y bultos personalizados (RPC): el costo sale de la MISMA función que el costo
+                // guardado en cada venta (src/utils/costoDocena.js). Si no se pueden leer, no se muestra el aviso.
+                const allDataConBoleta = await attachProrrateo(allData);
 
-                let tandasParametrosMap = {};
-                if (uniqueEntradaTandas.length > 0) {
-                    const { data: tandasRows } = await supabase
-                        .from('tandas')
-                        .select('nombre, parametros')
-                        .in('nombre', uniqueEntradaTandas);
-                    (tandasRows || []).forEach(t => {
-                        tandasParametrosMap[t.nombre] = t.parametros || {};
-                    });
-                }
-
-                // Determine which brand groups need the proportional formula
-                const groupsNeedingFetch = new Set();
-                entradasOnly.forEach(item => {
-                    const tandaParametros = tandasParametrosMap[item.tanda_nombre] || {};
-                    if (tandaParametros?.marcasMetadata) {
-                        const meta = item.marca_id
-                            ? tandaParametros.marcasMetadata[item.marca_id]
-                            : tandaParametros.marcasMetadata[item.marca];
-                        if (meta?.bultos_personalizados && parseFloat(meta.bultos_personalizados) > 0) {
-                            groupsNeedingFetch.add(`${item.tanda_nombre}__${item.marca}__${item.codigo_boleta}`);
-                        }
-                    }
-                });
-
-                // Fetch ALL products in those groups so we can compute K (total value of brand group)
-                let allGroupProducts = {};
-                if (groupsNeedingFetch.size > 0) {
-                    const tandaNamesForGroups = [...new Set([...groupsNeedingFetch].map(k => k.split('__')[0]))];
-                    const { data: groupData } = await supabase
-                        .from('entradas')
-                        .select('tanda_nombre, marca, codigo_boleta, cantidad_docenas, precio_docena, gastos, marca_id')
-                        .in('tanda_nombre', tandaNamesForGroups);
-                    (groupData || []).forEach(p => {
-                        const key = `${p.tanda_nombre}__${p.marca}__${p.codigo_boleta}`;
-                        if (groupsNeedingFetch.has(key)) {
-                            if (!allGroupProducts[key]) allGroupProducts[key] = [];
-                            allGroupProducts[key].push(p);
-                        }
-                    });
-                }
-
-                // Compute prices using the same formula as BrandAccordion
-                const enriched = allData.map(item => {
-                    const isOld = item._source === 'old_entradas';
-                    const docenas = parseFloat(item.cantidad_docenas || 0);
-                    const precioDocena = parseFloat(item.precio_docena || 0);
-                    const numDocenas = docenas || 1;
-
-                    let precioVentaAlCosto;
-
-                    if (isOld) {
-                        precioVentaAlCosto = precioDocena;
-                    } else {
-                        const tandaParametros = tandasParametrosMap[item.tanda_nombre] || {};
-                        let bultosPersonalizados = 0;
-                        if (tandaParametros?.marcasMetadata) {
-                            const meta = item.marca_id
-                                ? tandaParametros.marcasMetadata[item.marca_id]
-                                : tandaParametros.marcasMetadata[item.marca];
-                            if (meta?.bultos_personalizados && parseFloat(meta.bultos_personalizados) > 0) {
-                                bultosPersonalizados = parseFloat(meta.bultos_personalizados);
-                            }
-                        }
-
-                        const groupKey = `${item.tanda_nombre}__${item.marca}__${item.codigo_boleta}`;
-                        const groupItems = allGroupProducts[groupKey];
-                        const useProportional = bultosPersonalizados > 0 && groupItems && groupItems.length > 0;
-
-                        if (useProportional) {
-                            const K = groupItems.reduce((s, p) =>
-                                s + (parseFloat(p.cantidad_docenas || 0) * parseFloat(p.precio_docena || 0)), 0);
-                            const gastoPorBulto = parseFloat(groupItems[0]?.gastos || 0);
-                            const L = gastoPorBulto * bultosPersonalizados;
-
-                            if (K > 0) {
-                                const D = docenas * precioDocena;
-                                const E = (100 * D) / K;
-                                const F = (0.01 * E) * L;
-                                const G = (precioDocena + F) / numDocenas;
-                                precioVentaAlCosto = G + precioDocena;
-                            } else {
-                                precioVentaAlCosto = (precioDocena * docenas + parseFloat(item.gastos || 0) * parseFloat(item.bultos || 0)) / numDocenas;
-                            }
-                        } else {
-                            precioVentaAlCosto = (precioDocena * docenas + parseFloat(item.gastos || 0) * parseFloat(item.bultos || 0)) / numDocenas;
-                        }
-                    }
-
+                const enriched = allDataConBoleta.map(item => {
+                    const { costo: precioVentaAlCosto, aviso: avisoCosto } = calcCostoSugerido(item);
                     const precioDeVenta = precioVentaAlCosto * indiceValor;
                     const precioVentaArg = efectiveDolar > 0 ? precioDeVenta * efectiveDolar : null;
 
                     return {
                         ...item,
                         _precioVentaAlCosto: precioVentaAlCosto,
+                        avisoCosto,
                         prices: { precioVentaAlCosto, precioDeVenta, precioVentaArg },
                         hasSettings: efectiveDolar > 0
                     };
@@ -545,6 +460,7 @@ export function PrecioVentaListado() {
                                                 <div className="flex flex-col justify-center bg-gray-50/80 rounded-2xl p-2.5 border border-gray-100/50">
                                                     <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-1 text-center">Costo</p>
                                                     <p className="text-[12px] font-bold text-gray-500 text-center">{formatUSD(prod.prices.precioVentaAlCosto)}</p>
+                                                    {prod.avisoCosto === 'sin_bultos' && <AvisoSinBultos className="mt-1 self-center" />}
                                                 </div>
                                                 <div className="flex flex-col justify-center bg-indigo-50/50 rounded-2xl p-2.5 border border-indigo-100/50">
                                                     <p className="text-[9px] font-black text-indigo-400 uppercase tracking-widest mb-1 text-center">Venta USD</p>
@@ -914,6 +830,7 @@ export function PrecioVentaListado() {
                                         <div className="bg-muted/30 rounded-xl p-3 flex flex-col items-center justify-center border border-transparent group-hover:border-border/50 transition-colors">
                                             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Costo</p>
                                             <p className="text-[14px] font-bold text-muted-foreground">{formatUSD(prod.prices.precioVentaAlCosto)}</p>
+                                            {prod.avisoCosto === 'sin_bultos' && <AvisoSinBultos className="mt-1.5" />}
                                         </div>
                                         <div className="bg-primary/5 rounded-xl p-3 flex flex-col items-center justify-center border border-primary/10">
                                             <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1.5">Venta USD</p>
