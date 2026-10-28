@@ -13,7 +13,7 @@
 --     salvo correcciones.
 --
 -- Devuelve: { aplicado, recalculables, sin_resultado, actualizadas, muestra: [ {id, fecha, producto,
---             codigo, cantidad, costo_docena_usd} ] (hasta 20 más recientes) }
+--             codigo, cantidad, costo_docena_usd, tanda, marca, boleta} ] (hasta 20 más recientes) }
 
 CREATE OR REPLACE FUNCTION public.recalcular_costos_ventas(p_aplicar boolean DEFAULT false)
 RETURNS jsonb
@@ -33,8 +33,10 @@ BEGIN
 
   CREATE TEMP TABLE _calc_costos ON COMMIT DROP AS
     SELECT v.id, v.fecha, v.producto_titulo, v.codigo, v.cantidad_docenas,
+           e.tanda_nombre, e.marca, e.codigo_boleta,
            public.calc_costo_docena_usd(v.entrada_id) AS costo
       FROM public.ventas v
+      LEFT JOIN public.entradas e ON e.id = v.entrada_id
      WHERE v.costo_docena_usd IS NULL
        AND v.entrada_id IS NOT NULL;
 
@@ -55,7 +57,8 @@ BEGIN
 
   SELECT COALESCE(jsonb_agg(jsonb_build_object(
            'id', m.id, 'fecha', to_char(m.fecha, 'YYYY-MM-DD'), 'producto', m.producto_titulo,
-           'codigo', m.codigo, 'cantidad', m.cantidad_docenas, 'costo_docena_usd', m.costo
+           'codigo', m.codigo, 'cantidad', m.cantidad_docenas, 'costo_docena_usd', m.costo,
+           'tanda', m.tanda_nombre, 'marca', m.marca, 'boleta', m.codigo_boleta
          ) ORDER BY m.fecha DESC, m.id DESC), '[]'::jsonb)
     INTO v_muestra
     FROM (SELECT * FROM _calc_costos WHERE costo IS NOT NULL ORDER BY fecha DESC, id DESC LIMIT 20) m;

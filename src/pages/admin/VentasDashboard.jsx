@@ -591,19 +591,37 @@ export function VentasDashboard() {
                                 El cálculo usa los datos actuales de la tanda.
                             </p>
                             {recalc.previa.muestra.length > 0 && (
-                                <ul className="divide-y divide-gray-100 dark:divide-gray-700">
-                                    {recalc.previa.muestra.map(v => (
-                                        <li key={v.id} className="py-1 flex flex-wrap gap-x-4 tabular-nums">
-                                            <span>{etiqueta(v.fecha, 'dia')}</span>
-                                            <span className="font-medium">{v.producto || v.codigo}</span>
-                                            <span>{num(v.cantidad, 0)} doc.</span>
-                                            <span>costo USD {num(v.costo_docena_usd, 2)} por docena</span>
-                                        </li>
-                                    ))}
+                                <div className="overflow-x-auto">
+                                    <table className="w-full min-w-[56rem] text-left tabular-nums">
+                                        <thead className="text-xs text-gray-500 dark:text-gray-400">
+                                            <tr>
+                                                <th scope="col" className="py-1 pr-4 font-medium">Fecha</th>
+                                                <th scope="col" className="py-1 pr-4 font-medium">Producto</th>
+                                                <th scope="col" className="py-1 pr-4 font-medium">Tanda</th>
+                                                <th scope="col" className="py-1 pr-4 font-medium">Marca</th>
+                                                <th scope="col" className="py-1 pr-4 font-medium">Boleta</th>
+                                                <th scope="col" className="py-1 pr-4 font-medium text-right">Docenas</th>
+                                                <th scope="col" className="py-1 font-medium text-right">Costo USD por docena</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100 dark:divide-gray-700">
+                                            {recalc.previa.muestra.map(v => (
+                                                <tr key={v.id}>
+                                                    <td className="py-1 pr-4 whitespace-nowrap">{etiqueta(v.fecha, 'dia')}</td>
+                                                    <td className="py-1 pr-4 font-medium">{v.producto || v.codigo}</td>
+                                                    <td className="py-1 pr-4 text-gray-600 dark:text-gray-300">{v.tanda || 'Tanda desconocida'}</td>
+                                                    <td className="py-1 pr-4 text-gray-600 dark:text-gray-300">{v.marca || 'Sin marca'}</td>
+                                                    <td className="py-1 pr-4 text-gray-600 dark:text-gray-300 whitespace-nowrap">{v.boleta || '—'}</td>
+                                                    <td className="py-1 pr-4 text-right whitespace-nowrap">{num(v.cantidad, 0)}</td>
+                                                    <td className="py-1 text-right whitespace-nowrap">{num(v.costo_docena_usd, 2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
                                     {recalc.previa.recalculables > recalc.previa.muestra.length && (
-                                        <li className="py-1 italic">…y {recalc.previa.recalculables - recalc.previa.muestra.length} más (se muestran las 20 más recientes)</li>
+                                        <p className="py-1 italic">…y {recalc.previa.recalculables - recalc.previa.muestra.length} más (se muestran las 20 más recientes)</p>
                                     )}
-                                </ul>
+                                </div>
                             )}
                             <div className="flex gap-2">
                                 {recalc.previa.recalculables > 0 && (
